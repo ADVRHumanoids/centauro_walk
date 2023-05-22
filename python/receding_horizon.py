@@ -21,7 +21,8 @@ import os
 import time
 
 global joy_msg
-import utils
+import horizon.utils as utils
+
 
 def joy_callback(msg):
     global joy_msg
@@ -62,8 +63,8 @@ file_dir = os.getcwd()
 '''
 Initialize Horizon problem
 '''
-ns = 10
-T = 1.0
+ns = 15
+T = 1.5
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -101,16 +102,16 @@ q_init = {'hip_roll_1': 0.0,
           'hip_roll_4': 0.0,
           'hip_pitch_4': 0.7,
           'knee_pitch_4': -1.4}
-          # 'shoulder_yaw_1': 0.0,
-          # 'shoulder_pitch_1': 0.9,
-          # 'elbow_pitch_1': 1.68,
-          # 'wrist_pitch_1': 0.,
-          # 'wrist_yaw_1': 0.,
-          # 'shoulder_yaw_2': 0.0,
-          # 'shoulder_pitch_2': 0.9,
-          # 'elbow_pitch_2': 1.68,
-          # 'wrist_pitch_2': 0.,
-          # 'wrist_yaw_2': 0.}
+# 'shoulder_yaw_1': 0.0,
+# 'shoulder_pitch_1': 0.9,
+# 'elbow_pitch_1': 1.68,
+# 'wrist_pitch_1': 0.,
+# 'wrist_yaw_1': 0.,
+# 'shoulder_yaw_2': 0.0,
+# 'shoulder_pitch_2': 0.9,
+# 'elbow_pitch_2': 1.68,
+# 'wrist_pitch_2': 0.,
+# 'wrist_yaw_2': 0.}
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 FK = kin_dyn.fk('ball_1')
@@ -143,29 +144,23 @@ pm = pymanager.PhaseManager(ns)
 # phase manager handling
 c_phases = dict()
 for c in contact_dict:
-     c_phases[c] = pm.addTimeline(f'{c}_timeline')
+    c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
 for c in contact_dict:
     # stance phase
-    stance_duration = 10
+    stance_duration = 5
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
     stance_phase.addItem(ti.getTask(f'{c}_contact'))
     c_phases[c].registerPhase(stance_phase)
 
-    # short stance phase
-    # short_stance_duration = 2
-    # short_stance_phase = pyphase.Phase(short_stance_duration, f'short_stance_{c}')
-    # short_stance_phase.addItem(ti.getTask(f'foot_contact_{c}'))
-    # c_phases[c].registerPhase(short_stance_phase)
-
     # flight phase
-    # flight_duration = 10
-    # flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
-    # init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
-    # ref_trj = np.zeros(shape=[7, flight_duration])
-    # ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
-    # flight_phase.addItemReference(ti.getTask(f'foot_z_{c}'), ref_trj)
-    # c_phases[c].registerPhase(flight_phase)
+    flight_duration = 5
+    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
+    init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
+    ref_trj = np.zeros(shape=[7, flight_duration])
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
+    flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
+    c_phases[c].registerPhase(flight_phase)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
@@ -194,7 +189,7 @@ ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
 ti.model.q.setInitialGuess(ti.model.q0)
 ti.model.v.setInitialGuess(ti.model.v0)
 
-f0 = [0, 0, kin_dyn.mass()/8 * 9.8]
+f0 = [0, 0, kin_dyn.mass() / 8 * 9.8]
 for cname, cforces in ti.model.cmap.items():
     for c in cforces:
         c.setInitialGuess(f0)
@@ -202,6 +197,7 @@ for cname, cforces in ti.model.cmap.items():
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 import horizon.utils.analyzer as analyzer
+
 anal = analyzer.ProblemAnalyzer(prb)
 anal.print()
 ti.bootstrap()
@@ -219,8 +215,10 @@ iteration = 0
 rate = rospy.Rate(1 / dt)
 
 contact_list_repl = list(contact_dict.keys())
-repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]), {k: None for k in model.fmap.keys()},
-                                           model.kd_frame, model.kd, trajectory_markers=contact_list_repl) #, future_trajectory_markers={'srbd/base_link': 'world', 'srbd/l_sole': 'world', 'srbd/r_sole': 'world'})
+repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]),
+                                           {k: None for k in model.fmap.keys()},
+                                           model.kd_frame, model.kd,
+                                           trajectory_markers=contact_list_repl)  # , future_trajectory_markers={'srbd/base_link': 'world', 'srbd/l_sole': 'world', 'srbd/r_sole': 'world'})
 
 base_weight = 0.1
 global joy_msg
@@ -230,6 +228,28 @@ xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
 
 solve_flag = True
+
+
+def cycle(cycle_list):
+    for flag_contact, contact_name in zip(cycle_list, contact_dict.keys()):
+        if flag_contact == 1:
+            c_phases[contact_name].addPhase(c_phases[contact_name].getRegisteredPhase(f'stance_{contact_name}'))
+        else:
+            c_phases[contact_name].addPhase(c_phases[contact_name].getRegisteredPhase(f'flight_{contact_name}'))
+
+
+def step(swing_contact):
+    cycle_list = [True if contact_name != swing_contact else False for contact_name in contact_dict.keys()]
+    cycle(cycle_list)
+
+
+def trot():
+    cycle_list_1 = [0, 1, 1, 0]
+    cycle_list_2 = [1, 0, 0, 1]
+    cycle(cycle_list_1)
+    cycle(cycle_list_2)
+
+
 while not rospy.is_shutdown():
     # set initial state and initial guess
     shift_num = -1
@@ -257,10 +277,11 @@ while not rospy.is_shutdown():
 
     if joy_msg.buttons[4] == 1:
         # step
+        trot()
         pass
     else:
         # stand
-        base_weight = 0.2
+        base_weight = 0.5
         for c in contact_dict:
             if c_phases[c].getEmptyNodes() > 0:
                 c_phases[c].addPhase(c_phases[c].getRegisteredPhase(f'stance_{c}'))
@@ -268,7 +289,8 @@ while not rospy.is_shutdown():
     if np.abs(joy_msg.axes[1]) > 0.1:
         # move com on x axis
         final_base_x = ti.getTask('final_base_x')
-        reference = np.atleast_2d(np.array([solution['q'][0, 0] + base_weight * joy_msg.axes[1], 0., 0., 0., 0., 0., 0.]))
+        reference = np.atleast_2d(
+            np.array([solution['q'][0, 0] + base_weight * joy_msg.axes[1], 0., 0., 0., 0., 0., 0.]))
         final_base_x.setRef(reference.T)
         pass
     else:
@@ -283,13 +305,11 @@ while not rospy.is_shutdown():
         final_base_y = ti.getTask('final_base_y')
         reference = np.atleast_2d(np.array([0., solution['q'][0, 0] + base_weight * joy_msg.axes[1], 0., 0., 0., 0., 0.]))
         final_base_y.setRef(reference.T)
-        pass
     else:
         # move com back
         final_base_y = ti.getTask('final_base_y')
         reference = np.atleast_2d(np.array([0., solution['q'][1, 0], 0., 0., 0., 0., 0.]))
         final_base_y.setRef(reference.T)
-        pass
 
     if np.abs(joy_msg.axes[5]) > 0.1:
         # change com height
@@ -303,11 +323,9 @@ while not rospy.is_shutdown():
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])#, prefix='srbd')
+    repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
     repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('srbd/base_link', solution['q'][0:3, :])
     rate.sleep()
 
-
 print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
-

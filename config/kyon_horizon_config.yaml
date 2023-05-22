@@ -22,18 +22,18 @@ constraints:
   - ball_2_contact
   - ball_3_contact
   - ball_4_contact
-
-costs:
   - z_ball_1
   - z_ball_2
   - z_ball_3
   - z_ball_4
+
+costs:
   - final_base_x
   - final_base_y
   - com_height
 #  - base_orientation
   - joint_regularization
-  - postural
+  - joint_posture
 
 final_base_x:
   type: Cartesian
@@ -41,7 +41,7 @@ final_base_x:
   indices: [0]
   nodes: ${[N]}
 #  nodes: all
-  weight: 1.
+  weight: 100.
 
 final_base_y:
   type: Cartesian
@@ -49,7 +49,7 @@ final_base_y:
   indices: [1]
   nodes: ${[N]}
 #  nodes: all
-  weight: 1.
+  weight: 100.
 
 com_height:
   type: Cartesian
@@ -148,7 +148,7 @@ ball_4_contact:
 
 joint_posture:
   type: Postural
-  weight: 0.01 # 10
+  weight: .5 # 10
   nodes: all
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
@@ -187,9 +187,4 @@ z_ball_4:
   indices: [2]
   cartesian_type: position
   weight: 1.
-
-postural:
-  type: Postural
-  weight: 0.1
-  nodes: all
 
