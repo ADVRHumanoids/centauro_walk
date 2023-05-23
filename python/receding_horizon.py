@@ -13,6 +13,9 @@ from sensor_msgs.msg import Joy
 import cartesian_interface.roscpp_utils as roscpp
 import horizon.utils.analyzer as analyzer
 
+from trajectory_msgs.msg import JointTrajectory
+from trajectory_msgs.msg import JointTrajectoryPoint
+
 import casadi as cs
 import rospy
 import rospkg
@@ -28,6 +31,10 @@ rospy.init_node('cogimon_walk_srbd')
 roscpp.init('cogimon_walk_srbd', [])
 
 # logger = matlogger.MatLogger2('/tmp/srbd_bootstrap')
+
+solution_publisher = rospy.Publisher('/mpc_solution', JointTrajectory, queue_size=10)
+rospy.sleep(1.)
+
 '''
 Load urdf and srdf
 '''
@@ -204,7 +211,6 @@ anal = analyzer.ProblemAnalyzer(prb)
 # anal.printConstraints('zero_velocity_ball_4_ball_4_vel_cartesian_task')
 
 
-# exit()
 ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
@@ -236,6 +242,7 @@ contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
+
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -281,6 +288,24 @@ while not rospy.is_shutdown():
 
     ti.rti()
     solution = ti.solution
+    dt_res = 0.01
+    ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
+
+    jt = JointTrajectory()
+    for i in range(solution['q_res'].shape[1]):
+        jtp = JointTrajectoryPoint()
+        print(solution['q_res'][:, i].tolist())
+        jtp.positions = solution['q_res'][:, i].tolist()
+        jtp.velocities = solution['v_res'][:, i].tolist()
+        jtp.accelerations = solution['a_res'][:, i].tolist()
+        jtp.effort = solution['u_opt'][:, 0].tolist()
+        jt.points.append(jtp)
+
+    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['reference']]
+    jt.header.stamp = rospy.Time.now()
+
+    solution_publisher.publish(jt)
+
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
