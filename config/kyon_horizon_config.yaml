@@ -31,7 +31,7 @@ costs:
   - final_base_x
   - final_base_y
   - com_height
-#  - base_orientation
+  - base_orientation
   - joint_regularization
   - joint_posture
 
@@ -56,14 +56,14 @@ com_height:
   distal_link: base_link
   indices: [2]
   nodes: all
-  weight: 10.
+  weight: 50.
 
 base_orientation:
   type: Cartesian
   distal_link: base_link
   indices: [3, 4, 5]
   nodes: all
-  weight: 5
+  weight: 100.
 
 # ===============================
 
@@ -148,7 +148,7 @@ ball_4_contact:
 
 joint_posture:
   type: Postural
-  weight: .5 # 10
+  weight: 0.2
   nodes: all
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.

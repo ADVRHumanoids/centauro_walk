@@ -11,6 +11,7 @@ import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
 from sensor_msgs.msg import Joy
 import cartesian_interface.roscpp_utils as roscpp
+import horizon.utils.analyzer as analyzer
 
 import casadi as cs
 import rospy
@@ -20,21 +21,13 @@ import subprocess
 import os
 import time
 
-global joy_msg
 import horizon.utils as utils
-
-
-def joy_callback(msg):
-    global joy_msg
-    joy_msg = msg
 
 
 rospy.init_node('cogimon_walk_srbd')
 roscpp.init('cogimon_walk_srbd', [])
 
 # logger = matlogger.MatLogger2('/tmp/srbd_bootstrap')
-rospy.Subscriber('/joy', Joy, joy_callback)
-
 '''
 Load urdf and srdf
 '''
@@ -196,10 +189,22 @@ for cname, cforces in ti.model.cmap.items():
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
-import horizon.utils.analyzer as analyzer
 
 anal = analyzer.ProblemAnalyzer(prb)
-anal.print()
+
+# anal.print()
+# anal.printVariables('f_ball_1')
+# anal.printVariables('f_ball_2')
+# anal.printVariables('f_ball_3')
+# anal.printVariables('f_ball_4')
+
+# anal.printConstraints('zero_velocity_ball_1_ball_1_vel_cartesian_task')
+# anal.printConstraints('zero_velocity_ball_2_ball_2_vel_cartesian_task')
+# anal.printConstraints('zero_velocity_ball_3_ball_3_vel_cartesian_task')
+# anal.printConstraints('zero_velocity_ball_4_ball_4_vel_cartesian_task')
+
+
+# exit()
 ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
@@ -224,31 +229,13 @@ base_weight = 0.1
 global joy_msg
 
 xig = np.empty([prb.getState().getVars().shape[0], 1])
-
 time_elapsed_shifting_list = list()
 
-solve_flag = True
+from joy_commands import GaitManager, JoyCommands
+contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
+gm = GaitManager(ti, pm, contact_phase_map)
 
-
-def cycle(cycle_list):
-    for flag_contact, contact_name in zip(cycle_list, contact_dict.keys()):
-        if flag_contact == 1:
-            c_phases[contact_name].addPhase(c_phases[contact_name].getRegisteredPhase(f'stance_{contact_name}'))
-        else:
-            c_phases[contact_name].addPhase(c_phases[contact_name].getRegisteredPhase(f'flight_{contact_name}'))
-
-
-def step(swing_contact):
-    cycle_list = [True if contact_name != swing_contact else False for contact_name in contact_dict.keys()]
-    cycle(cycle_list)
-
-
-def trot():
-    cycle_list_1 = [0, 1, 1, 0]
-    cycle_list_2 = [1, 0, 0, 1]
-    cycle(cycle_list_1)
-    cycle(cycle_list_2)
-
+jc = JoyCommands(gm)
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -275,49 +262,23 @@ while not rospy.is_shutdown():
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
-    if joy_msg.buttons[4] == 1:
-        # step
-        trot()
-        pass
-    else:
-        # stand
-        base_weight = 0.5
-        for c in contact_dict:
-            if c_phases[c].getEmptyNodes() > 0:
-                c_phases[c].addPhase(c_phases[c].getRegisteredPhase(f'stance_{c}'))
-
-    if np.abs(joy_msg.axes[1]) > 0.1:
-        # move com on x axis
-        final_base_x = ti.getTask('final_base_x')
-        reference = np.atleast_2d(
-            np.array([solution['q'][0, 0] + base_weight * joy_msg.axes[1], 0., 0., 0., 0., 0., 0.]))
-        final_base_x.setRef(reference.T)
-        pass
-    else:
-        # move it back in the middle
-        final_base_x = ti.getTask('final_base_x')
-        reference = np.atleast_2d(np.array([solution['q'][0, 0], 0., 0., 0., 0., 0., 0.]))
-        final_base_x.setRef(reference.T)
-        pass
-
-    if np.abs(joy_msg.axes[0]) > 0.1:
-        # move com on y axis
-        final_base_y = ti.getTask('final_base_y')
-        reference = np.atleast_2d(np.array([0., solution['q'][0, 0] + base_weight * joy_msg.axes[1], 0., 0., 0., 0., 0.]))
-        final_base_y.setRef(reference.T)
-    else:
-        # move com back
-        final_base_y = ti.getTask('final_base_y')
-        reference = np.atleast_2d(np.array([0., solution['q'][1, 0], 0., 0., 0., 0., 0.]))
-        final_base_y.setRef(reference.T)
-
-    if np.abs(joy_msg.axes[5]) > 0.1:
-        # change com height
-        pass
+    jc.run(solution)
 
     iteration = iteration + 1
 
     # solve real time iteration
+    # anal.printVariables('f_ball_1', suppress_ig=True)
+    # anal.printVariables('f_ball_2', suppress_ig=True)
+    # anal.printVariables('f_ball_3', suppress_ig=True)
+    # anal.printVariables('f_ball_4', suppress_ig=True)
+
+    # anal.printConstraints('zero_velocity_ball_1_ball_1_vel_cartesian_task')
+    # anal.printConstraints('zero_velocity_ball_2_ball_2_vel_cartesian_task')
+    # anal.printConstraints('zero_velocity_ball_3_ball_3_vel_cartesian_task')
+    # anal.printConstraints('zero_velocity_ball_4_ball_4_vel_cartesian_task')
+
+    # anal.printConstraints('', suppress_ig=True)
+
     ti.rti()
     solution = ti.solution
 
