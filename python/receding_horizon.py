@@ -294,7 +294,6 @@ while not rospy.is_shutdown():
     jt = JointTrajectory()
     for i in range(solution['q_res'].shape[1]):
         jtp = JointTrajectoryPoint()
-        print(solution['q_res'][:, i].tolist())
         jtp.positions = solution['q_res'][:, i].tolist()
         jtp.velocities = solution['v_res'][:, i].tolist()
         jtp.accelerations = solution['a_res'][:, i].tolist()

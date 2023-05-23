@@ -74,9 +74,14 @@ class JoyCommands:
             self.gait_manager.stand()
 
         if np.abs(self.joy_msg.axes[1]) > 0.1:
-            # move com on x axis
+            # move com on x axis w.r.t the base
+            vec = np.array([solution['q'][0, 0] + self.base_weight * self.joy_msg.axes[1], 0, 0])
+            rot_vec = self.rotate_vector(vec, solution['q'][[3, 4, 5, 6], 0])
+
+            print(vec)
+            print(rot_vec)
             reference = np.atleast_2d(
-                np.array([solution['q'][0, 0] + self.base_weight * self.joy_msg.axes[1], 0., 0., 0., 0., 0., 0.]))
+                np.array([rot_vec[0], rot_vec[1], rot_vec[2], 0., 0., 0., 0.]))
             self.final_base_x.setRef(reference.T)
         else:
             # move it back in the middle
@@ -131,3 +136,34 @@ class JoyCommands:
             # change com height
             reference = np.atleast_2d(np.array([0., 0, solution['q'][2, 0] - self.com_height_w, 0., 0., 0., 0.]))
             self.com_height.setRef(reference.T)
+
+    def _quaternion_multiply(self, q1, q2):
+        w1, x1, y1, z1 = q1
+        w2, x2, y2, z2 = q2
+        w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+        x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+        y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
+        z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
+        return np.array([w, x, y, z])
+
+    def _conjugate_quaternion(self, q):
+        q_conjugate = np.copy(q)
+        q_conjugate[1:] *= -1.0
+        return q_conjugate
+
+    def rotate_vector(self, vector, quaternion):
+
+        # normalize the quaternion
+        quaternion = quaternion / np.linalg.norm(quaternion)
+
+        # construct a pure quaternion
+        v = np.array([0, vector[0], vector[1], vector[2]])
+
+        # rotate the vector
+        rotated_v = self._quaternion_multiply(quaternion, self._quaternion_multiply(v, self._conjugate_quaternion(quaternion)))
+
+        # extract the rotated vector
+        rotated_vector = rotated_v[1:]
+
+        return rotated_vector
+
