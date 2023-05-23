@@ -4,7 +4,7 @@
     <arg name="gazebo" default="false"/>
 
     <param name="robot_description"
-         command="$(find xacro)/xacro $(find cetc_sat_urdf)/urdf/cetc_sat.urdf.xacro floating_joint:=false upper_body:=false sensors:=false payload:=false"/>
+         command="$(find xacro)/xacro $(find cetc_sat_urdf)/urdf/cetc_sat.urdf.xacro floating_joint:=true upper_body:=false sensors:=false payload:=false"/>
          <param name="robot_description_semantic"
               command="$(find xacro)/xacro $(find cetc_sat_srdf)/srdf/cetc_sat.srdf.xacro floating_joint:=false upper_body:=false sensors:=false payload:=false"/>
 
@@ -12,5 +12,5 @@
 
     <include file="$(find walk_me_maybe)/launch/joy.launch"/>
 
-    <node if="$(arg gui)" pkg="rviz" type="rviz" name="rviz" args="-d $(find walk_me_maybe)/config/rviz/srbd.rviz"/>
+    <node if="$(arg gui)" pkg="rviz" type="rviz" name="rviz" args="-d $(find kyon_controller)/config/kyon_controller.rviz"/>
 </launch>

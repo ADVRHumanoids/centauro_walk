@@ -35,13 +35,12 @@ void Controller::init_load_model()
     _model->update();
 
     // Add offset to move the world in the middle of the feet
-    Eigen::Affine3d lfoot;
-    _model->getPose("ball_1", lfoot);
-    lfoot.translation()(1) = 0;
-    _model->setFloatingBasePose(lfoot.inverse());
-    _model->update();
-
-    _model->getFloatingBasePose(_base_init);
+//    Eigen::Affine3d lfoot;
+//    _model->getPose("ball_1", lfoot);
+//    lfoot.translation()(1) = 0;
+//    lfoot.linear().setIdentity();
+//    _model->setFloatingBasePose(lfoot.inverse());
+//    _model->update();
 
     try
     {
@@ -50,7 +49,9 @@ void Controller::init_load_model()
         _tau_offset.setZero(_robot->getJointNum());
     }
     catch(std::runtime_error& e)
-    {}
+    {
+        ROS_WARN("RobotInterface not initialized");
+    }
 
     _rspub = std::make_shared<XBot::Cartesian::Utils::RobotStatePublisher>(_model);
 }
