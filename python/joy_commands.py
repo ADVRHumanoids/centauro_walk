@@ -76,7 +76,7 @@ class JoyCommands:
         if np.abs(self.joy_msg.axes[1]) > 0.1:
             # move com on x axis w.r.t the base
             vec = np.array([solution['q'][0, 0] + self.base_weight * self.joy_msg.axes[1], 0, 0])
-            rot_vec = self.rotate_vector(vec, solution['q'][[3, 4, 5, 6], 0])
+            rot_vec = self.rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
 
             print(vec)
             print(rot_vec)
