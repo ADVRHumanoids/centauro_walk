@@ -1,0 +1,12 @@
+geometry_msgs/Vector3 com
+geometry_msgs/Vector3 com_dot
+geometry_msgs/Vector3 com_ddot
+geometry_msgs/Quaternion base_ori
+geometry_msgs/Vector3 base_vel
+geometry_msgs/Vector3 base_acc
+string[] contact_names
+geometry_msgs/Pose[] c
+geometry_msgs/Twist[] c_dot
+geometry_msgs/Twist[] c_ddot
+string[] force_names
+geometry_msgs/Vector3[] forces
