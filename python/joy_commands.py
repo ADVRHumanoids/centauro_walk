@@ -112,7 +112,7 @@ class JoyCommands:
             self.final_base_xy.setRef(reference)
 
         if np.abs(self.joy_msg.axes[3]) > 0.1:
-            # rotate base
+            # rotate base around z
             d_angle = np.pi / 10 * self.joy_msg.axes[3] * self.base_rot_weight
             axis = [0, 0, 1]
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, axis)
@@ -122,36 +122,44 @@ class JoyCommands:
             self.base_orientation.setRef(reference)
 
         elif self.joy_msg.axes[7] == 1:
-            # rotate base
+            # rotate base around y
             d_angle = np.pi / 10
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [0, 1, 0])
+            axis = [0, 1, 0]
+            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
 
             # set orientation of the quaternion
             reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
             self.base_orientation.setRef(reference)
 
         elif self.joy_msg.axes[7] == -1:
-            # rotate base
+            # rotate base around y
             d_angle = - np.pi / 10
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [0, 1, 0])
+            axis = [0, 1, 0]
+            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
 
             # set orientation of the quaternion
             reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
             self.base_orientation.setRef(reference)
 
         elif self.joy_msg.axes[6] == 1:
-            # rotate base
+            # rotate base around x
             d_angle = np.pi / 10
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [1, 0, 0])
+            axis = [1, 0, 0]
+            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
 
             # set orientation of the quaternion
             reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
             self.base_orientation.setRef(reference)
 
         elif self.joy_msg.axes[6] == -1:
-            # rotate base
+            # rotate base around x
             d_angle = -np.pi / 10
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [1, 0, 0])
+            axis = [1, 0, 0]
+            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
 
             # set orientation of the quaternion
             reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T

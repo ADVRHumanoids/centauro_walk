@@ -154,7 +154,7 @@ for c in contact_dict:
     c_phases[c].registerPhase(stance_phase)
 
     # flight phase
-    flight_duration = 2
+    flight_duration = 5
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
