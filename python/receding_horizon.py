@@ -307,9 +307,9 @@ while not rospy.is_shutdown():
 
 
     # replay stuff
-    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
-    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    # repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
+    # repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('srbd/base_link', solution['q'][0:3, :])
     rate.sleep()
 

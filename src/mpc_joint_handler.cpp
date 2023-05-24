@@ -21,6 +21,7 @@ void MPCJointHandler::mpc_joint_callback(const trajectory_msgs::JointTrajectoryC
     _mpc_solution = *msg;
     _is_callback_done = true;
     _solution_index = 1;
+    std::cout << "francescoruscelli" << std::endl;
 }
 
 void MPCJointHandler::init_publishers_and_subscribers()
@@ -30,6 +31,7 @@ void MPCJointHandler::init_publishers_and_subscribers()
 
 bool MPCJointHandler::update()
 {
+    std::cout << "camadonna" << std::endl;
     // Read the mpc solution
     trajectory_msgs::JointTrajectoryPoint trj_point;
     trj_point = _mpc_solution.points[_solution_index];
