@@ -154,7 +154,7 @@ for c in contact_dict:
     c_phases[c].registerPhase(stance_phase)
 
     # flight phase
-    flight_duration = 5
+    flight_duration = 2
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
@@ -301,7 +301,7 @@ while not rospy.is_shutdown():
         jtp.effort = solution['u_opt'][:, 0].tolist()
         jt.points.append(jtp)
 
-    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['reference']]
+    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
     jt.header.stamp = rospy.Time.now()
 
     solution_publisher.publish(jt)
