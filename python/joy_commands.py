@@ -48,14 +48,24 @@ class GaitManager:
         self.cycle(cycle_list_4)
 
     def leap(self):
-        cycle_list_1 = [1, 1, 0, 0]
-        cycle_list_2 = [0, 0, 1, 1]
+        cycle_list_1 = [0, 0, 1, 1]
+        cycle_list_2 = [1, 1, 0, 0]
         self.cycle(cycle_list_1)
         self.cycle(cycle_list_2)
+
+    def walk(self):
+        cycle_list_1 = [1, 0, 1, 0]
+        cycle_list_2 = [0, 1, 0, 1]
+        self.cycle(cycle_list_1)
+        self.cycle(cycle_list_2)
+
     def jump(self):
         cycle_list = [0, 0, 0, 0]
         self.cycle(cycle_list)
 
+    def wheelie(self):
+        cycle_list = [0, 0, 1, 1]
+        self.cycle(cycle_list)
 
     def stand(self):
         # how do I know that the stance phase is called (f'stance_{c}')?
@@ -87,10 +97,12 @@ class JoyCommands:
         if self.joy_msg.buttons[4] == 1:
             # step
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
-                self.gait_manager.trot()
+                # self.gait_manager.trot()
                 # self.gait_manager.crawl()
                 # self.gait_manager.leap()
-                # self.gait_manager.jump()
+                # self.gait_manager.walk()
+                self.gait_manager.jump()
+                # self.gait_manager.wheelie()
         else:
             # stand
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
