@@ -3,6 +3,7 @@ from horizon.rhc.taskInterface import TaskInterface
 from phase_manager import pyphase, pymanager
 from sensor_msgs.msg import Joy
 import rospy
+import math
 
 class GaitManager:
     def __init__(self, task_interface: TaskInterface, phase_manager: pymanager.PhaseManager, contact_map):
@@ -36,24 +37,42 @@ class GaitManager:
         self.cycle(cycle_list_1)
         self.cycle(cycle_list_2)
 
+    def crawl(self):
+        cycle_list_1 = [0, 1, 1, 1]
+        cycle_list_2 = [1, 1, 1, 0]
+        cycle_list_3 = [1, 0, 1, 1]
+        cycle_list_4 = [1, 1, 0, 1]
+        self.cycle(cycle_list_1)
+        self.cycle(cycle_list_2)
+        self.cycle(cycle_list_3)
+        self.cycle(cycle_list_4)
+
+    def leap(self):
+        cycle_list_1 = [1, 1, 0, 0]
+        cycle_list_2 = [0, 0, 1, 1]
+        self.cycle(cycle_list_1)
+        self.cycle(cycle_list_2)
+    def jump(self):
+        cycle_list = [0, 0, 0, 0]
+        self.cycle(cycle_list)
+
+
     def stand(self):
         # how do I know that the stance phase is called (f'stance_{c}')?
-        for c in self.contact_phases:
-            if self.contact_phases[c].getEmptyNodes() > 0:
-                self.contact_phases[c].addPhase(self.contact_phases[c].getRegisteredPhase(f'stance_{c}'))
+        cycle_list = [1, 1, 1, 1]
+        self.cycle(cycle_list)
 
 
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 0.5
+        self.base_weight = 0.3
         self.base_rot_weight = 1.
         self.com_height_w = 0.02
 
         self.joy_msg = None
 
-        self.final_base_x = self.gait_manager.task_interface.getTask('final_base_x')
-        self.final_base_y = self.gait_manager.task_interface.getTask('final_base_y')
+        self.final_base_xy = self.gait_manager.task_interface.getTask('final_base_xy')
         self.com_height = self.gait_manager.task_interface.getTask('com_height')
         self.base_orientation = self.gait_manager.task_interface.getTask('base_orientation')
 
@@ -69,73 +88,108 @@ class JoyCommands:
             # step
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
                 self.gait_manager.trot()
+                # self.gait_manager.crawl()
+                # self.gait_manager.leap()
+                # self.gait_manager.jump()
         else:
             # stand
-            self.gait_manager.stand()
+            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+                self.gait_manager.stand()
 
-        if np.abs(self.joy_msg.axes[1]) > 0.1:
+        if np.abs(self.joy_msg.axes[0]) > 0.1 or np.abs(self.joy_msg.axes[1]) > 0.1:
             # move com on x axis w.r.t the base
-            vec = np.array([solution['q'][0, 0] + self.base_weight * self.joy_msg.axes[1], 0, 0])
-            rot_vec = self.rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
 
-            print(vec)
-            print(rot_vec)
-            reference = np.atleast_2d(
-                np.array([rot_vec[0], rot_vec[1], rot_vec[2], 0., 0., 0., 0.]))
-            self.final_base_x.setRef(reference.T)
+            vec = np.array([self.base_weight * self.joy_msg.axes[1],
+                            self.base_weight * self.joy_msg.axes[0], 0])
+
+            rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
+            reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
+
+            self.final_base_xy.setRef(reference)
         else:
             # move it back in the middle
-            reference = np.atleast_2d(np.array([solution['q'][0, 0], 0., 0., 0., 0., 0., 0.]))
-            self.final_base_x.setRef(reference.T)
-
-        if np.abs(self.joy_msg.axes[0]) > 0.1:
-            # move com on y axis
-            reference = np.atleast_2d(
-                np.array([0., solution['q'][1, 0] + self.base_weight * self.joy_msg.axes[0], 0., 0., 0., 0., 0.]))
-            self.final_base_y.setRef(reference.T)
-        else:
-            # move com back
-            reference = np.atleast_2d(np.array([0., solution['q'][1, 0], 0., 0., 0., 0., 0.]))
-            self.final_base_y.setRef(reference.T)
+            reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
+            self.final_base_xy.setRef(reference)
 
         if np.abs(self.joy_msg.axes[3]) > 0.1:
             # rotate base
-            angle = np.pi / 50 * self.joy_msg.axes[3] * self.base_rot_weight
-            axis = np.array([0, 0, 1])
-
-            # np.quaternion is [w,x,y,z]
-            q_incremental = np.array([np.cos(angle / 2),
-                                      axis[0] * np.sin(angle / 2),
-                                      axis[1] * np.sin(angle / 2),
-                                      axis[2] * np.sin(angle / 2)
-                                      ])
-
-            # normalize the quaternion
-            q_incremental /= np.linalg.norm(q_incremental)
-
-            # initial orientation of the base
-            q_initial = solution['q'][[6, 3, 4, 5], 0]
-
-            # final orientation of the base
-            q_result = np.quaternion(*q_incremental) * np.quaternion(*q_initial)
+            d_angle = np.pi / 10 * self.joy_msg.axes[3] * self.base_rot_weight
+            axis = [0, 0, 1]
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, axis)
 
             # set orientation of the quaternion
-            reference = np.atleast_2d(np.array([0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]))
-            self.base_orientation.setRef(reference.T)
+            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            self.base_orientation.setRef(reference)
+
+        elif self.joy_msg.axes[7] == 1:
+            # rotate base
+            d_angle = np.pi / 10
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [0, 1, 0])
+
+            # set orientation of the quaternion
+            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            self.base_orientation.setRef(reference)
+
+        elif self.joy_msg.axes[7] == -1:
+            # rotate base
+            d_angle = - np.pi / 10
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [0, 1, 0])
+
+            # set orientation of the quaternion
+            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            self.base_orientation.setRef(reference)
+
+        elif self.joy_msg.axes[6] == 1:
+            # rotate base
+            d_angle = np.pi / 10
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [1, 0, 0])
+
+            # set orientation of the quaternion
+            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            self.base_orientation.setRef(reference)
+
+        elif self.joy_msg.axes[6] == -1:
+            # rotate base
+            d_angle = -np.pi / 10
+            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, [1, 0, 0])
+
+            # set orientation of the quaternion
+            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            self.base_orientation.setRef(reference)
+
         else:
             # set rotation of the base as the current one
-            reference = np.atleast_2d(np.array([0., 0., 0., solution['q'][3, 0], solution['q'][4, 0], solution['q'][5, 0], solution['q'][6, 0]]))
-            self.base_orientation.setRef(reference.T)
+            reference = np.array([[0., 0., 0., solution['q'][3, 0], solution['q'][4, 0], solution['q'][5, 0], solution['q'][6, 0]]]).T
+            self.base_orientation.setRef(reference)
 
-        if np.abs(self.joy_msg.buttons[0]) == 1:
+        if self.joy_msg.buttons[0] == 1:
             # change com height
-            reference = np.atleast_2d(np.array([0., 0, solution['q'][2, 0] + self.com_height_w, 0., 0., 0., 0.]))
-            self.com_height.setRef(reference.T)
+            reference = np.array([[0., 0, solution['q'][2, 0] + self.com_height_w, 0., 0., 0., 0.]]).T
+            self.com_height.setRef(reference)
 
-        if np.abs(self.joy_msg.buttons[2]) == 1:
+        if self.joy_msg.buttons[2] == 1:
             # change com height
-            reference = np.atleast_2d(np.array([0., 0, solution['q'][2, 0] - self.com_height_w, 0., 0., 0., 0.]))
-            self.com_height.setRef(reference.T)
+            reference = np.array([[0., 0, solution['q'][2, 0] - self.com_height_w, 0., 0., 0., 0.]]).T
+            self.com_height.setRef(reference)
+
+    def _incremental_rotate(self, q_initial: np.quaternion, d_angle, axis) -> np.quaternion:
+
+        # np.quaternion is [w,x,y,z]
+        q_incremental = np.array([np.cos(d_angle / 2),
+                                  axis[0] * np.sin(d_angle / 2),
+                                  axis[1] * np.sin(d_angle / 2),
+                                  axis[2] * np.sin(d_angle / 2)
+                                  ])
+
+        # normalize the quaternion
+        q_incremental /= np.linalg.norm(q_incremental)
+
+        # initial orientation of the base
+
+        # final orientation of the base
+        q_result = np.quaternion(*q_incremental) * np.quaternion(*q_initial)
+
+        return q_result
 
     def _quaternion_multiply(self, q1, q2):
         w1, x1, y1, z1 = q1
@@ -151,7 +205,7 @@ class JoyCommands:
         q_conjugate[1:] *= -1.0
         return q_conjugate
 
-    def rotate_vector(self, vector, quaternion):
+    def _rotate_vector(self, vector, quaternion):
 
         # normalize the quaternion
         quaternion = quaternion / np.linalg.norm(quaternion)
@@ -159,7 +213,7 @@ class JoyCommands:
         # construct a pure quaternion
         v = np.array([0, vector[0], vector[1], vector[2]])
 
-        # rotate the vector
+        # rotate the vector p = q* v q
         rotated_v = self._quaternion_multiply(quaternion, self._quaternion_multiply(v, self._conjugate_quaternion(quaternion)))
 
         # extract the rotated vector
@@ -167,3 +221,15 @@ class JoyCommands:
 
         return rotated_vector
 
+    def _quat_to_eul(self, x_quat, y_quat, z_quat, w_quat):
+
+        # convert quaternion to Euler angles
+        roll = math.atan2(2 * (w_quat * x_quat + y_quat * z_quat), 1 - 2 * (x_quat * x_quat + y_quat * y_quat))
+        pitch = math.asin(2 * (w_quat * y_quat - z_quat * x_quat))
+        yaw = math.atan2(2 * (w_quat * z_quat + x_quat * y_quat), 1 - 2 * (y_quat * y_quat + z_quat * z_quat))
+
+        roll = math.degrees(roll)
+        pitch = math.degrees(pitch)
+        yaw = math.degrees(yaw)
+
+        return np.array([roll, pitch, yaw])
