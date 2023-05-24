@@ -166,7 +166,7 @@ for c in contact_dict:
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
 # base_ori = horizon.utils.utils.toRot(model.kd.fk('base_link')(q=model.q0)['ee_rot'])
 # rel_dist = base_ori.T @ (pos_lf - pos_rf)
-#
+
 # prb.createResidual('relative_distance_lower_x', horizon.utils.utils.barrier(rel_dist[0] + 0.3))
 # prb.createResidual('relative_distance_upper_x', horizon.utils.utils.barrier1(rel_dist[0] - 0.4))
 # prb.createResidual('relative_distance_lower_y', 10 * horizon.utils.utils.barrier(rel_dist[1] - 0.2))
@@ -229,7 +229,8 @@ contact_list_repl = list(contact_dict.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]),
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
-                                           trajectory_markers=contact_list_repl)  # , future_trajectory_markers={'srbd/base_link': 'world', 'srbd/l_sole': 'world', 'srbd/r_sole': 'world'})
+                                           trajectory_markers=contact_list_repl)
+                                           # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
 
 base_weight = 0.1
 global joy_msg
@@ -300,17 +301,18 @@ while not rospy.is_shutdown():
         jtp.effort = solution['u_opt'][:, 0].tolist()
         jt.points.append(jtp)
 
-    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['reference']]
+    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
     jt.header.stamp = rospy.Time.now()
 
     solution_publisher.publish(jt)
 
 
     # replay stuff
-    # repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    # repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
-    # repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
-    # repl.publish_future_trajectory_marker('srbd/base_link', solution['q'][0:3, :])
+    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
+    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
+    # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
     rate.sleep()
 
 print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
