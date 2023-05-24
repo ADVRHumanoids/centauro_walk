@@ -1,4 +1,4 @@
-import horizon.utils.utils
+import horizon.utils.kin_dyn as kd
 from horizon.problem import Problem
 from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
@@ -243,6 +243,7 @@ contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
+id_fn = kd.InverseDynamics(model.kd, contact_dict.keys(), casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED)
 
 
 while not rospy.is_shutdown():
@@ -292,14 +293,24 @@ while not rospy.is_shutdown():
     dt_res = 0.01
     ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
 
+    tau = list()
+    for i in range(solution['q_res'].shape[1] - 1):
+        tau.append(id_fn.call(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
+                              {name: solution['f_' + name][:, i] for name in model.fmap}))
     jt = JointTrajectory()
     for i in range(solution['q_res'].shape[1]):
         jtp = JointTrajectoryPoint()
         jtp.positions = solution['q_res'][:, i].tolist()
         jtp.velocities = solution['v_res'][:, i].tolist()
-        jtp.accelerations = solution['a_res'][:, i].tolist()
-        jtp.effort = solution['u_opt'][:, 0].tolist()
+        if i < len(tau):
+            jtp.accelerations = solution['a_res'][:, i].tolist()
+            jtp.effort = tau[i].elements()
+        else:
+            jtp.accelerations = solution['a_res'][:, -1].tolist()
+            jtp.effort = tau[-1].elements()
+
         jt.points.append(jtp)
+
 
     jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
     jt.header.stamp = rospy.Time.now()
@@ -308,9 +319,9 @@ while not rospy.is_shutdown():
 
 
     # replay stuff
-    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
-    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    # repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
+    # repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
     rate.sleep()
