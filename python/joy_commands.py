@@ -14,21 +14,42 @@ class GaitManager:
 
         self.contact_phases = dict()
 
+        # register each timeline of the phase manager as the contact phases
         for contact_name, phase_name in contact_map.items():
             self.contact_phases[contact_name] = self.phase_manager.getTimelines()[phase_name]
 
+    def cycle_short(self, cycle_list):
+        # how do I know that the stance phase is called stance_{c} or flight_{c}?
+        for flag_contact, contact_name in zip(cycle_list, self.contact_phases.keys()):
+            phase_i = self.contact_phases[contact_name]
+            if flag_contact == 1:
+                phase_i.addPhase(phase_i.getRegisteredPhase(f'stance_{contact_name}_short'))
+            else:
+                phase_i.addPhase(phase_i.getRegisteredPhase(f'flight_{contact_name}_short'))
 
     def cycle(self, cycle_list):
+        # how do I know that the stance phase is called stance_{c} or flight_{c}?
         for flag_contact, contact_name in zip(cycle_list, self.contact_phases.keys()):
+            phase_i = self.contact_phases[contact_name]
             if flag_contact == 1:
-                self.contact_phases[contact_name].addPhase(self.contact_phases[contact_name].getRegisteredPhase(f'stance_{contact_name}'))
+                phase_i.addPhase(phase_i.getRegisteredPhase(f'stance_{contact_name}'))
             else:
-                self.contact_phases[contact_name].addPhase(self.contact_phases[contact_name].getRegisteredPhase(f'flight_{contact_name}'))
+                phase_i.addPhase(phase_i.getRegisteredPhase(f'flight_{contact_name}'))
 
 
     def step(self, swing_contact):
         cycle_list = [True if contact_name != swing_contact else False for contact_name in self.contact_phases.keys()]
         self.cycle(cycle_list)
+
+
+    def trot_jumped(self):
+        cycle_list_1 = [0, 1, 1, 0]
+        cycle_list_flight = [0, 0, 0, 0]
+        cycle_list_2 = [1, 0, 0, 1]
+        self.cycle(cycle_list_1)
+        self.cycle_short(cycle_list_flight)
+        self.cycle(cycle_list_2)
+        self.cycle_short(cycle_list_flight)
 
 
     def trot(self):
@@ -68,7 +89,6 @@ class GaitManager:
         self.cycle(cycle_list)
 
     def stand(self):
-        # how do I know that the stance phase is called (f'stance_{c}')?
         cycle_list = [1, 1, 1, 1]
         self.cycle(cycle_list)
 
@@ -101,7 +121,7 @@ class JoyCommands:
                 # self.gait_manager.crawl()
                 # self.gait_manager.leap()
                 # self.gait_manager.walk()
-                self.gait_manager.jump()
+                # self.gait_manager.jump()
                 # self.gait_manager.wheelie()
         else:
             # stand

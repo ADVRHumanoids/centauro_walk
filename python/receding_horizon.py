@@ -147,20 +147,35 @@ for c in contact_dict:
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
 for c in contact_dict:
-    # stance phase
-    stance_duration = 5
+    # stance phase normal
+    stance_duration = 3
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
     stance_phase.addItem(ti.getTask(f'{c}_contact'))
     c_phases[c].registerPhase(stance_phase)
 
-    # flight phase
-    flight_duration = 5
+    # flight phase normal
+    flight_duration = 3
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.03, [None, 0, None]))
     flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
     c_phases[c].registerPhase(flight_phase)
+
+    # stance phase short
+    # stance_duration = 1
+    # stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
+    # stance_phase.addItem(ti.getTask(f'{c}_contact'))
+    # c_phases[c].registerPhase(stance_phase)
+
+    # flight phase short
+    # flight_duration = 1
+    # flight_phase = pyphase.Phase(flight_duration, f'flight_{c}_short')
+    # init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
+    # ref_trj = np.zeros(shape=[7, flight_duration])
+    # ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.03, [None, 0, None]))
+    # flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
+    # c_phases[c].registerPhase(flight_phase)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
@@ -179,6 +194,9 @@ for c in contact_dict:
 for c in contact_dict:
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
     flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
+    c_phases[c].addPhase(stance)
+    c_phases[c].addPhase(stance)
+    c_phases[c].addPhase(stance)
     c_phases[c].addPhase(stance)
     c_phases[c].addPhase(stance)
     c_phases[c].addPhase(stance)
@@ -243,7 +261,6 @@ contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
-id_fn = kd.InverseDynamics(model.kd, contact_dict.keys(), casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED)
 
 
 while not rospy.is_shutdown():
@@ -294,9 +311,11 @@ while not rospy.is_shutdown():
     ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
 
     tau = list()
+
     for i in range(solution['q_res'].shape[1] - 1):
-        tau.append(id_fn.call(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
+        tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
                               {name: solution['f_' + name][:, i] for name in model.fmap}))
+
     jt = JointTrajectory()
     for i in range(solution['q_res'].shape[1]):
         jtp = JointTrajectoryPoint()
@@ -319,9 +338,9 @@ while not rospy.is_shutdown():
 
 
     # replay stuff
-    # repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    # repl.publish_joints(solution['q'][:, 0])  # , prefix='srbd')
-    # repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    repl.publish_joints(solution['q'][:, 0])
+    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
     rate.sleep()
