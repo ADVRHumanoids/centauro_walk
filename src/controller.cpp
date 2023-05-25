@@ -63,7 +63,6 @@ void Controller::set_stiffness_damping_torque(double duration)
     _model->syncFrom(*_robot);
     _model->update();
 
-
     // prepare to set stiffness and damping to zero
     XBot::JointNameMap K, D;
     _robot->getStiffness(K);
@@ -79,8 +78,8 @@ void Controller::set_stiffness_damping_torque(double duration)
     for (auto pair : K)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
-        K[pair.first] = 0;
-        D[pair.first] = 0;
+        K[pair.first] /= 1;
+        D[pair.first] /= 1;
     }
 
     _robot->setStiffness(K);
@@ -137,6 +136,18 @@ void Controller::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg
 
 void Controller::run()
 {
+    if (_robot)
+    {
+        _robot->sense();
+        _model->syncFrom(*_robot);
+        _model->update();
+
+        if (!_init)
+        {
+            _init = true;
+            set_stiffness_damping_torque(0.1);
+        }
+    }
     if(_mpc_handler->is_msg_received())
     {
          _mpc_handler->update();

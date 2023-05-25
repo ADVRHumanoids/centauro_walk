@@ -35,6 +35,12 @@ void MPCJointHandler::init_publishers_and_subscribers()
 
 bool MPCJointHandler::update()
 {
+    if (_robot)
+    {
+        _robot->sense();
+        _model->syncFrom(*_robot);
+        _model->update();
+    }
     // Read the mpc solution
     trajectory_msgs::JointTrajectoryPoint trj_point;
     trj_point = _mpc_solution.points[_solution_index];
@@ -43,30 +49,45 @@ bool MPCJointHandler::update()
     // From quaternion to RPY
     Eigen::Quaterniond quat(trj_point.positions[6], trj_point.positions[3], trj_point.positions[4], trj_point.positions[5]);
     auto rpy = quat.toRotationMatrix().eulerAngles(0, 1, 2);
-    Eigen::VectorXd q_euler;
+    Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler.head(6) << trj_point.positions[0], trj_point.positions[1], trj_point.positions[2], rpy[0], rpy[1], rpy[2];
     q_euler.tail(_model->getJointNum() - 6) = Eigen::VectorXd::Map(trj_point.positions.data() + 7, trj_point.positions.size() - 7);
 
     vectors_to_map<std::string, double>(_joint_names, q_euler, _q);
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()), _qdot);
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.accelerations.data(), trj_point.accelerations.size()), _qddot);
-    vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()), _qdot);
+    vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()), _tau);
+
+//    std::cout << "POSITIONS" << std::endl;
+//    for (auto pair : _q)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
+
+//    std::cout << "VELOCITIES" << std::endl;
+//    for (auto pair : _qdot)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
+
+//    std::cout << "ACCELERATIONS" << std::endl;
+//    for (auto pair : _qddot)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
+
+//    std::cout << "TORQUES" << std::endl;
+//    for (auto pair : _tau)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
+
+//    _qdot["knee_pitch_1"] = 10;
+
+    _model->setJointPosition(_q);
+    _model->setJointVelocity(_qdot);
+    _model->setJointAcceleration(_qddot);
+    _model->update();
 
     if (_robot)
     {
-        _robot->sense();
-        _robot->setPositionReference(_q);
-        _robot->setVelocityReference(_qdot);
+        _robot->setReferenceFrom(*_model);
         _robot->setEffortReference(_tau);
         _robot->move();
     }
-    else
-    {
-        _model->setJointPosition(_q);
-        _model->setJointVelocity(_qdot);
-        _model->setJointAcceleration(_qddot);
-        _model->update();
-    }
+
 
     if (_solution_index == _mpc_solution.points.size() - 1)
     {
