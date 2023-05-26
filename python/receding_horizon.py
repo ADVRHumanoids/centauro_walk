@@ -184,19 +184,11 @@ for c in contact_dict:
     c_phases[c].registerPhase(flight_phase)
 
     # stance phase short
-    # stance_duration = 1
-    # stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
-    # stance_phase.addItem(ti.getTask(f'{c}_contact'))
-    # c_phases[c].registerPhase(stance_phase)
+    stance_duration = 1
+    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
+    stance_phase.addItem(ti.getTask(f'{c}_contact'))
+    c_phases[c].registerPhase(stance_phase)
 
-    # flight phase short
-    # flight_duration = 1
-    # flight_phase = pyphase.Phase(flight_duration, f'flight_{c}_short')
-    # init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
-    # ref_trj = np.zeros(shape=[7, flight_duration])
-    # ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.03, [None, 0, None]))
-    # flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
-    # c_phases[c].registerPhase(flight_phase)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
