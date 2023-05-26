@@ -27,10 +27,8 @@ import time
 import horizon.utils as utils
 
 
-rospy.init_node('cogimon_walk_srbd')
-roscpp.init('cogimon_walk_srbd', [])
-
-# logger = matlogger.MatLogger2('/tmp/srbd_bootstrap')
+rospy.init_node('kyon_walk_srbd')
+roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', JointTrajectory, queue_size=10)
 rospy.sleep(1.)
@@ -39,18 +37,19 @@ rospy.sleep(1.)
 Load urdf and srdf
 '''
 
-cetc_sat_urdf_folder = rospkg.RosPack().get_path('cetc_sat_urdf')
-cetc_sat_srdf_folder = rospkg.RosPack().get_path('cetc_sat_srdf')
+kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
+kyon_srdf_folder = rospkg.RosPack().get_path('kyon_srdf')
+
 
 urdf = subprocess.check_output(["xacro",
-                                cetc_sat_urdf_folder + "/urdf/cetc_sat.urdf.xacro",
+                                kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                 "sensors:=false",
                                 "upper_body:=false",
                                 "bilevel_codes:=false",
                                 "payload:=false"])
 
 srdf = subprocess.check_output(["xacro",
-                                cetc_sat_srdf_folder + "/srdf/cetc_sat.srdf.xacro",
+                                kyon_srdf_folder + "/srdf/kyon.srdf.xacro",
                                 "sensors:=false",
                                 "upper_body:=false",
                                 "bilevel_codes:=false",
