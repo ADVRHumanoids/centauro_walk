@@ -34,7 +34,7 @@ costs:
   - joint_regularization
   - joint_posture
 
-define:
+.define:
     - &w_com 50.
     - &w_base_ori 20.
     - &w_base_xy 10.

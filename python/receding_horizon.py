@@ -158,6 +158,13 @@ c_phases = dict()
 for c in contact_dict:
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
+
+kd_frame = casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED
+for c_frame in contact_dict:
+    DFK = model.kd.frameVelocity(c_frame, kd_frame)
+    ee_v_ang = DFK(q=model.q, qdot=model.v)['ee_vel_angular']
+    vert = prb.createConstraint(f"{c_frame}_vert", ee_v_ang, nodes=[])
+
 for c in contact_dict:
     # stance phase normal
     stance_duration = 4
@@ -172,6 +179,7 @@ for c in contact_dict:
     ref_trj = np.zeros(shape=[7, flight_duration])
     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
     flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
+    flight_phase.addConstraint(prb.getConstraints(f'{c}_vert'), nodes=[0 ,flight_duration-1])  # nodes=[0, 1, 2]
     c_phases[c].registerPhase(flight_phase)
 
     # stance phase short
