@@ -45,14 +45,12 @@ urdf = subprocess.check_output(["xacro",
                                 kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                 "sensors:=false",
                                 "upper_body:=false",
-                                "bilevel_codes:=false",
                                 "payload:=false"])
 
 srdf = subprocess.check_output(["xacro",
                                 kyon_srdf_folder + "/srdf/kyon.srdf.xacro",
                                 "sensors:=false",
                                 "upper_body:=false",
-                                "bilevel_codes:=false",
                                 "payload:=false"])
 urdf = urdf.decode('utf-8')
 srdf = srdf.decode('utf-8')
@@ -129,7 +127,7 @@ bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_descript
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_config_1.yaml')
+ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_x = ti.getTask('final_base_x')
