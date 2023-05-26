@@ -22,39 +22,86 @@ constraints:
   - ball_2_contact
   - ball_3_contact
   - ball_4_contact
-  - z_ball_1
-  - z_ball_2
-  - z_ball_3
-  - z_ball_4
-  - final_base_xy
-  - base_orientation
 
 costs:
   - com_height
   - joint_regularization
-  - joint_posture
+  - final_base_xy
+  - base_orientation
+#  - joint_posture
+  - joint_posture_roll
+  - ball_1_orientation
+  - ball_2_orientation
+  - ball_3_orientation
+  - ball_4_orientation
+  - z_ball_1
+  - z_ball_2
+  - z_ball_3
+  - z_ball_4
+  - xy_ball_1
+  - xy_ball_2
+  - xy_ball_3
+  - xy_ball_4
+
+define:
+    - &w_com 50.
+    - &w_base_ori 20.
+    - &w_base_xy 10.
+    - &w_ball_xy 10.
+    - &w_ball_z 20.
+    - &w_ball_ori 10.
+    - &w_postural_roll 1.
 
 final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-  nodes: ${range(N-5, N)}
-#  nodes: all
-#  weight: 100.
+#  nodes: ${range(N-5, N)}
+  nodes: all
+  weight: *w_base_xy
 
 com_height:
   type: Cartesian
   distal_link: base_link
   indices: [2]
   nodes: all
-  weight: 50.
+  weight: *w_com
+
+ball_1_orientation:
+  type: Cartesian
+  distal_link: ball_1
+  indices: [4]
+  nodes: all
+  weight: *w_ball_ori
+
+ball_2_orientation:
+  type: Cartesian
+  distal_link: ball_2
+  indices: [4]
+  nodes: all
+  weight: *w_ball_ori
+
+ball_3_orientation:
+  type: Cartesian
+  distal_link: ball_3
+  indices: [4]
+  nodes: all
+  weight: *w_ball_ori
+
+ball_4_orientation:
+  type: Cartesian
+  distal_link: ball_4
+  indices: [4]
+  nodes: all
+  weight: *w_ball_ori
 
 base_orientation:
   type: Cartesian
   distal_link: base_link
   indices: [3, 4, 5]
-  nodes: ${range(N-8, N)}
-#  weight: 100.
+#  nodes: ${range(N-8, N)}
+  nodes: all
+  weight: *w_base_ori
 
 # ===============================
 
@@ -142,6 +189,12 @@ joint_posture:
   weight: 0.5
   nodes: all
 
+joint_posture_roll:
+  type: Postural
+  indices: [0, 3, 6, 9]
+  weight: *w_postural_roll
+  nodes: all
+
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 joint_regularization:
   type: Regularization
@@ -156,26 +209,54 @@ z_ball_1:
   distal_link: ball_1
   indices: [2]
   cartesian_type: position
-  weight: 1.
+  weight: *w_ball_z
 
 z_ball_2:
   type: Cartesian
   distal_link: ball_2
   indices: [2]
   cartesian_type: position
-  weight: 1.
+  weight: *w_ball_z
 
 z_ball_3:
   type: Cartesian
   distal_link: ball_3
   indices: [2]
   cartesian_type: position
-  weight: 1.
+  weight: *w_ball_z
 
 z_ball_4:
   type: Cartesian
   distal_link: ball_4
   indices: [2]
   cartesian_type: position
-  weight: 1.
+  weight: *w_ball_z
+
+xy_ball_1:
+  type: Cartesian
+  distal_link: ball_1
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_ball_xy
+
+xy_ball_2:
+  type: Cartesian
+  distal_link: ball_2
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_ball_xy
+
+xy_ball_3:
+  type: Cartesian
+  distal_link: ball_3
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_ball_xy
+
+xy_ball_4:
+  type: Cartesian
+  distal_link: ball_4
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_ball_xy
 
