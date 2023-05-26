@@ -96,8 +96,8 @@ class GaitManager:
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 0.3
-        self.base_rot_weight = 1.
+        self.base_weight = 0.8
+        self.base_rot_weight = 0.5
         self.com_height_w = 0.02
 
         self.joy_msg = None
@@ -145,7 +145,7 @@ class JoyCommands:
 
         if np.abs(self.joy_msg.axes[3]) > 0.1:
             # rotate base around z
-            d_angle = np.pi / 10 * self.joy_msg.axes[3] * self.base_rot_weight
+            d_angle = np.pi / 2 * self.joy_msg.axes[3] * self.base_rot_weight
             axis = [0, 0, 1]
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, axis)
 

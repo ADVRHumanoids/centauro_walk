@@ -129,8 +129,7 @@ bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_descript
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_config.yaml')
-ti.setTaskFromYaml(file_dir + '/../config/config_demo.yaml')
+ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_config_1.yaml')
 
 com_height = ti.getTask('com_height')
 com_x = ti.getTask('final_base_x')
@@ -138,17 +137,16 @@ com_y = ti.getTask('final_base_y')
 
 com_height.setRef(np.atleast_2d(base_init).T)
 
-contact_ori = dict()
-for c_name in contact_dict.keys():
-    c_rot = model.kd.fk(c_name)(q=model.q0)['ee_rot'].toarray()
-    c_quat = utils.utils.matrix_to_quaternion(c_rot)
-    contact_ori[c_name] = ti.getTask(f'{c_name}_orientation')
-    contact_ori[c_name].setRef(np.array([[0., 0., 0., c_quat[0], c_quat[1], c_quat[2], c_quat[3]]]).T)
+# contact_ori = dict()
+# for c_name in contact_dict.keys():
+#     c_rot = model.kd.fk(c_name)(q=model.q0)['ee_rot'].toarray()
+#     c_quat = utils.utils.matrix_to_quaternion(c_rot)
+#     contact_ori[c_name] = ti.getTask(f'{c_name}_orientation')
+#     contact_ori[c_name].setRef(np.array([[0., 0., 0., c_quat[0], c_quat[1], c_quat[2], c_quat[3]]]).T)
 
 # contact_xy = dict()
 # for c_name in contact_dict.keys():
 #     c_pos_xy = model.kd.fk(c_name)(q=model.q0)['ee_pos'].toarray()
-#     print(c_pos_xy[0])
 #     contact_xy[c_name] = ti.getTask(f'xy_{c_name}')
 #     contact_xy[c_name].setRef(np.array([[c_pos_xy[0][0], c_pos_xy[1][0], c_pos_xy[2][0], 0., 0., 0., 0.]]).T)
 
@@ -162,17 +160,17 @@ for c in contact_dict:
 
 for c in contact_dict:
     # stance phase normal
-    stance_duration = 3
+    stance_duration = 4
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
     stance_phase.addItem(ti.getTask(f'{c}_contact'))
     c_phases[c].registerPhase(stance_phase)
 
     # flight phase normal
-    flight_duration = 3
+    flight_duration = 4
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.1, [None, 0, None]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
     flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
     c_phases[c].registerPhase(flight_phase)
 
