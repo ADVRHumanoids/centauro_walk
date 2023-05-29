@@ -52,7 +52,7 @@ srdf = subprocess.check_output(["xacro",
                                 kyon_srdf_folder + "/srdf/kyon.srdf.xacro",
                                 "sensors:=false",
                                 "upper_body:=false",
-                                "bilevel_codes:=false",
+                                "wheels:=true",
                                 "payload:=false"])
 urdf = urdf.decode('utf-8')
 srdf = srdf.decode('utf-8')
@@ -69,24 +69,7 @@ dt = T / ns
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
 prb.setDt(dt)
 
-contact_dict = {
-    'wheel_1': {
-        'type': 'point'
-    },
-
-    'wheel_2': {
-        'type': 'point'
-    },
-
-    'wheel_3': {
-        'type': 'point'
-    },
-
-    'wheel_3': {
-        'type': 'point'
-    },
-}
-
+urdf = urdf.replace('continuous', 'revolute')
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf)
 
 q_init = {'hip_roll_1': 0.0,
@@ -100,7 +83,12 @@ q_init = {'hip_roll_1': 0.0,
           'knee_pitch_3': -1.4,
           'hip_roll_4': 0.0,
           'hip_pitch_4': 0.7,
-          'knee_pitch_4': -1.4}
+          'knee_pitch_4': -1.4,
+          'wheel_joint_1': 0.0,
+          'wheel_joint_2': 0.0,
+          'wheel_joint_3': 0.0,
+          'wheel_joint_4': 0.0}
+
 # 'shoulder_yaw_1': 0.0,
 # 'shoulder_pitch_1': 0.9,
 # 'elbow_pitch_1': 1.68,
@@ -129,11 +117,12 @@ bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_descript
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_config.yaml')
+ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_wheel_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_x = ti.getTask('final_base_x')
 com_y = ti.getTask('final_base_y')
+
 
 com_height.setRef(np.atleast_2d(base_init).T)
 
@@ -155,21 +144,25 @@ tg = trajectoryGenerator.TrajectoryGenerator()
 pm = pymanager.PhaseManager(ns)
 # phase manager handling
 c_phases = dict()
-for c in contact_dict:
+for c in model.cmap.keys():
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
 
-kd_frame = casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED
-for c_frame in contact_dict:
-    DFK = model.kd.frameVelocity(c_frame, kd_frame)
-    ee_v_ang = DFK(q=model.q, qdot=model.v)['ee_vel_angular']
-    vert = prb.createConstraint(f"{c_frame}_vert", ee_v_ang, nodes=[])
+# kd_frame = casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED
+# for c_frame in model.cmap.keys():
+#     DFK = model.kd.frameVelocity(c_frame, kd_frame)
+#     ee_v_ang = DFK(q=model.q, qdot=model.v)['ee_vel_angular']
+#     vert = prb.createConstraint(f"{c_frame}_vert", ee_v_ang, nodes=[])
 
-for c in contact_dict:
+for c in model.cmap.keys():
     # stance phase normal
     stance_duration = 4
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
-    stance_phase.addItem(ti.getTask(f'{c}_contact'))
+    if ti.getTask(f'{c}_contact') is not None:
+        stance_phase.addItem(ti.getTask(f'{c}_contact'))
+    else:
+        raise Exception('task not found')
+
     c_phases[c].registerPhase(stance_phase)
 
     # flight phase normal
@@ -178,15 +171,18 @@ for c in contact_dict:
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
-    flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
-    flight_phase.addConstraint(prb.getConstraints(f'{c}_vert'), nodes=[0 ,flight_duration-1])  # nodes=[0, 1, 2]
+    if ti.getTask(f'z_{c}') is not None:
+        flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
+    else:
+        raise Exception('task not found')
+    # flight_phase.addConstraint(prb.getConstraints(f'{c}_vert'), nodes=[0 ,flight_duration-1])  # nodes=[0, 1, 2]
     c_phases[c].registerPhase(flight_phase)
 
     # stance phase short
-    stance_duration = 1
-    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
-    stance_phase.addItem(ti.getTask(f'{c}_contact'))
-    c_phases[c].registerPhase(stance_phase)
+    # stance_duration = 1
+    # stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
+    # stance_phase.addItem(ti.getTask(f'{c}_contact'))
+    # c_phases[c].registerPhase(stance_phase)
 
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
@@ -203,7 +199,7 @@ for c in contact_dict:
 #     f_prev = f.getVarOffset(-1)
 #     prb.createIntermediateResidual(f'{f_name}_smooth_forces', 1e-2 * (f_prev - f), nodes=range(1, ns-1))
 
-for c in contact_dict:
+for c in model.cmap.keys():
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
     flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
     c_phases[c].addPhase(stance)
@@ -257,7 +253,7 @@ solution = ti.solution
 iteration = 0
 rate = rospy.Rate(1 / dt)
 
-contact_list_repl = list(contact_dict.keys())
+contact_list_repl = list(model.cmap.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]),
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
@@ -271,7 +267,7 @@ xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
 
 from joy_commands import GaitManager, JoyCommands
-contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
+contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
