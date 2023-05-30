@@ -149,6 +149,7 @@ class JoyCommands:
                 # self.gait_manager.walk()
                 # self.gait_manager.jump()
                 # self.gait_manager.wheelie()
+                # self.gait_manager.step('wheel_1')
         else:
             # stand
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:

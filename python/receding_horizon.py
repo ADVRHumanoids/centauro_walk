@@ -219,7 +219,7 @@ ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
 ti.model.q.setInitialGuess(ti.model.q0)
 ti.model.v.setInitialGuess(ti.model.v0)
 
-f0 = [0, 0, kin_dyn.mass() / 8 * 9.8]
+f0 = [0, 0, kin_dyn.mass() / 4 * 9.8]
 for cname, cforces in ti.model.cmap.items():
     for c in cforces:
         c.setInitialGuess(f0)

@@ -120,10 +120,6 @@ ti = TaskInterface(prb=prb, model=model)
 ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_wheel_config.yaml')
 
 com_height = ti.getTask('com_height')
-com_x = ti.getTask('final_base_x')
-com_y = ti.getTask('final_base_y')
-
-
 com_height.setRef(np.atleast_2d(base_init).T)
 
 # contact_ori = dict()
@@ -153,6 +149,83 @@ for c in model.cmap.keys():
 #     DFK = model.kd.frameVelocity(c_frame, kd_frame)
 #     ee_v_ang = DFK(q=model.q, qdot=model.v)['ee_vel_angular']
 #     vert = prb.createConstraint(f"{c_frame}_vert", ee_v_ang, nodes=[])
+
+# formulation in forces
+
+
+
+def zmp(model):
+
+    tau_f_res = cs.SX([0, 0, 0])
+    f_res = cs.SX([0, 0, 0])
+    pos_contact = dict()
+    force_val = dict()
+    for c in model.fmap.keys():
+        pos_contact[c] = cs.SX.sym('pos_contact', 3)
+        force_val[c] = cs.SX.sym('force_val', 3)
+
+    for c in model.fmap.keys():
+        tau_f_res += cs.cross(pos_contact[c], force_val[c])
+        f_res += force_val[c]
+
+    n = cs.SX([0, 0, 1])
+
+    zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
+
+    input_list = []
+    for elem in pos_contact.values():
+        input_list.append(elem)
+
+    for elem in force_val.values():
+        input_list.append(elem)
+
+    f = cs.Function('zmp', input_list, [zmp])
+
+    return f
+
+input_zmp = []
+for c_name in model.fmap.keys():
+    input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
+
+for f_var in model.fmap.values():
+    input_zmp.append(f_var)
+
+zmp_fun = zmp(model)(*input_zmp)
+zmp_val_constr = prb.createIntermediateConstraint('zmp_val',  zmp_fun[0:2])
+zmp_val_constr.setBounds([-cs.inf, -cs.inf], [cs.inf, cs.inf])
+
+# tau_f_res = cs.SX([0, 0, 0])
+# for c_name, f_var in model.fmap.items():
+#     fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
+#     tau_f_res += cs.cross(fk_c_pos, f_var)
+#
+# f_res = cs.SX([0, 0, 0])
+# for f_c in model.fmap.values():
+#     f_res += f_c
+#
+# n = cs.SX([0, 0, 1])
+#
+# zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
+#
+# c_mean = cs.SX([0, 0, 0])
+# for c_name, f_var in model.fmap.items():
+#     fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
+#     c_mean += fk_c_pos
+#
+# c_mean /= len(model.cmap.keys())
+
+
+
+# zmp_weight = 20.
+# zmp = prb.createIntermediateConstraint('zmp',  zmp_weight * (zmp[0:2] - c_mean[0:2]))
+# zmp.setBounds([-cs.inf, -cs.inf], [cs.inf, cs.inf])
+# g_vec = cs.SX([0, 0, -1])
+
+
+# mg = kin_dyn.mass() * g_vec
+# f_com = mg - kin_dyn.mass() @ kin_dyn.centerOfMass()(q=model.q0)['acom']
+#
+# tau_com = cs.cross(kin_dyn.centerOfMass()(q=model.q0)['com'], mg)
 
 for c in model.cmap.keys():
     # stance phase normal
@@ -217,7 +290,7 @@ ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
 ti.model.q.setInitialGuess(ti.model.q0)
 ti.model.v.setInitialGuess(ti.model.v0)
 
-f0 = [0, 0, kin_dyn.mass() / 8 * 9.8]
+f0 = [0, 0, kin_dyn.mass() / 4 * 9.8]
 for cname, cforces in ti.model.cmap.items():
     for c in cforces:
         c.setInitialGuess(f0)
@@ -242,6 +315,8 @@ anal = analyzer.ProblemAnalyzer(prb)
 ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
+
+
 
 # for name, element in solution.items():
 #     logger.create(name, element.shape[0])
@@ -272,6 +347,8 @@ gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
 
+from geometry_msgs.msg import PointStamped
+zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -302,6 +379,25 @@ while not rospy.is_shutdown():
 
     iteration = iteration + 1
 
+    zmp_fun_val = prb.getConstraints('zmp_val')
+    all_vars = list()
+    for var in zmp_fun_val.getVariables():
+        var_name = var.getName()
+
+        node_index = range(ns)
+        all_vars.append(solution[var_name][:, node_index])
+
+    zmp_sol = zmp_fun_val.getFunction()(*all_vars)
+    zmp_point = PointStamped()
+    zmp_point.header.stamp = rospy.Time.now()
+    zmp_point.header.frame_id = "world"
+    zmp_point.point.x = zmp_sol[0]
+    zmp_point.point.y = zmp_sol[1]
+    zmp_point.point.z = 0.
+
+    zmp_pub.publish(zmp_point)
+
+
     # solve real time iteration
     # anal.printVariables('f_ball_1', suppress_ig=True)
     # anal.printVariables('f_ball_2', suppress_ig=True)
@@ -324,7 +420,7 @@ while not rospy.is_shutdown():
 
     for i in range(solution['q_res'].shape[1] - 1):
         tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
-                              {name: solution['f_' + name][:, i] for name in model.fmap}))
+                                                {name: solution['f_' + name][:, i] for name in model.fmap}))
 
     jt = JointTrajectory()
     for i in range(solution['q_res'].shape[1]):
