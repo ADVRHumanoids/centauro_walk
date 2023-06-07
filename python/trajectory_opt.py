@@ -127,11 +127,11 @@ ti.setTaskFromYaml(file_dir + '/../config/kyon_to_config.yaml')
 xy_goal = ti.getTask('final_base_xy')
 xy_goal.setRef(np.array([[6., 5., 0., 0., 0., 0., 0.]]).T)
 
-# base_orientation = ti.getTask('base_orientation')
-# base_orientation.setRef(np.array([[0., 0., 0., 0., 0., 0.707, 0.707]]).T)
-
 base_orientation = ti.getTask('base_orientation')
-base_orientation.setRef(np.array([[0., 0., 0., 0., 0., 0.38, 0.92]]).T)
+base_orientation.setRef(np.array([[0., 0., 0., 0., 0., 0.707, 0.707]]).T)
+
+# base_orientation = ti.getTask('base_orientation')
+# base_orientation.setRef(np.array([[0., 0., 0., 0., 0., 0.38, 0.92]]).T)
 
 
 pos_lf = model.kd.fk('wheel_1')(q=model.q)['ee_pos']
@@ -145,15 +145,10 @@ prb.createConstraint('relative_distance_l', utils.utils.barrier(pos_lf[0] - pos_
 prb.createConstraint('relative_distance_r', utils.utils.barrier(pos_rf[0] - pos_rh[0] - rel_dist))
 
 
-
-tg = trajectoryGenerator.TrajectoryGenerator()
-
-pm = pymanager.PhaseManager(ns)
-# phase manager handling
-c_phases = dict()
-for c in model.cmap.keys():
-    c_phases[c] = pm.addTimeline(f'{c}_timeline')
-
+# for c_name in ['wheel_1', 'wheel_2', 'wheel_3', 'wheel_4']:
+#     # rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
+#
+# exit()
 def zmp(model):
 
     # formulation in forces
@@ -204,6 +199,14 @@ zmp_weight = 20.
 zmp = prb.createIntermediateConstraint('zmp',  zmp_weight * (zmp_fun[0:2] - c_mean[0:2]))
 
 
+tg = trajectoryGenerator.TrajectoryGenerator()
+
+pm = pymanager.PhaseManager(ns)
+# phase manager handling
+c_phases = dict()
+for c in model.cmap.keys():
+    c_phases[c] = pm.addTimeline(f'{c}_timeline')
+
 for c in model.cmap.keys():
     # stance phase normal
     stance_duration = 5
@@ -249,9 +252,6 @@ for c in model.cmap.keys():
     if c == 'ball_1':
         flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
         c_phases[c].addPhase(flight, 2)
-    if c == 'ball_2':
-        flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
-        c_phases[c].addPhase(flight, 3)
 
 
 

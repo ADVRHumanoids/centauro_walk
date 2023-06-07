@@ -34,6 +34,10 @@ costs:
 #  - com_height
   - joint_regularization
   - joint_posture
+#  - wheel_inclination_1
+#  - wheel_inclination_2
+#  - wheel_inclination_3
+#  - wheel_inclination_4
 
 .define:
     - &w_com 0.5
@@ -44,6 +48,7 @@ costs:
     - &w_ball_ori 20.
     - &w_postural_roll 1.
     - &w_postural 0.1
+#    - &w_wheel_inclination 100.
     - &wheel_radius 0.124
 
 final_base_xy:
@@ -190,3 +195,27 @@ z_ball_4:
   indices: [2]
   cartesian_type: position
   weight: *w_ball_z
+
+#inclination_wheel_1:
+#  type: Cartesian
+#  distal_link: wheel_1
+#  indices: [3, 4, 5]
+#  weight: *w_wheel_inclination
+#
+#inclination_wheel_2:
+#  type: Cartesian
+#  distal_link: wheel_2
+#  indices: [3, 4, 5]
+#  weight: *w_wheel_inclination
+#
+#inclination_wheel_3:
+#  type: Cartesian
+#  distal_link: wheel_3
+#  indices: [3, 4, 5]
+#  weight: *w_wheel_inclination
+#
+#inclination_wheel_4:
+#  type: Cartesian
+#  distal_link: wheel_4
+#  indices: [3, 4, 5]
+#  weight: *w_wheel_inclination
