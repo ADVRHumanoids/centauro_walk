@@ -95,8 +95,8 @@ interaction_wheel_1:
   type: VertexForce
   frame: ball_1
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_1
 
@@ -104,8 +104,8 @@ interaction_wheel_2:
   type: VertexForce
   frame: ball_2
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_2
 
@@ -113,8 +113,8 @@ interaction_wheel_3:
   type: VertexForce
   frame: ball_3
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_3
 
@@ -122,8 +122,8 @@ interaction_wheel_4:
   type: VertexForce
   frame: ball_4
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_4
 
@@ -158,7 +158,7 @@ joint_regularization:
   type: Regularization
   nodes: all
   weight:
-    velocity: 1e-1
+#    velocity: 1e-1
     acceleration: 1e-2 # 0.01
     force: 1e-3 # todo <----- how to do? if there are more forces...
 

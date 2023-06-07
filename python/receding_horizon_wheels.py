@@ -62,8 +62,8 @@ file_dir = os.getcwd()
 '''
 Initialize Horizon problem
 '''
-ns = 15
-T = 1.5
+ns = 30
+T = 3
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
