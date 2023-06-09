@@ -1,22 +1,21 @@
 solver:
-  type: ipopt
+  type: ilqr
   ipopt.linear_solver: ma57
   ipopt.tol: 0.1
-  ipopt.max_iter: 200
-#  ilqr.tol: 0.01
+  ilqr.tol: 0.01
   ipopt.constr_viol_tol: 0.01
-#  ilqr.constr_viol_tol: 0.01
+  ilqr.constr_viol_tol: 0.01
 #  ipopt.hessian_approximation: exact
-#  ipopt.print_level: 5
-#  ipopt.suppress_all_output: 'no'
-#  ipopt.sb: 'no'
-#  ilqr.suppress_all_output: 'yes'
-#  ilqr.codegen_enabled: true
-#  ilqr.codegen_workdir: /tmp/tyhio
-#  ilqr.enable_gn: true
-#  ilqr.hxx_reg_base: 0.0
-#  ilqr.n_threads: 0
-#  print_time: 1
+  ipopt.print_level: 5
+  ipopt.suppress_all_output: 'yes'
+  ipopt.sb: 'yes'
+  ilqr.suppress_all_output: 'yes'
+  ilqr.codegen_enabled: true
+  ilqr.codegen_workdir: /tmp/tyhio
+  ilqr.enable_gn: true
+  ilqr.hxx_reg_base: 0.0
+  ilqr.n_threads: 0
+  print_time: 0
 
 constraints:
   - ball_1_contact
@@ -31,7 +30,7 @@ constraints:
   - base_orientation
 
 costs:
-#  - com_height
+  - com_height
   - joint_regularization
   - joint_posture
 #  - wheel_inclination_1
@@ -40,14 +39,14 @@ costs:
 #  - wheel_inclination_4
 
 .define:
-    - &w_com 0.5
-    - &w_base_ori 20.
+    - &w_com 0.05
+    - &w_base_ori 0.5
     - &w_base_xy 10.
     - &w_ball_xy 10.
     - &w_ball_z 1.
     - &w_ball_ori 20.
     - &w_postural_roll 1.
-    - &w_postural 0.1
+    - &w_postural 0.05
 #    - &w_wheel_inclination 100.
     - &wheel_radius 0.124
 
@@ -57,7 +56,7 @@ final_base_xy:
   indices: [0, 1]
   nodes: ${[N]}
 #  nodes: all
-#  weight: *w_base_xy
+  weight: *w_base_xy
 
 com_height:
   type: Cartesian
@@ -71,7 +70,7 @@ base_orientation:
   distal_link: base_link
   indices: [3, 4, 5]
   nodes: ${[N]}
-#  weight: *w_base_ori
+  weight: *w_base_ori
 
 # ===============================
 
@@ -101,8 +100,8 @@ interaction_wheel_1:
   type: VertexForce
   frame: ball_1
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_1
 
@@ -110,8 +109,8 @@ interaction_wheel_2:
   type: VertexForce
   frame: ball_2
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_2
 
@@ -119,8 +118,8 @@ interaction_wheel_3:
   type: VertexForce
   frame: ball_3
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_3
 
@@ -128,8 +127,8 @@ interaction_wheel_4:
   type: VertexForce
   frame: ball_4
   fn_min: 10.0
-#  enable_fc: true
-#  friction_coeff: 0.5
+  enable_fc: true
+  friction_coeff: 0.5
   vertex_frames:
     - wheel_4
 

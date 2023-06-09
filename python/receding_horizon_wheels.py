@@ -79,15 +79,32 @@ q_init = {'hip_roll_1': 0.0,
           'hip_pitch_2': 0.7,
           'knee_pitch_2': -1.4,
           'hip_roll_3': 0.0,
-          'hip_pitch_3': 0.7,
-          'knee_pitch_3': -1.4,
+          'hip_pitch_3': -0.7,
+          'knee_pitch_3': 1.4,
           'hip_roll_4': 0.0,
-          'hip_pitch_4': 0.7,
-          'knee_pitch_4': -1.4,
+          'hip_pitch_4': -0.7,
+          'knee_pitch_4': 1.4,
           'wheel_joint_1': 0.0,
           'wheel_joint_2': 0.0,
           'wheel_joint_3': 0.0,
           'wheel_joint_4': 0.0}
+
+# q_init = {'hip_roll_1': 0.0,
+#           'hip_pitch_1': -0.3,
+#           'knee_pitch_1': -0.92,
+#           'hip_roll_2': 0.0,
+#           'hip_pitch_2': -0.3,
+#           'knee_pitch_2': -0.92,
+#           'hip_roll_3': 0.0,
+#           'hip_pitch_3': -0.6,
+#           'knee_pitch_3': 1.26,
+#           'hip_roll_4': 0.0,
+#           'hip_pitch_4': -0.6,
+#           'knee_pitch_4': 1.26,
+#           'wheel_joint_1': 0.0,
+#           'wheel_joint_2': 0.0,
+#           'wheel_joint_3': 0.0,
+#           'wheel_joint_4': 0.0}
 
 # 'shoulder_yaw_1': 0.0,
 # 'shoulder_pitch_1': 0.9,
@@ -101,6 +118,8 @@ q_init = {'hip_roll_1': 0.0,
 # 'wrist_yaw_2': 0.}
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+# base_init = np.array([0.0, 0.0, 0.0, 0.014192, 0.0297842, -0.0230466, 0.9991898])
+
 FK = kin_dyn.fk('ball_1')
 init = base_init.tolist() + list(q_init.values())
 init_pos_foot = FK(q=init)['ee_pos']
@@ -117,23 +136,10 @@ bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_descript
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-ti.setTaskFromYaml(file_dir + '/../config/kyon_horizon_wheel_config.yaml')
+ti.setTaskFromYaml(file_dir + '/../config/kyon_to_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_height.setRef(np.atleast_2d(base_init).T)
-
-# contact_ori = dict()
-# for c_name in contact_dict.keys():
-#     c_rot = model.kd.fk(c_name)(q=model.q0)['ee_rot'].toarray()
-#     c_quat = utils.utils.matrix_to_quaternion(c_rot)
-#     contact_ori[c_name] = ti.getTask(f'{c_name}_orientation')
-#     contact_ori[c_name].setRef(np.array([[0., 0., 0., c_quat[0], c_quat[1], c_quat[2], c_quat[3]]]).T)
-
-# contact_xy = dict()
-# for c_name in contact_dict.keys():
-#     c_pos_xy = model.kd.fk(c_name)(q=model.q0)['ee_pos'].toarray()
-#     contact_xy[c_name] = ti.getTask(f'xy_{c_name}')
-#     contact_xy[c_name].setRef(np.array([[c_pos_xy[0][0], c_pos_xy[1][0], c_pos_xy[2][0], 0., 0., 0., 0.]]).T)
 
 tg = trajectoryGenerator.TrajectoryGenerator()
 
@@ -143,38 +149,56 @@ c_phases = dict()
 for c in model.cmap.keys():
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
-
-# kd_frame = casadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED
-# for c_frame in model.cmap.keys():
-#     DFK = model.kd.frameVelocity(c_frame, kd_frame)
-#     ee_v_ang = DFK(q=model.q, qdot=model.v)['ee_vel_angular']
-#     vert = prb.createConstraint(f"{c_frame}_vert", ee_v_ang, nodes=[])
-
-# formulation in forces
-
-
+zmp_timeline = pm.addTimeline('zmp_timeline')
 
 def zmp(model):
+    # formulation in forces
+    num = cs.SX([0, 0])
+    den = cs.SX([0])
 
-    tau_f_res = cs.SX([0, 0, 0])
-    f_res = cs.SX([0, 0, 0])
+    q = cs.SX.sym('q', model.nq)
+    v = cs.SX.sym('v', model.nv)
+    a = cs.SX.sym('a', model.nv)
+
     pos_contact = dict()
     force_val = dict()
-    for c in model.fmap.keys():
-        pos_contact[c] = cs.SX.sym('pos_contact', 3)
-        force_val[c] = cs.SX.sym('force_val', 3)
 
-    for c in model.fmap.keys():
-        tau_f_res += cs.cross(pos_contact[c], force_val[c])
-        f_res += force_val[c]
+    # tau_f_res = cs.SX([0, 0, 0])
+    # f_res = cs.SX([0, 0, 0])
+    #
+    # for c in model.fmap.keys():
+    #     pos_contact[c] = cs.SX.sym('pos_contact', 3)
+    #     force_val[c] = cs.SX.sym('force_val', 3)
+    #
+    # for c in model.fmap.keys():
+    #     tau_f_res += cs.cross(pos_contact[c], force_val[c])
+    #     f_res += force_val[c]
+    #
+    # n = cs.SX([0, 0, 1])
+    #
+    # zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
+    #
+    # input_list = []
+    # for elem in pos_contact.values():
+    #     input_list.append(elem)
+    #
+    # for elem in force_val.values():
+    #     input_list.append(elem)
+
+    com = model.kd.centerOfMass()(q=q, v=v, a=a)['com']
 
     n = cs.SX([0, 0, 1])
+    for c in model.fmap.keys():
+        pos_contact[c] = model.kd.fk(c)(q=q)['ee_pos']
+        force_val[c] = cs.SX.sym('force_val', 3)
+        num += (pos_contact[c][0:2] - com[0:2]) * cs.dot(force_val[c], n)
+        den += cs.dot(force_val[c], n)
 
-    zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
-
+    zmp = com[0:2] + (num / den)
     input_list = []
-    for elem in pos_contact.values():
-        input_list.append(elem)
+    input_list.append(q)
+    input_list.append(v)
+    input_list.append(a)
 
     for elem in force_val.values():
         input_list.append(elem)
@@ -184,52 +208,34 @@ def zmp(model):
     return f
 
 input_zmp = []
-for c_name in model.fmap.keys():
-    input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
+# for c_name in model.fmap.keys():
+#     input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
+
+input_zmp.append(model.q)
+input_zmp.append(model.v)
+input_zmp.append(model.a)
 
 for f_var in model.fmap.values():
     input_zmp.append(f_var)
 
+c_mean = cs.SX([0, 0, 0])
+for c_name, f_var in model.fmap.items():
+    fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
+    c_mean += fk_c_pos
+
+c_mean /= len(model.cmap.keys())
+
+# zmp_weight = prb.createParameter('zmp_weight', 1)
+zmp_nominal_weight = 10.
+# zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
-zmp_val_constr = prb.createIntermediateConstraint('zmp_val',  zmp_fun[0:2])
-zmp_val_constr.setBounds([-cs.inf, -cs.inf], [cs.inf, cs.inf])
+zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
+zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-# tau_f_res = cs.SX([0, 0, 0])
-# for c_name, f_var in model.fmap.items():
-#     fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-#     tau_f_res += cs.cross(fk_c_pos, f_var)
-#
-# f_res = cs.SX([0, 0, 0])
-# for f_c in model.fmap.values():
-#     f_res += f_c
-#
-# n = cs.SX([0, 0, 1])
-#
-# zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
-#
-# c_mean = cs.SX([0, 0, 0])
-# for c_name, f_var in model.fmap.items():
-#     fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-#     c_mean += fk_c_pos
-#
-# c_mean /= len(model.cmap.keys())
-
-
-
-# zmp_weight = 20.
-# zmp = prb.createIntermediateConstraint('zmp',  zmp_weight * (zmp[0:2] - c_mean[0:2]))
-# zmp.setBounds([-cs.inf, -cs.inf], [cs.inf, cs.inf])
-# g_vec = cs.SX([0, 0, -1])
-
-
-# mg = kin_dyn.mass() * g_vec
-# f_com = mg - kin_dyn.mass() @ kin_dyn.centerOfMass()(q=model.q0)['acom']
-#
-# tau_com = cs.cross(kin_dyn.centerOfMass()(q=model.q0)['com'], mg)
-
+stance_duration = 5
+flight_duration = 5
 for c in model.cmap.keys():
     # stance phase normal
-    stance_duration = 4
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
     if ti.getTask(f'{c}_contact') is not None:
         stance_phase.addItem(ti.getTask(f'{c}_contact'))
@@ -239,7 +245,6 @@ for c in model.cmap.keys():
     c_phases[c].registerPhase(stance_phase)
 
     # flight phase normal
-    flight_duration = 4
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
@@ -251,12 +256,13 @@ for c in model.cmap.keys():
     # flight_phase.addConstraint(prb.getConstraints(f'{c}_vert'), nodes=[0 ,flight_duration-1])  # nodes=[0, 1, 2]
     c_phases[c].registerPhase(flight_phase)
 
-    # stance phase short
-    # stance_duration = 1
-    # stance_phase = pyphase.Phase(stance_duration, f'stance_{c}_short')
-    # stance_phase.addItem(ti.getTask(f'{c}_contact'))
-    # c_phases[c].registerPhase(stance_phase)
-
+# register zmp phase
+zmp_phase = pyphase.Phase(stance_duration, 'zmp_phase')
+zmp_phase.addCost(zmp)
+zmp_empty_phase = pyphase.Phase(flight_duration, 'zmp_empty_phase')
+zmp_empty_phase.addCost(zmp_empty)
+zmp_timeline.registerPhase(zmp_phase)
+zmp_timeline.registerPhase(zmp_empty_phase)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
@@ -276,13 +282,25 @@ for c in model.cmap.keys():
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
     flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
+    c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
+    c_phases[c].addPhase(stance)
+    zmp_timeline.addPhase(zmp_phase)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
@@ -298,32 +316,9 @@ for cname, cforces in ti.model.cmap.items():
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
-anal = analyzer.ProblemAnalyzer(prb)
-
-# anal.print()
-# anal.printVariables('f_ball_1')
-# anal.printVariables('f_ball_2')
-# anal.printVariables('f_ball_3')
-# anal.printVariables('f_ball_4')
-
-# anal.printConstraints('zero_velocity_ball_1_ball_1_vel_cartesian_task')
-# anal.printConstraints('zero_velocity_ball_2_ball_2_vel_cartesian_task')
-# anal.printConstraints('zero_velocity_ball_3_ball_3_vel_cartesian_task')
-# anal.printConstraints('zero_velocity_ball_4_ball_4_vel_cartesian_task')
-
-
 ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
-
-
-
-# for name, element in solution.items():
-#     logger.create(name, element.shape[0])
-
-# logger.create('xig', solution['x_opt'].shape[0])
-# logger.create('xig_robot', solution['x_opt'].shape[0])
-# logger.create('q_res', solution['q'].shape[0])
 
 iteration = 0
 rate = rospy.Rate(1 / dt)
@@ -335,7 +330,6 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            trajectory_markers=contact_list_repl)
                                            # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
 
-base_weight = 0.1
 global joy_msg
 
 xig = np.empty([prb.getState().getVars().shape[0], 1])
@@ -362,13 +356,6 @@ while not rospy.is_shutdown():
     prb.getState().setInitialGuess(xig)
     prb.setInitialState(x0=xig[:, 0])
 
-    # u_opt = solution['u_opt']
-    # uig = np.roll(u_opt, shift_num, axis=1)
-    # for i in range(abs(shift_num)):
-    #     uig[:, -1 - i] = u_opt[:, -1]
-    #
-    # prb.getInput().setInitialGuess(uig)
-
     # shift phases of phase manager
     tic = time.time()
     pm._shift_phases()
@@ -378,38 +365,6 @@ while not rospy.is_shutdown():
     jc.run(solution)
 
     iteration = iteration + 1
-
-    zmp_fun_val = prb.getConstraints('zmp_val')
-    all_vars = list()
-    for var in zmp_fun_val.getVariables():
-        var_name = var.getName()
-
-        node_index = range(ns)
-        all_vars.append(solution[var_name][:, node_index])
-
-    zmp_sol = zmp_fun_val.getFunction()(*all_vars)
-    zmp_point = PointStamped()
-    zmp_point.header.stamp = rospy.Time.now()
-    zmp_point.header.frame_id = "world"
-    zmp_point.point.x = zmp_sol[0]
-    zmp_point.point.y = zmp_sol[1]
-    zmp_point.point.z = 0.
-
-    zmp_pub.publish(zmp_point)
-
-
-    # solve real time iteration
-    # anal.printVariables('f_ball_1', suppress_ig=True)
-    # anal.printVariables('f_ball_2', suppress_ig=True)
-    # anal.printVariables('f_ball_3', suppress_ig=True)
-    # anal.printVariables('f_ball_4', suppress_ig=True)
-
-    # anal.printConstraints('zero_velocity_ball_1_ball_1_vel_cartesian_task')
-    # anal.printConstraints('zero_velocity_ball_2_ball_2_vel_cartesian_task')
-    # anal.printConstraints('zero_velocity_ball_3_ball_3_vel_cartesian_task')
-    # anal.printConstraints('zero_velocity_ball_4_ball_4_vel_cartesian_task')
-
-    # anal.printConstraints('', suppress_ig=True)
 
     ti.rti()
     solution = ti.solution
@@ -442,6 +397,11 @@ while not rospy.is_shutdown():
 
     solution_publisher.publish(jt)
 
+    try:
+        print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+        print(prb.getCosts('zmp').getNodes())
+    except:
+        pass
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
