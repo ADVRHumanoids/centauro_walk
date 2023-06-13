@@ -125,7 +125,7 @@ class GaitManager:
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 15.
+        self.base_weight = 2.
         self.base_rot_weight = 0.5
         self.com_height_w = 0.02
 
@@ -135,6 +135,8 @@ class JoyCommands:
         self.com_height = self.gait_manager.task_interface.getTask('com_height')
         self.base_orientation = self.gait_manager.task_interface.getTask('base_orientation')
 
+        self.direction = 0.
+
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
 
@@ -143,9 +145,21 @@ class JoyCommands:
 
     def run(self, solution):
 
+        # adjust initial guess for steering angles
+        if np.abs(self.joy_msg.axes[1]) > 0.1:
+            x = self.joy_msg.axes[1]
+        else:
+            x = 0.
+
+        if np.abs(self.joy_msg.axes[0]) > 0.1:
+            y = self.joy_msg.axes[0]
+        else:
+            y = 0.
+        self.direction = math.atan2(y, x)
+
         if self.joy_msg.buttons[4] == 1:
             # step
-            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+            if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 self.gait_manager.trot()
                 # self.gait_manager.trot_jumped()
                 # self.gait_manager.slide()
@@ -157,7 +171,7 @@ class JoyCommands:
                 # self.gait_manager.step('wheel_1')
         else:
             # stand
-            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+            if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 self.gait_manager.stand()
 
         if np.abs(self.joy_msg.axes[0]) > 0.1 or np.abs(self.joy_msg.axes[1]) > 0.1:
@@ -167,7 +181,8 @@ class JoyCommands:
                             self.base_weight * self.joy_msg.axes[0], 0])
 
             rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
-            reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
+            # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
+            reference = np.array([[0. + rot_vec[0], 0. + rot_vec[1], 0., 0., 0., 0., 0.]]).T
 
             self.final_base_xy.setRef(reference)
         else:

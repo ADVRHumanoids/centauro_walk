@@ -220,7 +220,7 @@ for c in model.cmap.keys():
 
     # flight phase normal
     flight_duration = 5
-    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
+    flight_phase = pyphase.Phase(flight_duration, f'flight_flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ref_trj = np.zeros(shape=[7, flight_duration])
     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
