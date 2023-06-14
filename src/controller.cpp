@@ -47,6 +47,13 @@ void Controller::init_load_model()
         _robot = XBot::RobotInterface::getRobot(cfg);
         _imu = _robot->getImu().begin()->second;
         _tau_offset.setZero(_robot->getJointNum());
+        std::map<std::string, XBot::ControlMode> wheel_ctrl_mode;
+        for (int i = 1; i <= 4; i++)
+        {
+            wheel_ctrl_mode["wheel_joint" + std::to_string(i)] = XBot::ControlMode::Velocity();
+        }
+        _robot->setControlMode(wheel_ctrl_mode);
+        _robot->setControlMode(wheel_ctrl_mode);
     }
     catch(std::runtime_error& e)
     {
@@ -81,6 +88,11 @@ void Controller::set_stiffness_damping_torque(double duration)
         K[pair.first] /= 1;
         D[pair.first] /= 1;
     }
+
+    K["wheel_joint_1"] = 0;
+    K["wheel_joint_2"] = 0;
+    K["wheel_joint_3"] = 0;
+    K["wheel_joint_4"] = 0;
 
     _robot->setStiffness(K);
     _robot->setDamping(D);
