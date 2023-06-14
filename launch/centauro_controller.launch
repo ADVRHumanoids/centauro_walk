@@ -1,0 +1,8 @@
+<launch>
+    <param name="robot_description"
+         command="$(find xacro)/xacro $(find centauro_urdf)/urdf/centauro.urdf.xacro"/>
+    <param name="robot_description_semantic"
+         command="$(find xacro)/xacro $(find centauro_srdf)/srdf/centauro.srdf.xacro "/>
+
+    <node pkg="kyon_controller" type="controller" name="centauro_controller_node" output="screen"/>
+</launch>

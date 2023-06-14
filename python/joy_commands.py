@@ -125,8 +125,8 @@ class GaitManager:
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 2.
-        self.base_rot_weight = 0.5
+        self.base_weight = 2.5
+        self.base_rot_weight = 2.
         self.com_height_w = 0.02
 
         self.joy_msg = None
@@ -135,7 +135,11 @@ class JoyCommands:
         self.com_height = self.gait_manager.task_interface.getTask('com_height')
         self.base_orientation = self.gait_manager.task_interface.getTask('base_orientation')
 
+        self.vx = 0.
+        self.vy = 0.
         self.direction = 0.
+        self.omega = 0
+        # self.stop_reference = np.zeros(shape=[7, 1])
 
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
@@ -146,16 +150,23 @@ class JoyCommands:
     def run(self, solution):
 
         # adjust initial guess for steering angles
-        if np.abs(self.joy_msg.axes[1]) > 0.1:
-            x = self.joy_msg.axes[1]
-        else:
-            x = 0.
+        if np.abs(self.joy_msg.axes[1]) > 0.05:
+            self.vx = self.joy_msg.axes[1]
+        # else:
+        #     vx = 0.
 
-        if np.abs(self.joy_msg.axes[0]) > 0.1:
-            y = self.joy_msg.axes[0]
+        if np.abs(self.joy_msg.axes[0]) > 0.05:
+            self.vy = self.joy_msg.axes[0]
+        # else:
+        #     vy = 0.
+
+        if self.joy_msg.axes[3] > 0.1:
+            self.omega = 1
+        elif self.joy_msg.axes[3] < -0.1:
+            self.omega = -1
         else:
-            y = 0.
-        self.direction = math.atan2(y, x)
+            self.omega = 0
+        self.direction = math.atan2(self.vy, self.vx)
 
         if self.joy_msg.buttons[4] == 1:
             # step
@@ -182,17 +193,19 @@ class JoyCommands:
 
             rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
             # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
-            reference = np.array([[0. + rot_vec[0], 0. + rot_vec[1], 0., 0., 0., 0., 0.]]).T
+            reference = np.array([[rot_vec[0], rot_vec[1]]]).T
 
             self.final_base_xy.setRef(reference)
+            # self.stop_reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
         else:
             # move it back in the middle
-            reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
+            # reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
+            reference = np.array([[0., 0.]]).T
             self.final_base_xy.setRef(reference)
 
         if np.abs(self.joy_msg.axes[3]) > 0.1:
             # rotate base around z
-            d_angle = np.pi / 2 * self.joy_msg.axes[3] * self.base_rot_weight
+            d_angle = np.pi * self.joy_msg.axes[3] * self.base_rot_weight
             axis = [0, 0, 1]
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, axis)
 
@@ -202,7 +215,7 @@ class JoyCommands:
 
         elif self.joy_msg.axes[7] == 1:
             # rotate base around y
-            d_angle = np.pi / 10
+            d_angle = np.pi
             axis = [0, 1, 0]
             rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
@@ -213,7 +226,7 @@ class JoyCommands:
 
         elif self.joy_msg.axes[7] == -1:
             # rotate base around y
-            d_angle = - np.pi / 10
+            d_angle = - np.pi
             axis = [0, 1, 0]
             rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
@@ -224,7 +237,7 @@ class JoyCommands:
 
         elif self.joy_msg.axes[6] == 1:
             # rotate base around x
-            d_angle = np.pi / 10
+            d_angle = np.pi
             axis = [1, 0, 0]
             rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
@@ -235,7 +248,7 @@ class JoyCommands:
 
         elif self.joy_msg.axes[6] == -1:
             # rotate base around x
-            d_angle = -np.pi / 10
+            d_angle = -np.pi
             axis = [1, 0, 0]
             rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)

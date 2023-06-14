@@ -191,11 +191,11 @@ for c_name, f_var in model.fmap.items():
 c_mean /= len(model.cmap.keys())
 
 # zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 10.
+zmp_nominal_weight = 0.5
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
-# zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2]))
-# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
+zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun - c_mean[0:2]))
+# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]),     nodes=[])
 
 stance_duration = 5
 flight_duration = 5
@@ -258,9 +258,21 @@ postural_joints = np.array(list(range(6, model.nv)))
 for joint in black_list:
     black_list_indices.append(model.joint_names.index(joint))
 postural_joints = np.delete(postural_joints, black_list_indices)
-prb.createResidual('v_regularizaiton', 1. * model.v[postural_joints])
+# prb.createIntermediateResidual('a_regul', 1e-2 * model.a[postural_joints])
+# prb.createResidual('v_regularizaiton', 1e-2 * model.v[postural_joints])
 
+'''
+Maximize support polygon
+'''
+pos1 = model.kd.fk('contact_1')(q=model.q)['ee_pos']
+pos2 = model.kd.fk('contact_2')(q=model.q)['ee_pos']
+pos3 = model.kd.fk('contact_3')(q=model.q)['ee_pos']
+pos4 = model.kd.fk('contact_4')(q=model.q)['ee_pos']
 
+sp_area = cs.fabs(((pos1[0] * pos2[1]) + (pos2[0] * pos3[1]) + (pos3[0] * pos4[1]) + (pos4[0] * pos1[1])) -
+                  ((pos1[1] * pos2[0]) + (pos2[1] * pos3[0]) + (pos3[1] * pos4[0]) + (pos4[1] * pos1[0]))) / 2
+
+# prb.createResidual('max_support_polygon', 1e-2 * (sp_area - 1.5))
 f0 = [0, 0, kin_dyn.mass() / 4 * 9.8]
 for cname, cforces in ti.model.cmap.items():
     for c in cforces:
@@ -309,10 +321,14 @@ while not rospy.is_shutdown():
     for i in range(abs(shift_num)):
         xig[:, -1 - i] = x_opt[:, -1]
 
-    # xig[6 + 5] = q_init['ankle_yaw_1'] + jc.direction
-    # xig[6 + 11] = q_init['ankle_yaw_2'] + jc.direction
-    # xig[6 + 17] = q_init['ankle_yaw_3'] + jc.direction
-    # xig[6 + 23] = q_init['ankle_yaw_4'] + jc.direction
+    # xig[6 + 5, :] = np.array([q_init['ankle_yaw_1'] + jc.direction + jc.omega * np.pi/4] * solution['x_opt'].shape[1])
+    # xig[6 + 11, :] = np.array([q_init['ankle_yaw_2'] - jc.direction - jc.omega * np.pi/4] * solution['x_opt'].shape[1])
+    # xig[6 + 17, :] = np.array([q_init['ankle_yaw_3'] - jc.direction - jc.omega * np.pi/4] * solution['x_opt'].shape[1])
+    # xig[6 + 23, :] = np.array([q_init['ankle_yaw_4'] + jc.direction + jc.omega * np.pi/4] * solution['x_opt'].shape[1])
+    xig[6 + 5, :] = np.array([q_init['ankle_yaw_1'] - jc.direction] * solution['x_opt'].shape[1])
+    xig[6 + 11, :] = np.array([q_init['ankle_yaw_2'] - jc.direction] * solution['x_opt'].shape[1])
+    xig[6 + 17, :] = np.array([q_init['ankle_yaw_3'] - jc.direction] * solution['x_opt'].shape[1])
+    xig[6 + 23, :] = np.array([q_init['ankle_yaw_4'] - jc.direction] * solution['x_opt'].shape[1])
 
     prb.getState().setInitialGuess(xig)
     prb.setInitialState(x0=xig[:, 0])
