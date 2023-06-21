@@ -7,3 +7,4 @@ float64[] values
 geometry_msgs/Pose[] poses
 geometry_msgs/Vector3[] vectors
 geometry_msgs/Twist[] twists
+sensor_msgs/JointState joint_state

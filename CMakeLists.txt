@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
              roscpp
              std_msgs
              geometry_msgs
+             sensor_msgs
              message_generation)
 
 find_package(Eigen3 REQUIRED)
@@ -21,7 +22,7 @@ add_message_files(
 
 generate_messages(
     DEPENDENCIES
-    std_msgs geometry_msgs
+    std_msgs geometry_msgs sensor_msgs
     )
 
 catkin_package(
