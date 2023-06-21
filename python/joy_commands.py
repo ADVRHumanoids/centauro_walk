@@ -18,7 +18,7 @@ class GaitManager:
         for contact_name, phase_name in contact_map.items():
             self.contact_phases[contact_name] = self.phase_manager.getTimelines()[phase_name]
 
-        self.zmp_timeline = self.phase_manager.getTimelines()['zmp_timeline']
+        # self.zmp_timeline = self.phase_manager.getTimelines()['zmp_timeline']
 
     def cycle_short(self, cycle_list):
         # how do I know that the stance phase is called stance_{c} or flight_{c}?
@@ -83,8 +83,8 @@ class GaitManager:
         cycle_list_2 = [1, 0, 0, 1]
         self.cycle(cycle_list_1)
         self.cycle(cycle_list_2)
-        self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_empty_phase'))
-        self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_empty_phase'))
+        # self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_empty_phase'))
+        # self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_empty_phase'))
 
     def crawl(self):
         cycle_list_1 = [0, 1, 1, 1]
@@ -119,7 +119,7 @@ class GaitManager:
     def stand(self):
         cycle_list = [1, 1, 1, 1]
         self.cycle(cycle_list)
-        self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_phase'))
+        # self.zmp_timeline.addPhase(self.zmp_timeline.getRegisteredPhase('zmp_phase'))
 
 
 class JoyCommands:

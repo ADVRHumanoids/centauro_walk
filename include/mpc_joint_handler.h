@@ -2,6 +2,7 @@
 #define MPC_JOINT_HANDLER_H
 
 #include "mpc_handler.h"
+#include "flush_me_maybe.h"
 #include <trajectory_msgs/JointTrajectory.h>
 #include <Eigen/Dense>
 
@@ -48,6 +49,8 @@ private:
     std::vector<std::string> _joint_names;
 
     trajectory_msgs::JointTrajectory _mpc_solution;
+
+    XBot::FlushMeMaybe::Ptr _flusher;
 
     XBot::ModelInterface::Ptr _model;
     XBot::RobotInterface::Ptr _robot;

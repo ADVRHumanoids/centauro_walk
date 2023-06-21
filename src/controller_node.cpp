@@ -13,6 +13,7 @@ int main(int argc, char** argv)
     {
         controller.run();
         ros::spinOnce();
+        r.sleep();
     }
 
     return 0;

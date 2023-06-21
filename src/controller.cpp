@@ -18,10 +18,61 @@ _time(0),
 _rate(rate),
 _init(false)
 {
+    init_load_config();
     init_load_model();
     init_load_publishers_and_subscribers();
 
     _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _robot);
+}
+
+void Controller::init_load_config()
+{
+    if(!_nhpr.hasParam("config"))
+    {
+        ColoredTextPrinter::print("Missing 'config' parameter, using default \n", ColoredTextPrinter::TextColor::Yellow);
+    }
+    else
+    {
+        std::string config_string;
+        _nhpr.getParam("config", config_string);
+        _config = YAML::Load(config_string);
+
+        if (!_config["ctrl_mode"])
+        {
+            ColoredTextPrinter::print("Missing 'ctrl_mode', using default \n", ColoredTextPrinter::TextColor::Yellow);
+        }
+        else
+        {
+            for (std::pair<std::string, int> pair : _config["ctrl_mode"].as<std::map<std::string, int>>())
+            {
+                _ctrl_map[pair.first] = XBot::ControlMode::FromBitset(pair.second);
+            }
+        }
+
+        if (!_config["stiffness"])
+        {
+            ColoredTextPrinter::print("Missing 'stiffness', using default \n", ColoredTextPrinter::TextColor::Yellow);
+        }
+        else
+        {
+            for (std::pair<std::string, double> pair : _config["stiffness"].as<std::map<std::string, double>>())
+            {
+                _stiffness_map[pair.first] = pair.second;
+            }
+        }
+
+        if (!_config["damping"])
+        {
+            ColoredTextPrinter::print("Missing 'damping', using default \n", ColoredTextPrinter::TextColor::Yellow);
+        }
+        else
+        {
+            for (std::pair<std::string, double> pair : _config["damping"].as<std::map<std::string, double>>())
+            {
+                _damping_map[pair.first] = pair.second;
+            }
+        }
+    }
 }
 
 void Controller::init_load_model()
@@ -45,15 +96,18 @@ void Controller::init_load_model()
     try
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
-        _imu = _robot->getImu().begin()->second;
+//        _imu = _robot->getImu().begin()->second;
         _tau_offset.setZero(_robot->getJointNum());
-        std::map<std::string, XBot::ControlMode> wheel_ctrl_mode;
-        for (int i = 1; i <= 4; i++)
+        if (!_ctrl_map.empty())
         {
-            wheel_ctrl_mode["wheel_joint" + std::to_string(i)] = XBot::ControlMode::Velocity();
+            _robot->setControlMode(_ctrl_map);
         }
-        _robot->setControlMode(wheel_ctrl_mode);
-        _robot->setControlMode(wheel_ctrl_mode);
+        else
+        {
+            _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
+        }
+        _robot->setPositionReference(qhome.tail(_robot->getJointNum()));
+        _robot->move();
     }
     catch(std::runtime_error& e)
     {
@@ -78,6 +132,7 @@ void Controller::set_stiffness_damping_torque(double duration)
     XBot::JointNameMap q, q_ref, qdot, qdot_ref;
     _robot->getJointPosition(q);
     _robot->getPositionReference(q_ref);
+
     _robot->getJointVelocity(qdot);
     _robot->getVelocityReference(qdot_ref);
 
@@ -85,29 +140,24 @@ void Controller::set_stiffness_damping_torque(double duration)
     for (auto pair : K)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
-        K[pair.first] /= 1;
-        D[pair.first] /= 1;
     }
 
-    K["wheel_joint_1"] = 0;
-    K["wheel_joint_2"] = 0;
-    K["wheel_joint_3"] = 0;
-    K["wheel_joint_4"] = 0;
-
-    _robot->setStiffness(K);
-    _robot->setDamping(D);
+    _robot->setStiffness(_stiffness_map);
+    _robot->setDamping(_damping_map);
+    _robot->move();
 
     double T = _time + duration;
     double dt = 1./_rate;
 
     // set stiffness and damping to zero while setting pure torque control
     // continuously update ci to smooth transition
+    _robot->sense(false);
+    _model->syncFrom(*_robot);
+    _model->update();
+    _model->getJointEffort(tau_goal);
+
     while (_time < T)
     {
-        _robot->sense(false);
-        _model->syncFrom(*_robot);
-        _model->update();
-        _model->getJointEffort(tau_goal);
 
         for (auto pair : tau_start)
         {
@@ -148,22 +198,19 @@ void Controller::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg
 
 void Controller::run()
 {
-    if (_robot)
-    {
-        _robot->sense();
-        _model->syncFrom(*_robot);
-        _model->update();
-
-        if (!_init)
-        {
-            _init = true;
-            set_stiffness_damping_torque(0.1);
-        }
-    }
     if(_mpc_handler->is_msg_received())
     {
-         _mpc_handler->update();
+         _mpc_handler->update(); // update model
     }
-    _rspub->publishTransforms(ros::Time::now(), "");
+    else
+    {
+        return;
+    }
+
+    if (!_init)
+    {
+        _init = true;
+        set_stiffness_damping_torque(0.1);
+    }
 }
 

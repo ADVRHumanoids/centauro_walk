@@ -14,6 +14,8 @@ _robot(robot)
     _model->getJointVelocity(_qdot);
     _model->getJointAcceleration(_qddot);
     _model->getJointEffort(_tau);
+
+    _flusher = std::make_shared<XBot::FlushMeMaybe>();
 }
 
 void MPCJointHandler::mpc_joint_callback(const trajectory_msgs::JointTrajectoryConstPtr msg)
@@ -35,12 +37,10 @@ void MPCJointHandler::init_publishers_and_subscribers()
 
 bool MPCJointHandler::update()
 {
-    if (_robot)
-    {
-        _robot->sense();
-        _model->syncFrom(*_robot);
-        _model->update();
-    }
+    _robot->sense();
+    _model->syncFrom(*_robot);
+    _model->update();
+
     // Read the mpc solution
     trajectory_msgs::JointTrajectoryPoint trj_point;
     trj_point = _mpc_solution.points[_solution_index];
@@ -58,35 +58,16 @@ bool MPCJointHandler::update()
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.accelerations.data(), trj_point.accelerations.size()), _qddot);
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()), _tau);
 
-//    std::cout << "POSITIONS" << std::endl;
-//    for (auto pair : _q)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
+    _flusher->add(joint_names,
+                  q_euler,
+                  Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()),
+                  Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()));
 
-//    std::cout << "VELOCITIES" << std::endl;
-//    for (auto pair : _qdot)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
+    _robot->setPositionReference(_q);
+    _robot->setVelocityReference(_qdot);
+    _robot->setEffortReference(_tau);
+    _robot->move();
 
-//    std::cout << "ACCELERATIONS" << std::endl;
-//    for (auto pair : _qddot)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
-
-//    std::cout << "TORQUES" << std::endl;
-//    for (auto pair : _tau)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
-
-//    _qdot["knee_pitch_1"] = 10;
-
-    _model->setJointPosition(_q);
-    _model->setJointVelocity(_qdot);
-    _model->setJointAcceleration(_qddot);
-    _model->update();
-
-    if (_robot)
-    {
-        _robot->setReferenceFrom(*_model);
-        _robot->setEffortReference(_tau);
-        _robot->move();
-    }
 
 
     if (_solution_index == _mpc_solution.points.size() - 1)
@@ -95,6 +76,8 @@ bool MPCJointHandler::update()
     }
     else
         _solution_index++;
+
+    _flusher->flush();
 
     return true;
 }

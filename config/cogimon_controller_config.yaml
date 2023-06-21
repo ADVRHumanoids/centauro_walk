@@ -1,0 +1,67 @@
+define:
+    - &high_stiffness 500
+    - &medium_stiffness 100
+    - &small_stiffness 50
+    - &high_damping 10
+    - &medium_damping 5
+    - &small_damping 2
+
+stiffness:
+    WaistYaw: *high_stiffness
+    WaistLat: *high_stiffness
+    RShSag: *medium_stiffness
+    RShLat: *medium_stiffness
+    RShYaw: *medium_stiffness
+    RElbj: *medium_stiffness
+    RForearmPlate: *small_stiffness
+    RWrj1: *small_stiffness
+    RWrj2: *small_stiffness
+    LShSag: *medium_stiffness
+    LShLat: *medium_stiffness
+    LShYaw: *medium_stiffness
+    LElbj: *medium_stiffness
+    LForearmPlate: *small_stiffness
+    LWrj1: *small_stiffness
+    LWrj2: *small_stiffness
+    RHipLat: *high_stiffness
+    RHipSag: *high_stiffness
+    RHipYaw: *high_stiffness
+    RKneePitch: *high_stiffness
+    RAnklePitch: *high_stiffness
+    RAnkleRoll: *high_stiffness
+    LHipLat: *high_stiffness
+    LHipSag: *high_stiffness
+    LHipYaw: *high_stiffness
+    LKneePitch: *high_stiffness
+    LAnklePitch: *high_stiffness
+    LAnkleRoll: *high_stiffness
+
+damping:
+    WaistYaw: *high_damping
+    WaistLat: *high_damping
+    RShSag: *medium_damping
+    RShLat: *medium_damping
+    RShYaw: *medium_damping
+    RElbj: *medium_damping
+    RForearmPlate: *small_damping
+    RWrj1: *small_damping
+    RWrj2: *small_damping
+    LShSag: *medium_damping
+    LShLat: *medium_damping
+    LShYaw: *medium_damping
+    LElbj: *medium_damping
+    LForearmPlate: *small_damping
+    LWrj1: *small_damping
+    LWrj2: *small_damping
+    RHipLat: *high_damping
+    RHipSag: *high_damping
+    RHipYaw: *high_damping
+    RKneePitch: *high_damping
+    RAnklePitch: *high_damping
+    RAnkleRoll: *high_damping
+    LHipLat: *high_damping
+    LHipSag: *high_damping
+    LHipYaw: *high_damping
+    LKneePitch: *high_damping
+    LAnklePitch: *high_damping
+    LAnkleRoll: *high_damping

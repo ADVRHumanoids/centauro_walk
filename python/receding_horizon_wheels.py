@@ -278,29 +278,42 @@ zmp_timeline.registerPhase(zmp_empty_phase)
 #     f_prev = f.getVarOffset(-1)
 #     prb.createIntermediateResidual(f'{f_name}_smooth_forces', 1e-2 * (f_prev - f), nodes=range(1, ns-1))
 
+'''
+Maximize support polygon
+'''
+# pos1 = model.kd.fk('ball_1')(q=model.q)['ee_pos']
+# pos2 = model.kd.fk('ball_2')(q=model.q)['ee_pos']
+# pos3 = model.kd.fk('ball_3')(q=model.q)['ee_pos']
+# pos4 = model.kd.fk('ball_4')(q=model.q)['ee_pos']
+#
+# sp_area = cs.fabs(((pos1[0] * pos2[1]) + (pos2[0] * pos3[1]) + (pos3[0] * pos4[1]) + (pos4[0] * pos1[1])) -
+#                   ((pos1[1] * pos2[0]) + (pos2[1] * pos3[0]) + (pos3[1] * pos4[0]) + (pos4[1] * pos1[0]))) / 2
+#
+# prb.createResidual('max_support_polygon', 1e-1 * (sp_area - 3.))
+
 for c in model.cmap.keys():
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
     flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
     c_phases[c].addPhase(stance)
-    zmp_timeline.addPhase(zmp_phase)
+    # zmp_timeline.addPhase(zmp_phase)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)

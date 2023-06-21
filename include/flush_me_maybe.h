@@ -24,7 +24,12 @@ public:
     void add(std::string name, Eigen::Vector3d vec);
     void add(std::string name, Eigen::Affine3d T);
     void add(std::string name, Eigen::Vector6d twist);
+    void add(std::string name, Eigen::VectorXd q);
     void add(std::string name, double value);
+    void add(std::vector<std::string> joint_names,
+             Eigen::VectorXd q,
+             Eigen::VectorXd qdot,
+             Eigen::VectorXd tau);
 
     void publish(std::string topic_name, Eigen::Vector3d vec);
     void publish(std::string topic_name, Eigen::Affine3d T);
