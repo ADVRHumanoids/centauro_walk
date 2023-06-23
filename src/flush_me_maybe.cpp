@@ -73,6 +73,11 @@ void FlushMeMaybe::add(std::string name, Eigen::Vector6d twist)
 
 void FlushMeMaybe::add(std::vector<std::string> joint_names, Eigen::VectorXd q, Eigen::VectorXd qdot, Eigen::VectorXd tau)
 {
+    _msg.joint_state.name.clear();
+    _msg.joint_state.position.clear();
+    _msg.joint_state.velocity.clear();
+    _msg.joint_state.effort.clear();
+
     _msg.joint_state.name = joint_names;
     _msg.joint_state.position.assign(q.data(), q.data() + q.size());
     _msg.joint_state.velocity.assign(qdot.data(), qdot.data() + qdot.size());

@@ -62,7 +62,7 @@ file_dir = os.getcwd()
 '''
 Initialize Horizon problem
 '''
-ns = 30
+ns = 40
 T = 3
 dt = T / ns
 
@@ -128,7 +128,7 @@ base_init[2] = -init_pos_foot[2]
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
-                                 base_init=base_init,
+                                 base_init=base_init
                                  )
 
 rospy.set_param('mpc/robot_description', urdf)
@@ -226,11 +226,11 @@ for c_name, f_var in model.fmap.items():
 c_mean /= len(model.cmap.keys())
 
 # zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 10.
+zmp_nominal_weight = 2.5
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
-zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
-zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
+zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
+# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
 stance_duration = 5
 flight_duration = 5
@@ -257,12 +257,12 @@ for c in model.cmap.keys():
     c_phases[c].registerPhase(flight_phase)
 
 # register zmp phase
-zmp_phase = pyphase.Phase(stance_duration, 'zmp_phase')
-zmp_phase.addCost(zmp)
-zmp_empty_phase = pyphase.Phase(flight_duration, 'zmp_empty_phase')
-zmp_empty_phase.addCost(zmp_empty)
-zmp_timeline.registerPhase(zmp_phase)
-zmp_timeline.registerPhase(zmp_empty_phase)
+# zmp_phase = pyphase.Phase(stance_duration, 'zmp_phase')
+# zmp_phase.addCost(zmp)
+# zmp_empty_phase = pyphase.Phase(flight_duration, 'zmp_empty_phase')
+# zmp_empty_phase.addCost(zmp_empty)
+# zmp_timeline.registerPhase(zmp_phase)
+# zmp_timeline.registerPhase(zmp_empty_phase)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
@@ -293,30 +293,11 @@ Maximize support polygon
 
 for c in model.cmap.keys():
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
-    flight = c_phases[c].getRegisteredPhase(f'flight_{c}')
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
-    c_phases[c].addPhase(stance)
-    # zmp_timeline.addPhase(zmp_phase)
+    while c_phases[c].getEmptyNodes() > 0:
+        c_phases[c].addPhase(stance)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
-ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
+# ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
 # ti.model.a.setBounds(np.zeros([model.a.shape[0], 1]), np.zeros([model.a.shape[0], 1]), nodes=0)
 ti.model.q.setInitialGuess(ti.model.q0)
 ti.model.v.setInitialGuess(ti.model.v0)
@@ -326,6 +307,9 @@ for cname, cforces in ti.model.cmap.items():
     for c in cforces:
         c.setInitialGuess(f0)
 
+vel_lims = model.kd.velocityLimits()
+prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
+prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
@@ -356,6 +340,7 @@ jc = JoyCommands(gm)
 
 from geometry_msgs.msg import PointStamped
 zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
+
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -410,11 +395,11 @@ while not rospy.is_shutdown():
 
     solution_publisher.publish(jt)
 
-    try:
-        print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
-        print(prb.getCosts('zmp').getNodes())
-    except:
-        pass
+    # try:
+    #     print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+    #     print(prb.getCosts('zmp').getNodes())
+    # except:
+    #     pass
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}

@@ -68,8 +68,6 @@ bool MPCJointHandler::update()
     _robot->setEffortReference(_tau);
     _robot->move();
 
-
-
     if (_solution_index == _mpc_solution.points.size() - 1)
     {
         _solution_index = _mpc_solution.points.size() - 1;

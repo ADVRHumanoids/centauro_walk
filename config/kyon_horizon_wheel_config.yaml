@@ -26,10 +26,10 @@ constraints:
   - z_ball_2
   - z_ball_3
   - z_ball_4
-  - final_base_xy
   - base_orientation
 
 costs:
+  - final_base_xy
   - com_height
   - joint_regularization
   - joint_posture

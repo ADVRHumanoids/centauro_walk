@@ -37,14 +37,16 @@ void Controller::init_load_config()
         _nhpr.getParam("config", config_string);
         _config = YAML::Load(config_string);
 
-        if (!_config["ctrl_mode"])
+        if (!_config["control_mode"])
         {
-            ColoredTextPrinter::print("Missing 'ctrl_mode', using default \n", ColoredTextPrinter::TextColor::Yellow);
+            ColoredTextPrinter::print("Missing 'control_mode', using default \n", ColoredTextPrinter::TextColor::Yellow);
         }
         else
         {
-            for (std::pair<std::string, int> pair : _config["ctrl_mode"].as<std::map<std::string, int>>())
+            ColoredTextPrinter::print("Setting ctrl mode: \n", ColoredTextPrinter::TextColor::Green);
+            for (std::pair<std::string, int> pair : _config["control_mode"].as<std::map<std::string, int>>())
             {
+                ColoredTextPrinter::print(pair.first + ": " + std::to_string(pair.second) + "\n", ColoredTextPrinter::TextColor::Green);
                 _ctrl_map[pair.first] = XBot::ControlMode::FromBitset(pair.second);
             }
         }

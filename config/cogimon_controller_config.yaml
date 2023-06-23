@@ -5,6 +5,12 @@ define:
     - &high_damping 10
     - &medium_damping 5
     - &small_damping 2
+#    - &high_stiffness 0
+#    - &medium_stiffness 0
+#    - &small_stiffness 0
+#    - &high_damping 0
+#    - &medium_damping 0
+#    - &small_damping 0
 
 stiffness:
     WaistYaw: *high_stiffness

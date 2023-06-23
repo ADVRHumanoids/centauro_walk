@@ -26,10 +26,10 @@ constraints:
   - z_ball_2
   - z_ball_3
   - z_ball_4
-  - final_base_xy
   - base_orientation
 
 costs:
+  - final_base_xy
   - com_height
   - joint_regularization
   - joint_posture
@@ -41,7 +41,7 @@ costs:
 .define:
     - &w_com 0.05
     - &w_base_ori 0.5
-    - &w_base_xy 10.
+    - &w_base_xy 1e-1
     - &w_ball_xy 10.
     - &w_ball_z 1.
     - &w_ball_ori 20.
