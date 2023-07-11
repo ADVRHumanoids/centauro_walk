@@ -8,21 +8,26 @@ find_package(catkin REQUIRED COMPONENTS
              std_msgs
              geometry_msgs
              sensor_msgs
+             trajectory_msgs
              message_generation)
 
 find_package(Eigen3 REQUIRED)
 find_package(cartesian_interface REQUIRED)
+
+find_package(urdfdom REQUIRED)
+find_package(pinocchio REQUIRED)
 
 add_message_files(
     FILES
     SRBDCoordinate.msg
     SRBDTrajectory.msg
     FlushMeMaybe.msg
+    WBTrajectory.msg
 )
 
 generate_messages(
     DEPENDENCIES
-    std_msgs geometry_msgs sensor_msgs
+    std_msgs geometry_msgs sensor_msgs trajectory_msgs
     )
 
 catkin_package(
@@ -35,21 +40,35 @@ catkin_package(
 add_library(flush_me_maybe src/flush_me_maybe.cpp)
 target_link_libraries(flush_me_maybe ${catkin_LIBRARIES})
 
-add_executable(controller src/controller_node.cpp src/controller.cpp)
-target_link_libraries(controller flush_me_maybe mpc_handler ${cartesian_interface_LIBRARIES} ${catkin_LIBRARIES})
+add_executable(controller
+    src/controller_node.cpp
+    src/controller.cpp)
+target_link_libraries(controller
+    flush_me_maybe mpc_handler
+    ${cartesian_interface_LIBRARIES}
+    ${catkin_LIBRARIES})
 
 add_library(mpc_handler
     src/mpc_handler.cpp
     src/mpc_joint_handler.cpp
-    src/mpc_srbd_handler.cpp)
-target_link_libraries(mpc_handler flush_me_maybe ${catkin_LIBRARIES}  ${cartesian_interface_LIBRARIES})
+    src/mpc_srbd_handler.cpp
+    src/resampler.cpp
+)
+target_link_libraries(mpc_handler
+    flush_me_maybe
+    ${catkin_LIBRARIES}
+    ${cartesian_interface_LIBRARIES}
+    ${PINOCCHIO_LIBRARIES}
+    ${urdfdom_LIBRARIES}
+)
 
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
     ${muvt_core_INCLUDE_DIRS}
-    ${cartesian_interface_INCLUDE_DIRS})
+    ${cartesian_interface_INCLUDE_DIRS}
+    ${PINOCCHIO_INCLUDE_DIRS})
 
 install(TARGETS controller
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
