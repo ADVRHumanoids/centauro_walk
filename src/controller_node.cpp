@@ -6,9 +6,9 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "controller_node");
     ros::NodeHandle nh("");
 
-    Controller controller(nh, 100);
+    Controller controller(nh, 200);
 
-    ros::Rate r(100);
+    ros::Rate r(200);
     while(ros::ok())
     {
         controller.run();

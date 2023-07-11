@@ -15,7 +15,7 @@ _robot(robot)
     _model->getJointAcceleration(_qddot);
     _model->getJointEffort(_tau);
 
-    _flusher = std::make_shared<XBot::FlushMeMaybe>();
+//    _flusher = std::make_shared<XBot::FlushMeMaybe>();
 }
 
 void MPCJointHandler::mpc_joint_callback(const trajectory_msgs::JointTrajectoryConstPtr msg)
@@ -58,10 +58,10 @@ bool MPCJointHandler::update()
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.accelerations.data(), trj_point.accelerations.size()), _qddot);
     vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()), _tau);
 
-    _flusher->add(joint_names,
-                  q_euler,
-                  Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()),
-                  Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()));
+//    _flusher->add(joint_names,
+//                  q_euler,
+//                  Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()),
+//                  Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()));
 
     _robot->setPositionReference(_q);
     _robot->setVelocityReference(_qdot);
@@ -75,7 +75,7 @@ bool MPCJointHandler::update()
     else
         _solution_index++;
 
-    _flusher->flush();
+//    _flusher->flush();
 
     return true;
 }
