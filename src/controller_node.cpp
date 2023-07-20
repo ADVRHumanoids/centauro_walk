@@ -4,11 +4,21 @@
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "controller_node");
-    ros::NodeHandle nh("");
+    ros::NodeHandle nh(""), nhpr("~");
 
-    Controller controller(nh, 200);
+    int rate;
+    if (!nhpr.hasParam("rate"))
+    {
+        rate = 100;
+    }
+    else
+    {
+        nhpr.getParam("rate", rate);
+    }
 
-    ros::Rate r(200);
+    Controller controller(nh, rate);
+
+    ros::Rate r(rate);
     while(ros::ok())
     {
         controller.run();

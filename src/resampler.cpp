@@ -1,46 +1,66 @@
 #include "resampler.h"
 
-#include <pinocchio/parsers/urdf.hpp>
-#include <pinocchio/algorithm/rnea.hpp>
-#include <pinocchio/algorithm/frames.hpp>
-
 Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model, std::vector<std::string> frames):
 _urdf(urdf_model),
-_frames(frames)
+_frames(frames),
+_time(0)
 {
     // parse pinocchio model from urdf
     pinocchio::urdf::buildModel(urdf_model, _model);
     _data = std::make_unique<pinocchio::Data>(_model);
 
-    _x.resize(_model.nq + _model.nv + _model.nv + 3*_frames.size());
-    _u.resize(_model.nv + 3*_frames.size());
-    _xdot.resize(_x.size() - 1);
+    if (!_frames.empty())
+    {
+        resize();
+    }
+}
+
+void Resampler::resize()
+{
+    // resize state vector
+    _x.resize(_model.nq + _model.nv + _model.nv + 6 * _frames.size());
+
+    // resize input vector
+    _u.resize(_model.nv + 6 * _frames.size());
+
+    // resize xdot and double integrator vectors
+    _xdot.resize(_x.size());
     _k1.resize(_xdot.size());
     _k2.resize(_xdot.size());
     _k3.resize(_xdot.size());
     _k4.resize(_xdot.size());
 
-    _v.resize(_model.nv);
+    // resize velocity (quaternion compatible) and torque vectors
+    _v.resize(_model.nq);
     _tau.resize(_model.nv);
 
     // resize Jacobian
     _J.setZero(6, _model.nv);
 }
 
+void Resampler::guard_function()
+{
+    if (_frames.empty())
+        throw std::runtime_error("You forgot to assign contact frames. You can do that from Resampler Constructor or using setFrames() function.");
+}
+
 bool Resampler::setState(const Eigen::VectorXd x)
 {
-    if (x.size() != _model.nq + _model.nv + _model.nv + 3*_frames.size())
+    guard_function();
+    if (x.size() != _model.nq + _model.nv + _model.nv + 6 * _frames.size())
     {
         return false;
     }
 
     _x = x;
+    _time = 0;
     return true;
 }
 
 bool Resampler::setInput(const Eigen::VectorXd u)
 {
-    if (u.size() != _model.nv + _model.nv + _model.nv + 3*_frames.size())
+    guard_function();
+    if (u.size() != _model.nv + 6 * _frames.size())
     {
         return false;
     }
@@ -49,28 +69,52 @@ bool Resampler::setInput(const Eigen::VectorXd u)
     return true;
 }
 
-void Resampler::getState(Eigen::VectorXd &x)
+void Resampler::setFrames(const std::vector<std::string> frames)
+{
+    _frames = frames;
+    resize();
+}
+
+void Resampler::getState(Eigen::VectorXd &x) const
 {
     x = _x;
 }
 
-void Resampler::getInput(Eigen::VectorXd &u)
+void Resampler::getInput(Eigen::VectorXd &u) const
 {
     u = _u;
 }
 
+void Resampler::getTau(Eigen::VectorXd & tau) const
+{
+    tau = _tau;
+}
+
+void Resampler::getFrames(std::vector<std::string> &frames) const
+{
+    frames = _frames;
+}
+
 void Resampler::id()
 {
+    guard_function();
     pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _x.segment(_model.nq + _model.nv, _model.nv));
+    _tau = _data->tau;
 
+//    std::cout << "tau: \n" << _data->tau.transpose() << std::endl;
+
+//    std::cout << "x: " << _x.transpose() << std::endl;
     for (int i = 0; i < _frames.size(); i++)
     {
+//        std::cout << "f_" << _frames[i] << ": " << _x.segment(_model.nq + _model.nv + _model.nv + i*6, 6).transpose() << std::endl;
+        Eigen::MatrixXd J;
+        J.setZero(6, _model.nv);
         auto frame_id = _model.getFrameId(_frames[i]);
-        pinocchio::getFrameJacobian(_model, *_data, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, _J);
-        _data->tau += _J.transpose() * _x.segment(_model.nq + _model.nv + _model.nv + i*3, 6);
+        pinocchio::computeJointJacobians(_model, *_data, _x.head(_model.nq));
+        pinocchio::framesForwardKinematics(_model, *_data, _x.head(_model.nq));
+        pinocchio::getFrameJacobian(_model, *_data, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+        _tau -= J.transpose() * _x.segment(_model.nq + _model.nv + _model.nv + i*6, 6);
     }
-
-    _tau = _data->tau;
 }
 
 void Resampler::double_integrator(const Eigen::VectorXd &x, const Eigen::VectorXd &u, Eigen::VectorXd &xdot)
@@ -88,6 +132,7 @@ void Resampler::rk4(double dt_res)
     double_integrator(_x + dt_res * _k3, _u, _k4);
 
     _x = _x + dt_res / 6. * (_k1 + 2 * _k2 + 2 * _k3 + _k4);
+    _time += dt_res;
 }
 
 void Resampler::qdot(Eigen::Ref<const Eigen::VectorXd> qeig,

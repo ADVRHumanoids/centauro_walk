@@ -3,10 +3,12 @@
 
 MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
+                                 int rate,
                                  XBot::RobotInterface::Ptr robot):
 MPCHandler(nh),
 _model(model),
-_robot(robot)
+_robot(robot),
+_rate(rate)
 {
     init_publishers_and_subscribers();
 
@@ -16,16 +18,71 @@ _robot(robot)
     _model->getJointEffort(_tau);
 
 //    _flusher = std::make_shared<XBot::FlushMeMaybe>();
+    auto urdf_model = std::make_shared<urdf::ModelInterface>(_model->getUrdf());
+    _resampler = std::make_unique<Resampler>(urdf_model);
 }
 
-void MPCJointHandler::mpc_joint_callback(const trajectory_msgs::JointTrajectoryConstPtr msg)
+void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg)
 {
+    if (!_mpc_solution.q.empty())
+        _old_solution = _mpc_solution;
+    else
+        _old_solution = *msg;
+
     _mpc_solution = *msg;
+
     if (!_is_callback_done)
     {
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
-        _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});
+        _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});     
+
+        _x.resize(_old_solution.q.size() + _old_solution.v.size() + _old_solution.a.size() + (_old_solution.force_names.size() * 6));
+        _u.resize(_old_solution.j.size() + _old_solution.force_names.size() * 6);
+        _f.resize(_old_solution.force_names.size() * 6);
+        _fdot.resize(_old_solution.force_names.size() * 6);
+
+        std::vector<std::string> frames(_old_solution.force_names.data(), _old_solution.force_names.data() + _old_solution.force_names.size());
+        _resampler->setFrames(frames);
     }
+
+    // set state and input to Resampler
+    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
+    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
+    _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
+    _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
+
+    for (int i = 0; i < _old_solution.force_names.size(); i++)
+    {
+        _f.block<6, 1>(i * 6, 0) << _old_solution.f[i].x, _old_solution.f[i].y, _old_solution.f[i].z, 0, 0, 0;
+    }
+
+    for (int i = 0; i < _old_solution.force_names.size(); i++)
+    {
+        _fdot.block<6, 1>(i * 6, 0) << _old_solution.fdot[i].x, _old_solution.fdot[i].y, _old_solution.fdot[i].z, 0, 0, 0;
+    }
+
+//    std::cout << "p: " << _p.transpose() << std::endl;
+//    std::cout << "v: " << _v.transpose() << std::endl;
+//    std::cout << "a: " << _a.transpose() << std::endl;
+//    std::cout << "f: " << _f.transpose() << std::endl;
+
+    _x << _p, _v, _a, _f;
+//    std::cout << "x: " << _x.transpose() << std::endl;
+
+//    std::cout << "j: " << _j.transpose() << std::endl;
+//    std::cout << "fdot: " << _fdot.transpose() << std::endl;
+
+    _u << _j, _fdot;
+//    std::cout << "u: " << _u.transpose() << std::endl;
+
+//    std::cout << "p.size(): "  << _p.size() << " - v.size(): "  << _v.size() << " - a.size(): "  << _a.size() << " - f.size(): "  << _f.size() << " - x.size(): "  << _x.size() << std::endl;
+
+    if(!_resampler->setState(_x))
+        throw std::runtime_error("wrong dimension of the state vector! " + std::to_string(_x.size()) + " != ");
+    if(!_resampler->setInput(_u))
+        throw std::runtime_error("wrong dimension of the input vector! " + std::to_string(_u.size()) + " != ");
+
+
     _is_callback_done = true;
     _solution_index = 1;
 }
@@ -41,22 +98,47 @@ bool MPCJointHandler::update()
     _model->syncFrom(*_robot);
     _model->update();
 
-    // Read the mpc solution
-    trajectory_msgs::JointTrajectoryPoint trj_point;
-    trj_point = _mpc_solution.points[_solution_index];
+    // resample
+    // TODO: add guard to check when we exceed the dt_MPC
+    _resampler->resample(1./_rate);
+
+    // get resampled state and set it to the robot
     std::vector<std::string> joint_names(_mpc_solution.joint_names.data(), _mpc_solution.joint_names.data() + _mpc_solution.joint_names.size());
+    Eigen::VectorXd tau;
+    _resampler->getState(_x);
+    _resampler->getTau(tau);
+    _p = _x.head(_p.size());
+    _v = _x.segment(_p.size(), _v.size());
+    _a = _x.segment(_p.size() + _v.size(), _a.size());
+
+//    std::cout << "P: " << _p.transpose() << std::endl;
 
     // From quaternion to RPY
-    Eigen::Quaterniond quat(trj_point.positions[6], trj_point.positions[3], trj_point.positions[4], trj_point.positions[5]);
-    auto rpy = quat.toRotationMatrix().eulerAngles(0, 1, 2);
+    Eigen::Quaterniond quat(_p(6), _p(3), _p(4), _p(5));
+    Eigen::Vector3d rpy = quat.toRotationMatrix().eulerAngles(0, 1, 2);
     Eigen::VectorXd q_euler(_model->getJointNum());
-    q_euler.head(6) << trj_point.positions[0], trj_point.positions[1], trj_point.positions[2], rpy[0], rpy[1], rpy[2];
-    q_euler.tail(_model->getJointNum() - 6) = Eigen::VectorXd::Map(trj_point.positions.data() + 7, trj_point.positions.size() - 7);
+    q_euler.head(6) << _p(0), _p(1), _p(2), rpy;
+    q_euler.tail(_model->getJointNum() - 6) = _p.tail(_p.size() - 7);
+
+
+//    std::cout << "JOINT_NAMES: " << std::endl;
+//    for (auto name : _joint_names)
+//        std::cout << name << std::endl;
+
+//    std::cout << "Q_EULER: " << q_euler.transpose() << std::endl;
 
     vectors_to_map<std::string, double>(_joint_names, q_euler, _q);
-    vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()), _qdot);
-    vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.accelerations.data(), trj_point.accelerations.size()), _qddot);
-    vectors_to_map<std::string, double>(_joint_names, Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()), _tau);
+    vectors_to_map<std::string, double>(_joint_names, _v, _qdot);
+    vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
+    vectors_to_map<std::string, double>(_joint_names, tau, _tau);
+
+//    std::cout << "Q: " << std::endl;
+//    for (auto pair : _q)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
+
+//    std::cout << "TAU: " << std::endl;
+//    for(auto pair : _tau)
+//        std::cout << pair.first << ": " << pair.second << std::endl;
 
 //    _flusher->add(joint_names,
 //                  q_euler,
@@ -68,12 +150,12 @@ bool MPCJointHandler::update()
     _robot->setEffortReference(_tau);
     _robot->move();
 
-    if (_solution_index == _mpc_solution.points.size() - 1)
-    {
-        _solution_index = _mpc_solution.points.size() - 1;
-    }
-    else
-        _solution_index++;
+//    if (_solution_index == _mpc_solution.points.size() - 1)
+//    {
+//        _solution_index = _mpc_solution.points.size() - 1;
+//    }
+//    else
+//        _solution_index++;
 
 //    _flusher->flush();
 

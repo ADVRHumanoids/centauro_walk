@@ -22,7 +22,7 @@ _init(false)
     init_load_model();
     init_load_publishers_and_subscribers();
 
-    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _robot);
+    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _robot);
 }
 
 void Controller::init_load_config()
@@ -135,6 +135,10 @@ void Controller::set_stiffness_damping_torque(double duration)
     _robot->getJointPosition(q);
     _robot->getPositionReference(q_ref);
 
+    std::cout << "q_ref: " << std::endl;
+    for (auto pair : q_ref)
+        std::cout << pair.first << ": " << pair.second << std::endl;
+
     _robot->getJointVelocity(qdot);
     _robot->getVelocityReference(qdot_ref);
 
@@ -158,13 +162,14 @@ void Controller::set_stiffness_damping_torque(double duration)
     _model->update();
     _model->getJointEffort(tau_goal);
 
+
     while (_time < T)
     {
-
         for (auto pair : tau_start)
         {
             tau[pair.first] = tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T;
         }
+
 
         _robot->setEffortReference(tau);
         _robot->move();
@@ -202,7 +207,10 @@ void Controller::run()
 {
     if(_mpc_handler->is_msg_received())
     {
-         _mpc_handler->update(); // update model
+        if (_init)
+        {
+            _mpc_handler->update(); // update model
+        }
     }
     else
     {

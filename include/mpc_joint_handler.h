@@ -1,8 +1,10 @@
 #ifndef MPC_JOINT_HANDLER_H
 #define MPC_JOINT_HANDLER_H
 
+#include "resampler.h"
 #include "mpc_handler.h"
 #include "flush_me_maybe.h"
+#include <kyon_controller/WBTrajectory.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <Eigen/Dense>
 
@@ -16,6 +18,7 @@ class MPCJointHandler : public MPCHandler {
 public:
     MPCJointHandler(ros::NodeHandle nh,
                     XBot::ModelInterface::Ptr model,
+                    int rate,
                     XBot::RobotInterface::Ptr robot = nullptr);
 
     bool update() override;
@@ -23,16 +26,11 @@ public:
 private:
     void init_publishers_and_subscribers();
 
-    void mpc_joint_callback(const trajectory_msgs::JointTrajectoryConstPtr msg);
+    void mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg);
 
     template<typename key, typename value>
     void vectors_to_map(const std::vector<key> vec1, const Eigen::Matrix<value, 1, -1> vec2, std::unordered_map<key, value>& map)
     {
-//        std::vector<value> stl_vec2(vec2.data(), vec2.data() + vec2.size());
-//        std::transform(vec1.begin(), vec1.end(), stl_vec2.begin(), std::inserter(map, map.end()), [](key a, value b)
-//        {
-//            return std::make_pair(a, b);
-//        });
         if (vec1.size() != vec2.size())
             throw std::runtime_error("you are trying to merge two vectors of different size in the same map!");
 
@@ -42,18 +40,22 @@ private:
         }
     }
 
-    XBot::JointNameMap _q;
-    XBot::JointNameMap _qdot;
-    XBot::JointNameMap _qddot;
-    XBot::JointNameMap _tau;
+    XBot::JointNameMap _q, _qdot, _qddot, _tau;
+
+    Eigen::VectorXd _p, _v, _a, _f;
+    Eigen::VectorXd _j, _fdot;
+
     std::vector<std::string> _joint_names;
 
-    trajectory_msgs::JointTrajectory _mpc_solution;
+    Eigen::VectorXd _x, _u;
+    kyon_controller::WBTrajectory _mpc_solution, _old_solution;
+    Resampler::UniquePtr _resampler;
 
     XBot::FlushMeMaybe::Ptr _flusher;
 
     XBot::ModelInterface::Ptr _model;
     XBot::RobotInterface::Ptr _robot;
+    int _rate;
 };
 
 #endif // MPC_JOINT_HANDLER_H

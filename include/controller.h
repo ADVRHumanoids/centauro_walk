@@ -1,6 +1,8 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
+#include "mpc_joint_handler.h"
+
 #include <ros/ros.h>
 
 #include <XBotInterface/ModelInterface.h>
@@ -12,9 +14,6 @@
 #include <OpenSoT/tasks/acceleration/CoM.h>
 #include <RobotInterfaceROS/ConfigFromParam.h>
 
-#include "mpc_joint_handler.h"
-
-#include <sensor_msgs/Joy.h>
 #include <flush_me_maybe.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
