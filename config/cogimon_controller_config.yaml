@@ -1,9 +1,9 @@
 define:
     - &high_stiffness 1500
-    - &medium_stiffness 700
-    - &small_stiffness 350
-    - &high_damping 25
-    - &medium_damping 12
+    - &medium_stiffness 500
+    - &small_stiffness 250
+    - &high_damping 20
+    - &medium_damping 15
     - &small_damping 8
 #    - &high_stiffness 0
 #    - &medium_stiffness 0
@@ -20,15 +20,15 @@ stiffness:
     RShYaw: *medium_stiffness
     RElbj: *medium_stiffness
     RForearmPlate: *small_stiffness
-    RWrj1: 1000
-    RWrj2: 1000
+    RWrj1: *small_stiffness
+    RWrj2: *small_stiffness
     LShSag: *medium_stiffness
     LShLat: *medium_stiffness
     LShYaw: *medium_stiffness
     LElbj: *medium_stiffness
     LForearmPlate: *small_stiffness
-    LWrj1: 1000
-    LWrj2: 1000
+    LWrj1: *small_stiffness
+    LWrj2: *small_stiffness
     RHipLat: *high_stiffness
     RHipSag: *high_stiffness
     RHipYaw: *high_stiffness
@@ -50,15 +50,15 @@ damping:
     RShYaw: *medium_damping
     RElbj: *medium_damping
     RForearmPlate: *small_damping
-    RWrj1: 1000
-    RWrj2: 1000
+    RWrj1: *small_damping
+    RWrj2: *small_damping
     LShSag: *medium_damping
     LShLat: *medium_damping
     LShYaw: *medium_damping
     LElbj: *medium_damping
     LForearmPlate: *small_damping
-    LWrj1: 1000
-    LWrj2: 1000
+    LWrj1: *small_damping
+    LWrj2: *small_damping
     RHipLat: *high_damping
     RHipSag: *high_damping
     RHipYaw: *high_damping

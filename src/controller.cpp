@@ -135,10 +135,6 @@ void Controller::set_stiffness_damping_torque(double duration)
     _robot->getJointPosition(q);
     _robot->getPositionReference(q_ref);
 
-    std::cout << "q_ref: " << std::endl;
-    for (auto pair : q_ref)
-        std::cout << pair.first << ": " << pair.second << std::endl;
-
     _robot->getJointVelocity(qdot);
     _robot->getVelocityReference(qdot_ref);
 
