@@ -45,20 +45,34 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         _resampler->setFrames(frames);
     }
 
-    // set state and input to Resampler
+    // set state and input to Resampler (?)
     _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
     _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
     _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
-    _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
+    if (!_old_solution.j.empty())
+        _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
+
+    // set state and input from robot state
+//    _model->syncFrom(*_robot);
+//    Eigen::VectorXd q(_model->getJointNum()), qdot(_model->getJointNum()), qddot(_model->getJointNum());
+//    _model->getJointPosition(q);
+//    _model->getJointVelocity(qdot);
+//    _model->getJointAcceleration(qddot);
+//    _p << _fb_pose, q.tail(_robot->getJointNum());
+//    _v << _fb_twist, qdot.tail(_robot->getJointNum());
+//    _a << Eige
 
     for (int i = 0; i < _old_solution.force_names.size(); i++)
     {
         _f.block<6, 1>(i * 6, 0) << _old_solution.f[i].x, _old_solution.f[i].y, _old_solution.f[i].z, 0, 0, 0;
     }
 
-    for (int i = 0; i < _old_solution.force_names.size(); i++)
+    if (!_old_solution.fdot.empty())
     {
-        _fdot.block<6, 1>(i * 6, 0) << _old_solution.fdot[i].x, _old_solution.fdot[i].y, _old_solution.fdot[i].z, 0, 0, 0;
+        for (int i = 0; i < _old_solution.force_names.size(); i++)
+        {
+            _fdot.block<6, 1>(i * 6, 0) << _old_solution.fdot[i].x, _old_solution.fdot[i].y, _old_solution.fdot[i].z, 0, 0, 0;
+        }
     }
 
 //    std::cout << "p: " << _p.transpose() << std::endl;

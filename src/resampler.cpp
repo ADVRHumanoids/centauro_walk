@@ -52,6 +52,8 @@ bool Resampler::setState(const Eigen::VectorXd x)
         return false;
     }
 
+    std::cout << "setting state at t = " << _time << std::endl;
+
     _x = x;
     _time = 0;
     return true;

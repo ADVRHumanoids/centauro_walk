@@ -6,8 +6,8 @@ MPCHandler::MPCHandler(ros::NodeHandle nh):
     _is_callback_done(false),
     _initialized(false)
 {
-//    _gt_pose_sub = _nh.subscribe("/xbotcore/link_state/base_link/pose", 1, &MPCHandler::gt_pose_callback, this);
-//    _gt_twist_sub = _nh.subscribe("/xbotcore/link_state/base_link/twist", 1, &MPCHandler::gt_twist_callback, this);
+    _gt_pose_sub = _nh.subscribe("/xbotcore/link_state/base_link/pose", 1, &MPCHandler::gt_pose_callback, this);
+    _gt_twist_sub = _nh.subscribe("/xbotcore/link_state/base_link/twist", 1, &MPCHandler::gt_twist_callback, this);
 }
 
 void MPCHandler::gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg)
