@@ -1,13 +1,19 @@
 #include "resampler.h"
 
-Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model, std::vector<std::string> frames):
+Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model, std::vector<std::string> frames, int sys_order):
 _urdf(urdf_model),
 _frames(frames),
+_sys_order(sys_order),
 _time(0)
 {
     // parse pinocchio model from urdf
     pinocchio::urdf::buildModel(urdf_model, _model);
     _data = std::make_unique<pinocchio::Data>(_model);
+
+    if (_sys_order != 2  && _sys_order != 3)
+    {
+        throw std::runtime_error("Resampler works with systems of order 2 and 3 only!");
+    }
 
     if (!_frames.empty())
     {
@@ -17,11 +23,17 @@ _time(0)
 
 void Resampler::resize()
 {
-    // resize state vector
-    _x.resize(_model.nq + _model.nv + _model.nv + 6 * _frames.size());
-
-    // resize input vector
-    _u.resize(_model.nv + 6 * _frames.size());
+    // resize state and input vectors
+    if (_sys_order == 2)
+    {
+        _x.resize(_model.nq + _model.nv);
+        _u.resize(_model.nv + 6 * _frames.size());
+    }
+    else if (_sys_order == 3)
+    {
+        _x.resize(_model.nq + _model.nv + _model.nv + 6 * _frames.size());
+        _u.resize(_model.nv + 6 * _frames.size());
+    }
 
     // resize xdot and double integrator vectors
     _xdot.resize(_x.size());
@@ -47,12 +59,10 @@ void Resampler::guard_function()
 bool Resampler::setState(const Eigen::VectorXd x)
 {
     guard_function();
-    if (x.size() != _model.nq + _model.nv + _model.nv + 6 * _frames.size())
+    if (x.size() != _x.size())
     {
         return false;
     }
-
-    std::cout << "setting state at t = " << _time << std::endl;
 
     _x = x;
     _time = 0;
@@ -62,7 +72,7 @@ bool Resampler::setState(const Eigen::VectorXd x)
 bool Resampler::setInput(const Eigen::VectorXd u)
 {
     guard_function();
-    if (u.size() != _model.nv + 6 * _frames.size())
+    if (u.size() != _u.size())
     {
         return false;
     }
@@ -100,7 +110,14 @@ void Resampler::getFrames(std::vector<std::string> &frames) const
 void Resampler::id()
 {
     guard_function();
-    pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _x.segment(_model.nq + _model.nv, _model.nv));
+    if (_sys_order == 2)
+    {
+        pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _u.segment(0, _model.nv));
+    }
+    else if (_sys_order == 3)
+    {
+        pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _x.segment(_model.nq + _model.nv, _model.nv));
+    }
     _tau = _data->tau;
 
 //    std::cout << "tau: \n" << _data->tau.transpose() << std::endl;
@@ -115,7 +132,14 @@ void Resampler::id()
         pinocchio::computeJointJacobians(_model, *_data, _x.head(_model.nq));
         pinocchio::framesForwardKinematics(_model, *_data, _x.head(_model.nq));
         pinocchio::getFrameJacobian(_model, *_data, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
-        _tau -= J.transpose() * _x.segment(_model.nq + _model.nv + _model.nv + i*6, 6);
+        if (_sys_order == 2)
+        {
+            _tau -= J.transpose() * _u.segment(_model.nv + i*6, 6);
+        }
+        else if (_sys_order == 3)
+        {
+            _tau -= J.transpose() * _x.segment(_model.nq + _model.nv + _model.nv + i*6, 6);
+        }
     }
 }
 
@@ -123,7 +147,14 @@ void Resampler::double_integrator(const Eigen::VectorXd &x, const Eigen::VectorX
 {
     qdot(x.segment(0, _model.nq), x.segment(_model.nq, _model.nv), _v);
 
-    xdot << _v, x.segment(_model.nq + _model.nv, _model.nv), _u;
+    if (_sys_order == 2)
+    {
+        xdot << _v, _u.segment(0, _model.nv);
+    }
+    else if (_sys_order == 3)
+    {
+        xdot << _v, x.segment(_model.nq + _model.nv, _model.nv), _u;
+    }
 }
 
 void Resampler::rk4(double dt_res)

@@ -16,7 +16,8 @@ public:
     typedef std::unique_ptr<Resampler> UniquePtr;
 
     Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
-              std::vector<std::string> frames = {});
+              std::vector<std::string> frames = {},
+              int sys_order = 2);
 
     bool setState(const Eigen::VectorXd x);
     bool setInput(const Eigen::VectorXd u);
@@ -44,6 +45,8 @@ private:
     void id();
 
     void guard_function();
+
+    int _sys_order;
 
     Eigen::VectorXd _x, _u, _xdot, _v, _tau;
     Eigen::VectorXd _k1, _k2, _k3, _k4;

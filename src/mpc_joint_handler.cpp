@@ -36,31 +36,44 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
         _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});     
 
-        _x.resize(_old_solution.q.size() + _old_solution.v.size() + _old_solution.a.size() + (_old_solution.force_names.size() * 6));
-        _u.resize(_old_solution.j.size() + _old_solution.force_names.size() * 6);
+        // second order system
+        _x.resize(_old_solution.q.size() + _old_solution.v.size());
+        _u.resize(_old_solution.a.size() + _old_solution.force_names.size() * 6);
+
+        // third order system
+//        _x.resize(_old_solution.q.size() + _old_solution.v.size() + _old_solution.a.size() + (_old_solution.force_names.size() * 6));
+//        _u.resize(_old_solution.j.size() + _old_solution.force_names.size() * 6);
+
         _f.resize(_old_solution.force_names.size() * 6);
         _fdot.resize(_old_solution.force_names.size() * 6);
+
+        _p.resize(_model->getJointNum() + 1);
+        _v.resize(_model->getJointNum());
+        _a.resize(_model->getJointNum());
 
         std::vector<std::string> frames(_old_solution.force_names.data(), _old_solution.force_names.data() + _old_solution.force_names.size());
         _resampler->setFrames(frames);
     }
 
     // set state and input to Resampler (?)
-    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
-    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
+    Eigen::VectorXd q(_robot->getJointNum()), qdot(_robot->getJointNum());
+    _robot->getJointPosition(q);
+    _robot->getJointVelocity(qdot);
+
+    // from eigen to quaternion
+    Eigen::Quaterniond quat;
+    quat = Eigen::AngleAxisd(_fb_pose(3), Eigen::Vector3d::UnitX()) *
+           Eigen::AngleAxisd(_fb_pose(4), Eigen::Vector3d::UnitY()) *
+           Eigen::AngleAxisd(_fb_pose(5), Eigen::Vector3d::UnitZ());
+
+    _p << _fb_pose.head(3), quat.coeffs(), q;
+    _v << _fb_twist, qdot;
+
+//    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
+//    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
     _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
     if (!_old_solution.j.empty())
         _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
-
-    // set state and input from robot state
-//    _model->syncFrom(*_robot);
-//    Eigen::VectorXd q(_model->getJointNum()), qdot(_model->getJointNum()), qddot(_model->getJointNum());
-//    _model->getJointPosition(q);
-//    _model->getJointVelocity(qdot);
-//    _model->getJointAcceleration(qddot);
-//    _p << _fb_pose, q.tail(_robot->getJointNum());
-//    _v << _fb_twist, qdot.tail(_robot->getJointNum());
-//    _a << Eige
 
     for (int i = 0; i < _old_solution.force_names.size(); i++)
     {
@@ -75,21 +88,13 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         }
     }
 
-//    std::cout << "p: " << _p.transpose() << std::endl;
-//    std::cout << "v: " << _v.transpose() << std::endl;
-//    std::cout << "a: " << _a.transpose() << std::endl;
-//    std::cout << "f: " << _f.transpose() << std::endl;
+    // second order system
+    _x << _p, _v;
+    _u << _a, _f;
 
-    _x << _p, _v, _a, _f;
-//    std::cout << "x: " << _x.transpose() << std::endl;
-
-//    std::cout << "j: " << _j.transpose() << std::endl;
-//    std::cout << "fdot: " << _fdot.transpose() << std::endl;
-
-    _u << _j, _fdot;
-//    std::cout << "u: " << _u.transpose() << std::endl;
-
-//    std::cout << "p.size(): "  << _p.size() << " - v.size(): "  << _v.size() << " - a.size(): "  << _a.size() << " - f.size(): "  << _f.size() << " - x.size(): "  << _x.size() << std::endl;
+    // third order system
+//    _x << _p, _v, _a, _f;
+//    _u << _j, _fdot;
 
     if(!_resampler->setState(_x))
         throw std::runtime_error("wrong dimension of the state vector! " + std::to_string(_x.size()) + " != ");

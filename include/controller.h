@@ -51,11 +51,11 @@ private:
     void set_stiffness_damping_torque(double duration);
 
     // Callbacks
-    void gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg);
-    void gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg);
+//    void gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg);
+//    void gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg);
 
     ros::NodeHandle _nh, _nhpr;
-    ros::Subscriber _gt_pose_sub, _gt_twist_sub;
+//    ros::Subscriber _gt_pose_sub, _gt_twist_sub;
     ros::Publisher _joint_state_pub;
     YAML::Node _config;
 

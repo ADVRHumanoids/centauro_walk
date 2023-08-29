@@ -178,26 +178,26 @@ void Controller::set_stiffness_damping_torque(double duration)
 
 void Controller::init_load_publishers_and_subscribers()
 {
-    _gt_pose_sub = _nh.subscribe("/xbotcore/link_state/base_link/pose", 1, &Controller::gt_pose_callback, this);
-    _gt_twist_sub = _nh.subscribe("/xbotcore/link_state/base_link/twist", 1, &Controller::gt_twist_callback, this);
+//    _gt_pose_sub = _nh.subscribe("/xbotcore/link_state/base_link/pose", 1, &Controller::gt_pose_callback, this);
+//    _gt_twist_sub = _nh.subscribe("/xbotcore/link_state/base_link/twist", 1, &Controller::gt_twist_callback, this);
     _joint_state_pub = _nh.advertise<xbot_msgs::JointState>("joint_state", 10);
 }
 
-void Controller::gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg)
-{
-    Eigen::Affine3d T;
-    tf::poseMsgToEigen(msg->pose, T);
-    _model->setFloatingBasePose(T);
-    _model->update();
-}
+//void Controller::gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg)
+//{
+//    Eigen::Affine3d T;
+//    tf::poseMsgToEigen(msg->pose, T);
+//    _model->setFloatingBasePose(T);
+//    _model->update();
+//}
 
-void Controller::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg)
-{
-    Eigen::Matrix<double, 6, 1> twist;
-    tf::twistMsgToEigen(msg->twist, twist);
-    _model->setFloatingBaseTwist(twist);
-    _model->update();
-}
+//void Controller::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg)
+//{
+//    Eigen::Matrix<double, 6, 1> twist;
+//    tf::twistMsgToEigen(msg->twist, twist);
+//    _model->setFloatingBaseTwist(twist);
+//    _model->update();
+//}
 
 void Controller::run()
 {
