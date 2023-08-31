@@ -143,20 +143,16 @@ void Controller::set_stiffness_damping_torque(double duration)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
     }
-
-    _robot->setStiffness(_stiffness_map);
-    _robot->setDamping(_damping_map);
-    _robot->move();
+    _robot->sense(false);
+    _model->syncFrom(*_robot);
+    _model->update();
+    _model->getJointEffort(tau_goal);
 
     double T = _time + duration;
     double dt = 1./_rate;
 
     // set stiffness and damping to zero while setting pure torque control
     // continuously update ci to smooth transition
-    _robot->sense(false);
-    _model->syncFrom(*_robot);
-    _model->update();
-    _model->getJointEffort(tau_goal);
 
 
     while (_time < T)
@@ -166,7 +162,8 @@ void Controller::set_stiffness_damping_torque(double duration)
             tau[pair.first] = tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T;
         }
 
-
+        _robot->setStiffness(_stiffness_map);
+        _robot->setDamping(_damping_map);
         _robot->setEffortReference(tau);
         _robot->move();
 
@@ -216,7 +213,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.1);
+        set_stiffness_damping_torque(0.3);
     }
 }
 
