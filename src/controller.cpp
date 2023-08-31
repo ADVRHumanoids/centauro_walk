@@ -201,7 +201,7 @@ void Controller::init_load_publishers_and_subscribers()
 
 void Controller::run()
 {
-    if(_mpc_handler->is_msg_received())
+    if(_mpc_handler->isMsgReceived())
     {
         if (_init)
         {

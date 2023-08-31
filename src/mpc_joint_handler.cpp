@@ -62,6 +62,7 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
     // from eigen to quaternion
     Eigen::Quaterniond quat;
+    std::cout << "fb_pose: " << _fb_pose.transpose() << std::endl;
     quat = Eigen::AngleAxisd(_fb_pose(3), Eigen::Vector3d::UnitX()) *
            Eigen::AngleAxisd(_fb_pose(4), Eigen::Vector3d::UnitY()) *
            Eigen::AngleAxisd(_fb_pose(5), Eigen::Vector3d::UnitZ());

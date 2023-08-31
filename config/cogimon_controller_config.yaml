@@ -1,16 +1,16 @@
 define:
-#    - &high_stiffness 1000
-#    - &medium_stiffness 500
-#    - &small_stiffness 200
-#    - &high_damping 6
-#    - &medium_damping 4
+    - &high_stiffness 1000
+    - &medium_stiffness 500
+    - &small_stiffness 200
+    - &high_damping 6
+    - &medium_damping 4
+    - &small_damping 2
+#    - &high_stiffness 200
+#    - &medium_stiffness 100
+#    - &small_stiffness 50
+#    - &high_damping 5
+#    - &medium_damping 3
 #    - &small_damping 2
-    - &high_stiffness 0
-    - &medium_stiffness 0
-    - &small_stiffness 0
-    - &high_damping 0
-    - &medium_damping 0
-    - &small_damping 0
 
 stiffness:
     WaistYaw: *high_stiffness

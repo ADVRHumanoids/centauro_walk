@@ -17,9 +17,8 @@ public:
 
     MPCHandler(ros::NodeHandle nh);
 
-    bool is_msg_received();
-    bool is_initialized();
-    bool init_create_tasks();
+    bool isMsgReceived() const;
+    bool isInitialized() const;
 
     virtual bool update() = 0;
 
@@ -30,14 +29,14 @@ private:
     ros::Subscriber _gt_pose_sub, _gt_twist_sub;
 
 protected:
-    bool _is_callback_done;
+    bool _is_callback_done, _is_base_pose_received, _is_base_twist_received;
     bool _initialized;
     unsigned int _solution_index;
     ros::NodeHandle _nh;
     ros::Subscriber _mpc_sub;
 
-    Vector6d _fb_pose;
-    Vector6d _fb_twist;
+    Eigen::VectorXd _fb_pose;
+    Eigen::VectorXd _fb_twist;
 };
 
 #endif // MPC_HANDLER_H

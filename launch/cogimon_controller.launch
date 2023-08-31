@@ -1,14 +1,17 @@
 <launch>
     <arg name="gui" default="true"/>
+    <arg name="base_estimation" default="true"/>
 
-    <param name="robot_description"
-         command="$(find xacro)/xacro $(find cogimon_urdf)/urdf/cogimon.urdf.xacro"/>
-         <param name="robot_description_semantic"
-              command="$(find xacro)/xacro $(find cogimon_srdf)/srdf/cogimon.srdf.xacro"/>
+    <param name="robot_description" command="$(find xacro)/xacro $(find cogimon_urdf)/urdf/cogimon.urdf.xacro"/>
+    <param name="robot_description_semantic" command="$(find xacro)/xacro $(find cogimon_srdf)/srdf/cogimon.srdf.xacro"/>
 
     <node pkg="kyon_controller" type="controller" name="cogimon_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/cogimon_controller_config.yaml"/>
         <param name="rate" value="800"/>
+        <remap if="$(arg base_estimation)" from="/base_link/pose" to="/cogimon_base_estimation/base_link/pose"/>
+        <remap if="$(arg base_estimation)" from="/base_link/twist" to="/cogimon_base_estimation/base_link/twist"/>
+        <remap unless="$(arg base_estimation)" from="/base_link/pose" to="/xbotcore/link_state/base_link/pose"/>
+        <remap unless="$(arg base_estimation)" from="/base_link/twist" to="/xbotcore/link_state/base_link/twist"/>
     </node>
 
     <node if="$(arg gui)" pkg="rviz" type="rviz" name="rviz" args="-d $(find kyon_controller)/config/kyon_controller.rviz"/>
