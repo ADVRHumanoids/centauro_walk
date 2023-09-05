@@ -66,7 +66,7 @@ private:
     std::map<std::string, XBot::ControlMode> _ctrl_map;
     std::unordered_map<std::string, double> _stiffness_map, _damping_map;
     std::shared_ptr<XBot::Cartesian::Utils::RobotStatePublisher> _rspub;
-    Eigen::VectorXd _tau_offset;
+    XBot::JointNameMap _tau_offset;
     Eigen::Affine3d _base_init;
 
     XBot::ImuSensor::ConstPtr _imu;

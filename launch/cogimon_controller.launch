@@ -7,6 +7,7 @@
 
     <node pkg="kyon_controller" type="controller" name="cogimon_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/cogimon_controller_config.yaml"/>
+        <param name="torque_offset" textfile="$(find xbot_ros)/tau_offset.yaml"/>
         <param name="rate" value="800"/>
         <remap if="$(arg base_estimation)" from="/base_link/pose" to="/cogimon_base_estimation/base_link/pose"/>
         <remap if="$(arg base_estimation)" from="/base_link/twist" to="/cogimon_base_estimation/base_link/twist"/>

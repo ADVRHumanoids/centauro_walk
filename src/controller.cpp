@@ -23,6 +23,7 @@ _init(false)
     init_load_publishers_and_subscribers();
 
     _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _robot);
+    _mpc_handler->setTorqueOffset(_tau_offset);
 }
 
 void Controller::init_load_config()
@@ -75,6 +76,24 @@ void Controller::init_load_config()
             }
         }
     }
+
+    if(_nhpr.hasParam("torque_offset"))
+    {
+        auto tau_offset = _nhpr.param("torque_offset", std::map<std::string, double>());
+        ColoredTextPrinter::print("Using torque offset: \n", ColoredTextPrinter::TextColor::Green);
+        for (auto pair : tau_offset)
+        {
+            _tau_offset[pair.first] = pair.second;
+            ColoredTextPrinter::print(pair.first + " - " + std::to_string(pair.second), ColoredTextPrinter::TextColor::Green);
+        }
+    }
+    else
+    {
+        ColoredTextPrinter::print("No torque offset provided. Setting zero. \n", ColoredTextPrinter::TextColor::Yellow);
+        _robot->getJointPosition(_tau_offset);
+        for (auto &pair : _tau_offset)
+            pair.second = 0;
+    }
 }
 
 void Controller::init_load_model()
@@ -99,7 +118,6 @@ void Controller::init_load_model()
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
 //        _imu = _robot->getImu().begin()->second;
-        _tau_offset.setZero(_robot->getJointNum());
         if (!_ctrl_map.empty())
         {
             _robot->setControlMode(_ctrl_map);
@@ -108,8 +126,8 @@ void Controller::init_load_model()
         {
             _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
         }
-        _robot->setPositionReference(qhome.tail(_robot->getJointNum()));
-        _robot->move();
+//        _robot->setPositionReference(qhome.tail(_robot->getJointNum()));
+//        _robot->move();
     }
     catch(std::runtime_error& e)
     {
@@ -122,7 +140,7 @@ void Controller::init_load_model()
 void Controller::set_stiffness_damping_torque(double duration)
 {
     // initialize the cartesian interface with the current position of the robot
-    _robot->sense(false);
+    _robot->sense();
     _model->syncFrom(*_robot);
     _model->update();
 
@@ -143,23 +161,16 @@ void Controller::set_stiffness_damping_torque(double duration)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
     }
-    _robot->sense(false);
-    _model->syncFrom(*_robot);
-    _model->update();
     _model->getJointEffort(tau_goal);
 
     double T = _time + duration;
     double dt = 1./_rate;
 
-    // set stiffness and damping to zero while setting pure torque control
-    // continuously update ci to smooth transition
-
-
     while (_time < T)
     {
         for (auto pair : tau_start)
         {
-            tau[pair.first] = tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T;
+            tau[pair.first] = (tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T) + _tau_offset[pair.first];
         }
 
         _robot->setStiffness(_stiffness_map);
@@ -175,26 +186,8 @@ void Controller::set_stiffness_damping_torque(double duration)
 
 void Controller::init_load_publishers_and_subscribers()
 {
-//    _gt_pose_sub = _nh.subscribe("/xbotcore/link_state/base_link/pose", 1, &Controller::gt_pose_callback, this);
-//    _gt_twist_sub = _nh.subscribe("/xbotcore/link_state/base_link/twist", 1, &Controller::gt_twist_callback, this);
     _joint_state_pub = _nh.advertise<xbot_msgs::JointState>("joint_state", 10);
 }
-
-//void Controller::gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg)
-//{
-//    Eigen::Affine3d T;
-//    tf::poseMsgToEigen(msg->pose, T);
-//    _model->setFloatingBasePose(T);
-//    _model->update();
-//}
-
-//void Controller::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg)
-//{
-//    Eigen::Matrix<double, 6, 1> twist;
-//    tf::twistMsgToEigen(msg->twist, twist);
-//    _model->setFloatingBaseTwist(twist);
-//    _model->update();
-//}
 
 void Controller::run()
 {
@@ -213,7 +206,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.3);
+        set_stiffness_damping_torque(0.1);
     }
 }
 

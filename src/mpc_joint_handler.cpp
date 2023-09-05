@@ -111,6 +111,11 @@ void MPCJointHandler::init_publishers_and_subscribers()
     _mpc_sub = _nh.subscribe("/mpc_solution", 10, &MPCJointHandler::mpc_joint_callback, this);
 }
 
+void MPCJointHandler::setTorqueOffset(XBot::JointNameMap tau_offset)
+{
+    _tau_offset = tau_offset;
+}
+
 bool MPCJointHandler::update()
 {
     _robot->sense();
@@ -150,6 +155,8 @@ bool MPCJointHandler::update()
     vectors_to_map<std::string, double>(_joint_names, _v, _qdot);
     vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
     vectors_to_map<std::string, double>(_joint_names, tau, _tau);
+    for (auto &pair : _tau)
+        pair.second += _tau_offset[pair.first];
 
 //    std::cout << "Q: " << std::endl;
 //    for (auto pair : _q)

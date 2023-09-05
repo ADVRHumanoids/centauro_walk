@@ -16,10 +16,13 @@
 
 class MPCJointHandler : public MPCHandler {
 public:
+    typedef std::shared_ptr<MPCJointHandler> Ptr;
     MPCJointHandler(ros::NodeHandle nh,
                     XBot::ModelInterface::Ptr model,
                     int rate,
                     XBot::RobotInterface::Ptr robot = nullptr);
+
+    void setTorqueOffset(XBot::JointNameMap tau_offset);
 
     bool update() override;
 
@@ -41,6 +44,7 @@ private:
     }
 
     XBot::JointNameMap _q, _qdot, _qddot, _tau;
+    XBot::JointNameMap _tau_offset;
 
     Eigen::VectorXd _p, _v, _a, _f;
     Eigen::VectorXd _j, _fdot;
