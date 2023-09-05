@@ -77,29 +77,7 @@ void Controller::init_load_config()
         }
     }
 
-    std::cout << std::endl;
-    if(_nhpr.hasParam("torque_offset"))
-    {
-        std::string tau_offset_string;
-        _nhpr.getParam("torque_offset", tau_offset_string);
-        YAML::Node tau_offset_node = YAML::Load(tau_offset_string);
-        std::map<std::string, double> tau_offset = tau_offset_node.as<std::map<std::string, double>>();
-        ColoredTextPrinter::print("Using torque offset: \n", ColoredTextPrinter::TextColor::Green);
-        std::cout << std::endl;
-        for (auto pair : tau_offset)
-        {
-            _tau_offset[pair.first] = pair.second;
-            ColoredTextPrinter::print(pair.first + " - " + std::to_string(pair.second), ColoredTextPrinter::TextColor::Green);
-            std::cout << std::endl;
-        }
-    }
-    else
-    {
-        ColoredTextPrinter::print("No torque offset provided. Setting zero. \n", ColoredTextPrinter::TextColor::Yellow);
-        _robot->getJointPosition(_tau_offset);
-        for (auto &pair : _tau_offset)
-            pair.second = 0;
-    }
+
 }
 
 void Controller::init_load_model()
@@ -132,8 +110,29 @@ void Controller::init_load_model()
         {
             _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
         }
-//        _robot->setPositionReference(qhome.tail(_robot->getJointNum()));
-//        _robot->move();
+
+        if(_nhpr.hasParam("torque_offset"))
+        {
+            std::string tau_offset_string;
+            _nhpr.getParam("torque_offset", tau_offset_string);
+            YAML::Node tau_offset_node = YAML::Load(tau_offset_string);
+            std::map<std::string, double> tau_offset = tau_offset_node.as<std::map<std::string, double>>();
+            ColoredTextPrinter::print("Using torque offset: \n", ColoredTextPrinter::TextColor::Green);
+            std::cout << std::endl;
+            for (auto pair : tau_offset)
+            {
+                _tau_offset[pair.first] = pair.second;
+                ColoredTextPrinter::print(pair.first + " - " + std::to_string(pair.second), ColoredTextPrinter::TextColor::Green);
+                std::cout << std::endl;
+            }
+        }
+        else
+        {
+            ColoredTextPrinter::print("No torque offset provided. Setting zero. \n", ColoredTextPrinter::TextColor::Yellow);
+            _robot->getJointPosition(_tau_offset);
+            for (auto &pair : _tau_offset)
+                pair.second = 0;
+        }
     }
     catch(std::runtime_error& e)
     {
