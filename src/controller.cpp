@@ -77,14 +77,20 @@ void Controller::init_load_config()
         }
     }
 
+    std::cout << std::endl;
     if(_nhpr.hasParam("torque_offset"))
     {
-        auto tau_offset = _nhpr.param("torque_offset", std::map<std::string, double>());
+        std::string tau_offset_string;
+        _nhpr.getParam("torque_offset", tau_offset_string);
+        YAML::Node tau_offset_node = YAML::Load(tau_offset_string);
+        std::map<std::string, double> tau_offset = tau_offset_node.as<std::map<std::string, double>>();
         ColoredTextPrinter::print("Using torque offset: \n", ColoredTextPrinter::TextColor::Green);
+        std::cout << std::endl;
         for (auto pair : tau_offset)
         {
             _tau_offset[pair.first] = pair.second;
             ColoredTextPrinter::print(pair.first + " - " + std::to_string(pair.second), ColoredTextPrinter::TextColor::Green);
+            std::cout << std::endl;
         }
     }
     else
@@ -170,7 +176,7 @@ void Controller::set_stiffness_damping_torque(double duration)
     {
         for (auto pair : tau_start)
         {
-            tau[pair.first] = (tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T) + _tau_offset[pair.first];
+            tau[pair.first] = (tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T) - _tau_offset[pair.first];
         }
 
         _robot->setStiffness(_stiffness_map);

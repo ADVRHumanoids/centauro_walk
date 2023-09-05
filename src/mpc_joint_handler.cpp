@@ -156,7 +156,7 @@ bool MPCJointHandler::update()
     vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
     vectors_to_map<std::string, double>(_joint_names, tau, _tau);
     for (auto &pair : _tau)
-        pair.second += _tau_offset[pair.first];
+        pair.second -= _tau_offset[pair.first];
 
 //    std::cout << "Q: " << std::endl;
 //    for (auto pair : _q)
