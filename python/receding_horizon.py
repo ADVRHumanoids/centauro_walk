@@ -296,7 +296,7 @@ while not rospy.is_shutdown():
 
     # shift phases of phase manager
     tic = time.time()
-    pm._shift_phases()
+    pm.shift()
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
