@@ -91,22 +91,22 @@ def main(args):
 
     if action == 'step_up':
         import _step_up
-        prb, solution = kyon_step_up.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _step_up.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     elif action == 'trot':
         import _trot
-        prb, solution = kyon_trot.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _trot.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     elif action == 'crawl':
         import _crawl
-        prb, solution = kyon_crawl.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _crawl.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     elif action == 'squat':
         import _squat
-        prb, solution = kyon_squat.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _squat.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     elif action == 'gap':
         import _gap
-        prb, solution = kyon_gap.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _gap.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     elif action == 'gaits':
         import _gaits
-        prb, solution = kyon_gaits.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _gaits.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
     else:
         raise Exception('wrong action commanded')
 
