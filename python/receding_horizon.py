@@ -273,6 +273,7 @@ contact_phase_map = {c: f'{c}_timeline' for c in contact_dict}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
+jc.setBasePosWeight(0.5)
 
 
 while not rospy.is_shutdown():

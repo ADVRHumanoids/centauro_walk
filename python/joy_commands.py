@@ -125,7 +125,7 @@ class GaitManager:
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 0.5
+        self.base_weight = 15.
         self.base_rot_weight = 0.5
         self.com_height_w = 0.02
 
@@ -140,6 +140,12 @@ class JoyCommands:
 
     def joy_callback(self, msg):
         self.joy_msg = msg
+
+    def setBasePosWeight(self, w):
+        self.base_weight = w
+
+    def setBaseOriWeight(self, w):
+        self.base_rot_weight = w
 
     def run(self, solution):
 

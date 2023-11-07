@@ -337,6 +337,7 @@ contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
+jc.setBaseOriWeight(0.1)
 
 from geometry_msgs.msg import PointStamped
 zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
@@ -356,7 +357,7 @@ while not rospy.is_shutdown():
 
     # shift phases of phase manager
     tic = time.time()
-    pm._shift_phases()
+    pm.shift()
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
