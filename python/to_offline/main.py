@@ -21,7 +21,7 @@ def init_problem():
     # get path of kyon urdf in the system
     kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
 
-    flag_upper_body = False
+    flag_upper_body = True
     # set up model
     urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                     "sensors:=false",
@@ -151,9 +151,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # args.action = 'trot'
-    args.action = 'gap'
-    # args.action = 'gaits'
+    args.action = 'trot'
+    # args.action = 'gap'
     # args.action = 'crawl'
     # args.action = 'step_up'
+    # args.action = 'gaits' # TODO
     main(args)

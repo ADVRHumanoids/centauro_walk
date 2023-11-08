@@ -9,7 +9,17 @@ from horizon.utils import utils as horizon_utils, kin_dyn
 import time, rospy
 import numpy as np
 
-def run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts=None, kd_frame=pycasadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED):
+def run(q_init,
+        base_init,
+        contacts,
+        solver_type,
+        kd,
+        transcription_method,
+        transcription_opts=None,
+        flag_upper_body=True,
+        kd_frame=pycasadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED,
+        ):
+
     ns = 30
     tf = 2.0
     v = 0.5
@@ -142,7 +152,11 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     # black_list = ['knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
     # black_list = ['hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
     # white_list = []
-    white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 'shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2']
+    white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
+
+    if flag_upper_body:
+        white_list.extend(['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2'])
+
     postural_joints = np.array(list(range(7, model.nq)))
     for joint in black_list:
         black_list_indices.append(model.joint_names.index(joint))
@@ -150,7 +164,7 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
         white_list_indices.append(7 + model.joint_names.index(joint))
     postural_joints = np.delete(postural_joints, black_list_indices)
 
-    prb.createResidual("min_q", 1. * (model.q[postural_joints] - model.q0[postural_joints]))
+    prb.createResidual("min_q", .1 * (model.q[postural_joints] - model.q0[postural_joints]))
     if white_list:
         prb.createResidual("min_q_white_list", 5. * (model.q[white_list_indices] - model.q0[white_list_indices]))
 
