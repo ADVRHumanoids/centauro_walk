@@ -6,14 +6,6 @@ import subprocess
 from pathlib import Path
 import numpy as np
 from horizon.ros import replay_trajectory
-import yaml
-import os
-
-
-ns = 150     # trot
-# ns = 75     #step-up
-tf = 2.0  # 10s
-kd_frame = pycasadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED
 
 def init_problem():
 
@@ -30,8 +22,12 @@ def init_problem():
     kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
     file_dir = str(Path(__file__).parent.absolute())
 
+    flag_upper_body = False
     # set up model
-    urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro"])
+    urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
+                                    "sensors:=false",
+                                    f"upper_body:={flag_upper_body}",
+                                    ])
     urdf = urdf.decode('utf-8')
     rospy.set_param('/robot_description', urdf)
 
@@ -62,19 +58,21 @@ def init_problem():
               'hip_roll_4': 0.0,
               'hip_pitch_4': hip_pitch,
               'knee_pitch_4': knee_pitch,
-
-              'shoulder_yaw_1': 0.0,
-              'shoulder_pitch_1': 0.9,
-              'elbow_pitch_1': 1.68,
-              'wrist_pitch_1': 0.,
-              'wrist_yaw_1': 0.,
-              #
-              'shoulder_yaw_2': 0.0,
-              'shoulder_pitch_2': 0.9,
-              'elbow_pitch_2': 1.68,
-              'wrist_pitch_2': 0.,
-              'wrist_yaw_2': 0.,
               }
+
+    if flag_upper_body:
+
+        q_init.update({'shoulder_yaw_1': 0.0,
+                       'shoulder_pitch_1': 0.9,
+                       'elbow_pitch_1': 1.68,
+                       'wrist_pitch_1': 0.,
+                       'wrist_yaw_1': 0.,
+
+                       'shoulder_yaw_2': 0.0,
+                       'shoulder_pitch_2': 0.9,
+                       'elbow_pitch_2': 1.68,
+                       'wrist_pitch_2': 0.,
+                       'wrist_yaw_2': 0.})
 
     FK = kd.fk('ball_1')
     init = base_init.tolist() + list(q_init.values())
@@ -144,10 +142,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    args.action = 'trot'
+    # args.action = 'trot'
     # args.action = 'gap'
     # args.action = 'gaits'
     # args.action = 'crawl'
-    # args.action = 'step_up'
+    args.action = 'step_up'
     # args.action = 'squat'
     main(args)
