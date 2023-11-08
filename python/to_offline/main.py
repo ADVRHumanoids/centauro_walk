@@ -22,7 +22,7 @@ def init_problem():
     kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
     file_dir = str(Path(__file__).parent.absolute())
 
-    flag_upper_body = False
+    flag_upper_body = True
     # set up model
     urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                     "sensors:=false",
@@ -79,29 +79,29 @@ def init_problem():
     init_pos_foot = FK(q=init)['ee_pos']
     base_init[2] = -init_pos_foot[2]
 
-    return q_init, base_init, solver_type, kd, transcription_method, transcription_opts, contacts
+    return q_init, base_init, solver_type, kd, transcription_method, transcription_opts, contacts, flag_upper_body
 
 def main(args):
 
     action = args.action
 
-    q_init, base_init, solver_type, kd, transcription_method, transcription_opts, contacts = init_problem()
+    q_init, base_init, solver_type, kd, transcription_method, transcription_opts, contacts, flag_upper_body = init_problem()
 
     if action == 'step_up':
         import _step_up
-        prb, solution = _step_up.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _step_up.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'trot':
         import _trot
-        prb, solution = _trot.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _trot.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'crawl':
         import _crawl
-        prb, solution = _crawl.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _crawl.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'squat':
         import _squat
-        prb, solution = _squat.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _squat.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'gap':
         import _gap
-        prb, solution = _gap.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
+        prb, solution = _gap.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'gaits':
         import _gaits
         prb, solution = _gaits.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts)
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     # args.action = 'trot'
     # args.action = 'gap'
     # args.action = 'gaits'
-    # args.action = 'crawl'
-    args.action = 'step_up'
+    args.action = 'crawl'
+    # args.action = 'step_up'
     # args.action = 'squat'
     main(args)
