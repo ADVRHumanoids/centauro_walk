@@ -40,12 +40,8 @@ def run(q_init,
     for contact in contacts:
         model.setContactFrame(contact, 'vertex', dict(vertex_frames=[contact]))
 
-    # contacts = list(model.fmap.keys())
-    # model.v.setBounds(-1 * kd.velocityLimits(), kd.velocityLimits())
-
     fin_q = model.q0.copy()
     fin_q[0] = fin_q[0] + tf*v
-    print("final_x: ", fin_q[0])
 
     model.q.setBounds(model.q0, model.q0, 0)
     # model.q[0].setBounds(fin_q[0], fin_q[0], ns)
@@ -71,8 +67,8 @@ def run(q_init,
     print(f'cycle duration: {cycle_duration}')
     duty_cycle = 1.
     flight_with_duty = int(cycle_duration / gait_matrix.shape[1] * duty_cycle)
-
     n_init_nodes = 4
+
     pg = PatternGenerator(ns - n_init_nodes, contacts)
     stance_nodes, swing_nodes, cycle_duration = pg.generateCycle_old(gait_matrix, cycle_duration, duty_cycle=duty_cycle)
 
@@ -97,10 +93,6 @@ def run(q_init,
     for contact in contacts:
         [stance_nodes[contact].append(i) for i in range(swing_nodes[contact][-1] + 1, ns)]
 
-    # for contact in contacts:
-        # stance_nodes[contact] = [item for item in stance_nodes[contact] if item < ns]
-        # swing_nodes[contact] = [item for item in swing_nodes[contact] if item < ns]
-
     print('stance_nodes:')
     for name, nodes in stance_nodes.items():
         print(f'{name}:, {nodes}')
@@ -114,11 +106,9 @@ def run(q_init,
     for i, frame in enumerate(contacts):
         FK = kd.fk(frame)
         DFK = kd.frameVelocity(frame, kd_frame)
-        DDFK = kd.frameAcceleration(frame, kd_frame)
 
         p = FK(q=model.q)['ee_pos']
         v = DFK(q=model.q, qdot=model.v)['ee_vel_linear']
-        a = DDFK(q=model.q, qdot=model.v)['ee_acc_linear']
 
         # kinematic contact
         fcost = horizon_utils.barrier(model.fmap[frame][2] - 10.0)  # fz > 10
