@@ -20,9 +20,8 @@ def init_problem():
 
     # get path of kyon urdf in the system
     kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
-    file_dir = str(Path(__file__).parent.absolute())
 
-    flag_upper_body = True
+    flag_upper_body = False
     # set up model
     urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                     "sensors:=false",
@@ -63,16 +62,29 @@ def init_problem():
     if flag_upper_body:
 
         q_init.update({'shoulder_yaw_1': 0.0,
-                       'shoulder_pitch_1': 0.9,
-                       'elbow_pitch_1': 1.68,
+                       'shoulder_pitch_1': -np.pi/2,
+                       'elbow_pitch_1': 0.0,
                        'wrist_pitch_1': 0.,
                        'wrist_yaw_1': 0.,
 
                        'shoulder_yaw_2': 0.0,
-                       'shoulder_pitch_2': 0.9,
-                       'elbow_pitch_2': 1.68,
+                       'shoulder_pitch_2': -np.pi/2,
+                       'elbow_pitch_2': 0.0,
                        'wrist_pitch_2': 0.,
                        'wrist_yaw_2': 0.})
+
+
+        # q_init.update({'shoulder_yaw_1': 0.0,
+        #                'shoulder_pitch_1': 0.9,
+        #                'elbow_pitch_1': 1.68,
+        #                'wrist_pitch_1': 0.,
+        #                'wrist_yaw_1': 0.,
+        #
+        #                'shoulder_yaw_2': 0.0,
+        #                'shoulder_pitch_2': 0.9,
+        #                'elbow_pitch_2': 1.68,
+        #                'wrist_pitch_2': 0.,
+        #                'wrist_yaw_2': 0.})
 
     FK = kd.fk('ball_1')
     init = base_init.tolist() + list(q_init.values())
@@ -96,9 +108,6 @@ def main(args):
     elif action == 'crawl':
         import _crawl
         prb, solution = _crawl.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
-    elif action == 'squat':
-        import _squat
-        prb, solution = _squat.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
     elif action == 'gap':
         import _gap
         prb, solution = _gap.run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts, flag_upper_body)
@@ -143,9 +152,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # args.action = 'trot'
-    # args.action = 'gap'
+    args.action = 'gap'
     # args.action = 'gaits'
-    args.action = 'crawl'
+    # args.action = 'crawl'
     # args.action = 'step_up'
-    # args.action = 'squat'
     main(args)
