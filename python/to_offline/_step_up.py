@@ -8,13 +8,24 @@ from horizon.transcriptions.transcriptor import Transcriptor
 from horizon.utils.patternGenerator import PatternGenerator
 from horizon.utils.trajectoryGenerator import TrajectoryGenerator
 import time
-
+import marker_spawner
+import multiprocessing
+import functools
 import numpy as np
 
-def run(q_init, base_init, contacts, solver_type, kd, transcription_method, transcription_opts=None, kd_frame=pycasadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED):
 
-    ns = 50
-    tf = 5.
+def run(q_init,
+        base_init,
+        contacts,
+        solver_type,
+        kd,
+        transcription_method,
+        transcription_opts=None,
+        flag_upper_body=True,
+        kd_frame=pycasadi_kin_dyn.CasadiKinDyn.LOCAL_WORLD_ALIGNED,
+        ):
+    ns = 125  # trot
+    tf = 10.  # 10s
 
     dt = tf / ns
     print('dt: ', dt)
@@ -30,16 +41,12 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     for contact in contacts:
         model.setContactFrame(contact, 'vertex', dict(vertex_frames=[contact]))
 
-    # velocity limits
-    # velocity_lims = kd.velocityLimits()
-    # model.v[6:].setBounds(-1 * velocity_lims[6:], velocity_lims[6:])
-
-    displacement_x = 1
+    displacement_x = 1.7
     fin_q = model.q0.copy()
     fin_q[0] = fin_q[0] + displacement_x
 
     model.q.setBounds(model.q0, model.q0, 0)
-    model.q[0].setBounds(fin_q[0], fin_q[0], ns)
+    # model.q[0].setBounds(fin_q[0], fin_q[0], ns)
 
     init_v = np.zeros(model.nv)
     model.v.setBounds(init_v, init_v, 0)
@@ -51,12 +58,6 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
         f_var.setInitialGuess([0, 0, kd.mass() / 4 * 9.8])
 
     # crawling
-    # gait_matrix = np.array([[0, 0, 0, 1],
-    #                         [0, 1, 0, 0],
-    #                         [1, 0, 0, 0],
-    #                         [0, 0, 1, 0]]).astype(int)
-
-
     gait_matrix = np.array([[1, 0, 0, 0],
                             [0, 0, 1, 0],
                             [0, 0, 0, 1],
@@ -65,14 +66,14 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     contact_pos = dict()
 
     # step-up
-    cycle_duration = 12 #int(ns / tf * 1.5)
+    cycle_duration = 20  # int(ns / tf * 1.5)
     print(f'cycle duration: {cycle_duration}')
     duty_cycle = 1.
     flight_with_duty = int(cycle_duration / gait_matrix.shape[1] * duty_cycle)
     n_init_nodes = 4
 
-    step_z = 0.1
-    clearance = 0.03
+    step_z = 0.3
+    clearance = 0.1
 
     pg = PatternGenerator(ns, contacts)
     stance_nodes, swing_nodes, cycle_duration = pg.generateCycle_old(gait_matrix, cycle_duration, duty_cycle=duty_cycle)
@@ -96,7 +97,7 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
             stance_nodes[contact].insert(0, x)
 
     for contact in contacts:
-        [stance_nodes[contact].append(i) for i in range(swing_nodes[contact][-1]+1, ns)]
+        [stance_nodes[contact].append(i) for i in range(swing_nodes[contact][-1] + 1, ns)]
 
     print('stance_nodes:')
     for name, nodes in stance_nodes.items():
@@ -105,10 +106,12 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     for name, nodes in swing_nodes.items():
         print(f'{name}:, {nodes}')
 
-    subcyle_duration = int(cycle_duration/len(contacts))
+    subcyle_duration = int(cycle_duration / len(contacts))
 
     print(f'subcyle_duration: {subcyle_duration}')
 
+    x_trj = dict()
+    x_nodes = dict()
     advancement_x = dict()
     for c in contacts:
 
@@ -116,11 +119,24 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
         contact_pos[c] = FK(q=model.q0)['ee_pos']
 
         # compute ending point of x for each gait cycle
-        advancement_x[c] = np.linspace(0, displacement_x, len(swing_nodes[c][subcyle_duration - 1::subcyle_duration]) + 2).flatten()
+        advancement_x[c] = np.linspace(0, displacement_x,
+                                       len(swing_nodes[c][subcyle_duration - 1::subcyle_duration]) + 2).flatten()
 
         # add starting position of robot
         advancement_x[c] = contact_pos[c][0] + advancement_x[c]
 
+        # compute for each cycle the x-pos at each node
+        x_trj[c] = np.array([])
+        for i_lin in range(advancement_x[c].shape[0] - 1):
+            temp = np.linspace(advancement_x[c][i_lin], advancement_x[c][i_lin + 1], subcyle_duration)
+            x_trj[c] = np.append(x_trj[c], temp)
+
+        # compute swing nodes
+        x_nodes[c] = swing_nodes[c][2::subcyle_duration] + swing_nodes[c][subcyle_duration - 1::subcyle_duration]
+        x_nodes[c] = sorted(x_nodes[c])
+
+    x_des = dict()
+    x_pos_cnsrt = dict()
     z_des = dict()
     clea = dict()
 
@@ -144,6 +160,10 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
         z_des[frame] = prb.createParameter(f'{frame}_z_des', 1)
         clea[frame] = prb.createConstraint(f"{frame}_clea", p[2] - z_des[frame], nodes=swing_nodes[frame])
 
+        x_des[frame] = prb.createParameter(f'{frame}_x_des', 1)
+        # x_pos_cnsrt[frame] = prb.createResidual(f"{frame}_x_pos", 50 * (p[0] - x_des[frame]), nodes=swing_nodes[frame])
+        x_pos_cnsrt[frame] = prb.createConstraint(f"{frame}_x_pos", p[0] - x_des[frame], nodes=x_nodes[frame])
+
         if swing_nodes[frame]:
             model.fmap[frame].setBounds(np.array([[0, 0, 0]] * len(swing_nodes[frame])).T,
                                         np.array([[0, 0, 0]] * len(swing_nodes[frame])).T,
@@ -153,12 +173,13 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     black_list_indices = list()
     white_list_indices = list()
     black_list = []
-    # black_list = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2']
-    # black_list = ['hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
     white_list = []
-    # white_list = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2']
+    if flag_upper_body:
+        black_list = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2',
+                      'elbow_pitch_2']
+        white_list = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'shoulder_yaw_2', 'shoulder_pitch_2',
+                      'elbow_pitch_2']
 
-    # white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
     postural_joints = np.array(list(range(7, model.nq)))
     for joint in black_list:
         black_list_indices.append(model.joint_names.index(joint))
@@ -166,27 +187,22 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
         white_list_indices.append(7 + model.joint_names.index(joint))
     postural_joints = np.delete(postural_joints, black_list_indices)
 
-    prb.createResidual("min_q", 1. * (model.q[postural_joints] - model.q0[postural_joints]))
+    prb.createResidual("min_q", 0.05 * (model.q[postural_joints] - model.q0[postural_joints]))
     if white_list:
-        prb.createResidual("min_q_white_list", .05 * (model.q[white_list_indices] - model.q0[white_list_indices]))
+        prb.createResidual("min_q_white_list", 1. * (model.q[white_list_indices] - model.q0[white_list_indices]))
 
     # joint acceleration
     prb.createIntermediateResidual("min_q_ddot", 0.001 * model.a)
-    # prb.createIntermediateResidual("min_q_ddot_arms", 0.5 * model.a[np.array(white_list_indices)-1])
-
-    # prb.createIntermediateResidual("min_qddot_arms")
-
-    # jerk
-    # a_prev = model.a.getVarOffset(-1)
-    # prb.createResidual("min_jerk", 0.001 * (model.a - a_prev), nodes=range(1, ns))
+    # if white_list:
+    #     prb.createIntermediateResidual("min_q_ddot_arms", 0.1 * model.a[white_list_indices])
 
     # contact forces
     for f_name, f_var in model.fmap.items():
-        prb.createIntermediateResidual(f"min_{f_var.getName()}", 0.002 * f_var)
-
+        prb.createIntermediateResidual(f"min_{f_var.getName()}", 0.001 * f_var)
 
     tg = TrajectoryGenerator()
-    step_x = 0.9
+
+    step_x = 0.7
     for c in contacts:
         # ==============================================================================================================
         num_cycle_before_step = np.where(advancement_x[c][1:] < step_x)[0].shape[0]
@@ -197,34 +213,36 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
 
         for i in range(subcyle_duration + 5):
             if i == num_cycle_before_step:
-                rep_param = np.append(rep_param, tg.from_derivatives(flight_with_duty, step_before, step_after, step_z+clearance, [0, 0, 0]))
+                rep_param = np.append(rep_param,
+                                      tg.from_derivatives(flight_with_duty, step_before, step_after, step_z + clearance,
+                                                          [0, 0, 0]))
             elif i > num_cycle_before_step:
-                rep_param = np.append(rep_param, tg.from_derivatives(flight_with_duty, step_after, step_after, clearance, [0, 0, 0]))
+                rep_param = np.append(rep_param,
+                                      tg.from_derivatives(flight_with_duty, step_after, step_after, clearance,
+                                                          [0, 0, 0]))
             else:
-                rep_param = np.append(rep_param, tg.from_derivatives(flight_with_duty, step_before, step_before, clearance, [0, 0, 0]))
+                rep_param = np.append(rep_param,
+                                      tg.from_derivatives(flight_with_duty, step_before, step_before, clearance,
+                                                          [0, 0, 0]))
         # ==============================================================================================================
+        x_values = np.atleast_2d(x_trj[c])
         z_values = np.atleast_2d(rep_param)
 
-        # if len(swing_nodes[c]) > num_cycle_before_step * subcyle_duration:
-        #     node_stepping = swing_nodes[c][num_cycle_before_step * subcyle_duration]
-        #     z_des[c].assign(step_after, nodes=range(node_stepping, ns+1))
-
+        # x_des[c].assign(x_trj, nodes=swing_nodes[c][subcyle_duration-1::subcyle_duration])
+        x_des[c].assign(x_values[:, :len(swing_nodes[c])], nodes=swing_nodes[c])
         z_des[c].assign(z_values[:, :len(swing_nodes[c])], nodes=swing_nodes[c])
-
 
         print(f'================ contact: {c} ================')
         print('z_values: \n', z_des[c].getValues()[:, clea[c].getNodes()])
         print('at nodes:', clea[c].getNodes())
-        # print('z_values all: \n', z_des[c].getValues())
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        # print('x_values: \n', x_des[c].getValues()[:, x_pos_cnsrt[c].getNodes()])
-        # print('at nodes:', x_pos_cnsrt[c].getNodes())
+        print('x_values: \n', x_des[c].getValues()[:, x_pos_cnsrt[c].getNodes()])
+        print('at nodes:', x_pos_cnsrt[c].getNodes())
 
     model.setDynamics()
 
     if solver_type != 'ilqr':
         Transcriptor.make_method(transcription_method, prb, transcription_opts)
-
 
     opts = {'ipopt.max_iter': 200,
             # 'ipopt.tol': 1e-4,
@@ -248,6 +266,13 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     elapsed = time.time() - t
     print(f'bootstrap solved in {elapsed} s')
 
+    print('launching multiprocess')
+    size_box_x = 1.5
+    callable_box = functools.partial(marker_spawner.make_box, pos=[step_x + size_box_x / 2, 0, step_z / 2 - 0.05],
+                                     size=[size_box_x, 3, step_z])
+    p1 = multiprocessing.Process(target=callable_box)
+    p1.start()
+
     solution = solver_bs.getSolutionDict()
 
     # append torques to solution
@@ -269,9 +294,3 @@ def run(q_init, base_init, contacts, solver_type, kd, transcription_method, tran
     solution['current'] = current
 
     return prb, solution
-
-
-
-
-
-
