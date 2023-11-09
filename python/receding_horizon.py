@@ -40,17 +40,17 @@ Load urdf and srdf
 kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
 kyon_srdf_folder = rospkg.RosPack().get_path('kyon_srdf')
 
-
+flag_upper_body = True
 urdf = subprocess.check_output(["xacro",
                                 kyon_urdf_folder + "/urdf/kyon.urdf.xacro",
                                 "sensors:=false",
-                                "upper_body:=false",
+                                f"upper_body:={flag_upper_body}",
                                 "payload:=false"])
 
 srdf = subprocess.check_output(["xacro",
                                 kyon_srdf_folder + "/srdf/kyon.srdf.xacro",
                                 "sensors:=false",
-                                "upper_body:=false",
+                                f"upper_body:={flag_upper_body}",
                                 "payload:=false"])
 urdf = urdf.decode('utf-8')
 srdf = srdf.decode('utf-8')
@@ -99,16 +99,19 @@ q_init = {'hip_roll_1': 0.0,
           'hip_roll_4': 0.0,
           'hip_pitch_4': 0.7,
           'knee_pitch_4': -1.4}
-# 'shoulder_yaw_1': 0.0,
-# 'shoulder_pitch_1': 0.9,
-# 'elbow_pitch_1': 1.68,
-# 'wrist_pitch_1': 0.,
-# 'wrist_yaw_1': 0.,
-# 'shoulder_yaw_2': 0.0,
-# 'shoulder_pitch_2': 0.9,
-# 'elbow_pitch_2': 1.68,
-# 'wrist_pitch_2': 0.,
-# 'wrist_yaw_2': 0.}
+
+if flag_upper_body:
+    q_init.update({'shoulder_yaw_1': 0.0,
+                    'shoulder_pitch_1': 0.9,
+                    'elbow_pitch_1': 1.68,
+                    'wrist_pitch_1': 0.,
+                    'wrist_yaw_1': 0.,
+                    'shoulder_yaw_2': 0.0,
+                    'shoulder_pitch_2': 0.9,
+                    'elbow_pitch_2': 1.68,
+                    'wrist_pitch_2': 0.,
+                    'wrist_yaw_2': 0.})
+#
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 FK = kin_dyn.fk('ball_1')
