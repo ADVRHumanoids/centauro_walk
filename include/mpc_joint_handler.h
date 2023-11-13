@@ -3,7 +3,6 @@
 
 #include "resampler.h"
 #include "mpc_handler.h"
-#include "flush_me_maybe.h"
 #include <kyon_controller/WBTrajectory.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <Eigen/Dense>
@@ -55,7 +54,7 @@ private:
     kyon_controller::WBTrajectory _mpc_solution, _old_solution;
     Resampler::UniquePtr _resampler;
 
-    XBot::FlushMeMaybe::Ptr _flusher;
+    // XBot::FlushMeMaybe::Ptr _flusher;
 
     XBot::ModelInterface::Ptr _model;
     XBot::RobotInterface::Ptr _robot;
