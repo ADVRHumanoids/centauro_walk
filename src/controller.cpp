@@ -138,13 +138,11 @@ void Controller::init_load_model()
     {
         ROS_WARN("RobotInterface not initialized");
     }
-
-    _rspub = std::make_shared<XBot::Cartesian::Utils::RobotStatePublisher>(_model);
 }
 
 void Controller::set_stiffness_damping_torque(double duration)
 {
-    // initialize the cartesian interface with the current position of the robot
+    // initialize with the current position of the robot
     _robot->sense();
     _model->syncFrom(*_robot);
     _model->update();

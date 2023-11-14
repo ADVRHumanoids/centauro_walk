@@ -7,10 +7,6 @@
 
 #include <XBotInterface/ModelInterface.h>
 #include <XBotInterface/RobotInterface.h>
-#include <cartesian_interface/Context.h>
-#include <cartesian_interface/utils/RobotStatePublisher.h>
-#include <cartesian_interface/CartesianInterfaceImpl.h>
-#include <cartesian_interface/ros/RosServerClass.h>
 #include <OpenSoT/tasks/acceleration/CoM.h>
 #include <RobotInterfaceROS/ConfigFromParam.h>
 
@@ -64,7 +60,6 @@ private:
     XBot::RobotInterface::Ptr _robot;
     std::map<std::string, XBot::ControlMode> _ctrl_map;
     std::unordered_map<std::string, double> _stiffness_map, _damping_map;
-    std::shared_ptr<XBot::Cartesian::Utils::RobotStatePublisher> _rspub;
     XBot::JointNameMap _tau_offset;
     Eigen::Affine3d _base_init;
 
