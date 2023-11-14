@@ -15,6 +15,7 @@ find_package(Eigen3 REQUIRED)
 
 find_package(urdfdom REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(XBotInterface REQUIRED)
 
 add_message_files(
     FILES
@@ -57,7 +58,8 @@ include_directories(
     include
     ${catkin_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
-    ${PINOCCHIO_INCLUDE_DIRS})
+    ${PINOCCHIO_INCLUDE_DIRS}
+    ${XBotInterface_INCLUDE_DIRS})
 
 
 
