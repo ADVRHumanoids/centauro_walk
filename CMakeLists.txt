@@ -17,6 +17,15 @@ find_package(urdfdom REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(XBotInterface REQUIRED)
 
+
+include_directories(
+    include
+    ${catkin_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
+    ${PINOCCHIO_INCLUDE_DIRS}
+    ${XBotInterface_INCLUDE_DIRS})
+
+
 add_message_files(
     FILES
     WBTrajectory.msg
@@ -48,18 +57,11 @@ add_library(mpc_handler
     src/resampler.cpp
 )
 target_link_libraries(mpc_handler
+    yaml-cpp
     ${catkin_LIBRARIES}
     ${cartesian_interface_LIBRARIES}
     ${PINOCCHIO_LIBRARIES}
     ${urdfdom_LIBRARIES}
 )
-
-include_directories(
-    include
-    ${catkin_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIRS}
-    ${PINOCCHIO_INCLUDE_DIRS}
-    ${XBotInterface_INCLUDE_DIRS})
-
 
 
