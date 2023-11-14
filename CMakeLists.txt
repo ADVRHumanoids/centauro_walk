@@ -59,7 +59,7 @@ add_library(mpc_handler
 target_link_libraries(mpc_handler
     yaml-cpp
     ${catkin_LIBRARIES}
-    ${cartesian_interface_LIBRARIES}
+    ${XBotInterface_LIBRARIES}
     ${PINOCCHIO_LIBRARIES}
     ${urdfdom_LIBRARIES}
 )
