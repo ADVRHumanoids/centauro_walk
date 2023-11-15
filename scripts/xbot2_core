@@ -1,0 +1,3 @@
+#!/bin/bash
+
+xbot2-core ${@:1:$#-2}

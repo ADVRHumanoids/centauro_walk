@@ -108,7 +108,7 @@ void Controller::init_load_model()
         }
         else
         {
-            _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
+            _robot->setControlMode(XBot::ControlMode::Position() + XBot::ControlMode::Velocity()); // + XBot::ControlMode::Effort());
         }
 
         if(_nhpr.hasParam("torque_offset"))
@@ -209,7 +209,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.1);
+//        set_stiffness_damping_torque(0.01);
     }
 }
 

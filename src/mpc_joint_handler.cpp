@@ -17,7 +17,6 @@ _rate(rate)
     _model->getJointAcceleration(_qddot);
     _model->getJointEffort(_tau);
 
-//    _flusher = std::make_shared<XBot::FlushMeMaybe>();
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_model->getUrdf());
     _resampler = std::make_unique<Resampler>(urdf_model);
 }
@@ -47,30 +46,27 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         _f.resize(_old_solution.force_names.size() * 6);
         _fdot.resize(_old_solution.force_names.size() * 6);
 
-        _p.resize(_model->getJointNum() + 1);
-        _v.resize(_model->getJointNum());
-        _a.resize(_model->getJointNum());
+        _p.resize(_resampler->nq());
+        _v.resize(_resampler->nv());
+        _a.resize(_resampler->nv());
 
         std::vector<std::string> frames(_old_solution.force_names.data(), _old_solution.force_names.data() + _old_solution.force_names.size());
         _resampler->setFrames(frames);
     }
 
     // set state and input to Resampler (?)
+    _robot->sense();
     Eigen::VectorXd q(_robot->getJointNum()), qdot(_robot->getJointNum());
-    _robot->getJointPosition(q);
-    _robot->getJointVelocity(qdot);
+    XBot::JointNameMap q_map;
+    _robot->getPositionReference(q_map);
+    _robot->getVelocityReference(qdot);
+
+    Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
     // from eigen to quaternion
-    Eigen::Quaterniond quat;
-    quat = Eigen::AngleAxisd(_fb_pose(3), Eigen::Vector3d::UnitX()) *
-           Eigen::AngleAxisd(_fb_pose(4), Eigen::Vector3d::UnitY()) *
-           Eigen::AngleAxisd(_fb_pose(5), Eigen::Vector3d::UnitZ());
-
-    _p << _fb_pose.head(3), quat.coeffs(), q;
+    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
     _v << _fb_twist, qdot;
 
-//    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
-//    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
     _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
     if (!_old_solution.j.empty())
         _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
@@ -124,6 +120,7 @@ bool MPCJointHandler::update()
 
     // resample
     // TODO: add guard to check when we exceed the dt_MPC
+
     _resampler->resample(1./_rate);
 
     // get resampled state and set it to the robot
@@ -133,57 +130,25 @@ bool MPCJointHandler::update()
     _resampler->getTau(tau);
     _p = _x.head(_p.size());
     _v = _x.segment(_p.size(), _v.size());
-    _a = _x.segment(_p.size() + _v.size(), _a.size());
-
-//    std::cout << "P: " << _p.transpose() << std::endl;
+    _a = _u.head(_a.size());
 
     // From quaternion to RPY
-    Eigen::Quaterniond quat(_p(6), _p(3), _p(4), _p(5));
-    Eigen::Vector3d rpy = quat.toRotationMatrix().eulerAngles(0, 1, 2);
+
     Eigen::VectorXd q_euler(_model->getJointNum());
-    q_euler.head(6) << _p(0), _p(1), _p(2), rpy;
-    q_euler.tail(_model->getJointNum() - 6) = _p.tail(_p.size() - 7);
-
-
-//    std::cout << "JOINT_NAMES: " << std::endl;
-//    for (auto name : _joint_names)
-//        std::cout << name << std::endl;
-
-//    std::cout << "Q_EULER: " << q_euler.transpose() << std::endl;
+    q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
 
     vectors_to_map<std::string, double>(_joint_names, q_euler, _q);
     vectors_to_map<std::string, double>(_joint_names, _v, _qdot);
     vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
     vectors_to_map<std::string, double>(_joint_names, tau, _tau);
+
     for (auto &pair : _tau)
         pair.second -= _tau_offset[pair.first];
-
-//    std::cout << "Q: " << std::endl;
-//    for (auto pair : _q)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
-
-//    std::cout << "TAU: " << std::endl;
-//    for(auto pair : _tau)
-//        std::cout << pair.first << ": " << pair.second << std::endl;
-
-//    _flusher->add(joint_names,
-//                  q_euler,
-//                  Eigen::VectorXd::Map(trj_point.velocities.data(), trj_point.velocities.size()),
-//                  Eigen::VectorXd::Map(trj_point.effort.data(), trj_point.effort.size()));
 
     _robot->setPositionReference(_q);
     _robot->setVelocityReference(_qdot);
     _robot->setEffortReference(_tau);
     _robot->move();
-
-//    if (_solution_index == _mpc_solution.points.size() - 1)
-//    {
-//        _solution_index = _mpc_solution.points.size() - 1;
-//    }
-//    else
-//        _solution_index++;
-
-//    _flusher->flush();
 
     return true;
 }

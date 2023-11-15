@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import horizon.utils.kin_dyn as kd
 from horizon.problem import Problem
 from horizon.rhc.model_description import FullModelInverseDynamics
@@ -13,8 +15,12 @@ from sensor_msgs.msg import Joy
 import cartesian_interface.roscpp_utils as roscpp
 import horizon.utils.analyzer as analyzer
 
-from trajectory_msgs.msg import JointTrajectory
-from trajectory_msgs.msg import JointTrajectoryPoint
+from xbot_interface import config_options as co
+from xbot_interface import xbot_interface as xbot
+
+
+from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
+from kyon_controller.msg import WBTrajectory
 
 import casadi as cs
 import rospy
@@ -26,26 +32,46 @@ import time
 
 import horizon.utils as utils
 
+global base_pose
+global base_twist
+
+
+def gt_pose_callback(msg):
+    global base_pose
+    base_pose = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z,
+                          msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z,
+                          msg.pose.orientation.w])
+
+
+def gt_twist_callback(msg):
+    global base_twist
+    base_twist = np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z,
+                           msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
+
+
 
 rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
 
-solution_publisher = rospy.Publisher('/mpc_solution', JointTrajectory, queue_size=10)
+solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=10)
 rospy.sleep(1.)
 
 '''
 Load urdf and srdf
 '''
 
-wheeled_locomotion = False
-flag_upper_body = False
-kyon_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
-kyon_srdf_folder = rospkg.RosPack().get_path('kyon_srdf')
+wheeled_locomotion = True
+flag_upper_body = True
 
 model_opt = ["sensors:=false", f"upper_body:={flag_upper_body}", f"wheels:={wheeled_locomotion}", "payload:=false"]
 
-urdf = subprocess.check_output(["xacro", kyon_urdf_folder + "/urdf/kyon.urdf.xacro"] + model_opt).decode('utf-8')
-srdf = subprocess.check_output(["xacro", kyon_srdf_folder + "/srdf/kyon.srdf.xacro"] + model_opt).decode('utf-8')
+urdf = rospy.get_param(param_name='/robot_description', default='')
+if urdf == '':
+    raise print('urdf not set')
+
+srdf = rospy.get_param(param_name='/robot_description_semantic', default='')
+if srdf == '':
+    raise print('srdf not set')
 
 file_dir = os.getcwd()
 
@@ -59,57 +85,95 @@ dt = T / ns
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
 prb.setDt(dt)
 
-urdf = urdf.replace('continuous', 'revolute')
+# urdf = urdf.replace('continuous', 'revolute')
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf)
 
-if wheeled_locomotion:
-    q_init = {'hip_roll_1': 0.0,
-              'hip_pitch_1': 0.7,
-              'knee_pitch_1': -1.4,
-              'hip_roll_2': 0.0,
-              'hip_pitch_2': 0.7,
-              'knee_pitch_2': -1.4,
-              'hip_roll_3': 0.0,
-              'hip_pitch_3': -0.7,
-              'knee_pitch_3': 1.4,
-              'hip_roll_4': 0.0,
-              'hip_pitch_4': -0.7,
-              'knee_pitch_4': 1.4,
-              'wheel_joint_1': 0.0,
-              'wheel_joint_2': 0.0,
-              'wheel_joint_3': 0.0,
-              'wheel_joint_4': 0.0}
-else:
-    q_init = {'hip_roll_1': 0.0,
-              'hip_pitch_1': 0.7,
-              'knee_pitch_1': -1.4,
-              'hip_roll_2': 0.0,
-              'hip_pitch_2': 0.7,
-              'knee_pitch_2': -1.4,
-              'hip_roll_3': 0.0,
-              'hip_pitch_3': 0.7,
-              'knee_pitch_3': -1.4,
-              'hip_roll_4': 0.0,
-              'hip_pitch_4': 0.7,
-              'knee_pitch_4': -1.4}
+'''
+Build ModelInterface and RobotStatePublisher
+'''
+cfg = co.ConfigOptions()
+cfg.set_urdf(urdf)
+cfg.set_srdf(srdf)
+cfg.generate_jidmap()
+cfg.set_string_parameter('model_type', 'RBDL')
+cfg.set_string_parameter('framework', 'ROS')
+cfg.set_bool_parameter('is_model_floating_base', True)
 
-if flag_upper_body:
-    q_init.update({'shoulder_yaw_1': 0.0,
-                    'shoulder_pitch_1': 0.9,
-                    'elbow_pitch_1': 1.68,
-                    'wrist_pitch_1': 0.,
-                    'wrist_yaw_1': 0.,
-                    'shoulder_yaw_2': 0.0,
-                    'shoulder_pitch_2': 0.9,
-                    'elbow_pitch_2': 1.68,
-                    'wrist_pitch_2': 0.,
-                    'wrist_yaw_2': 0.})
+base_pose = None
+base_twist = None
+
+try:
+
+    robot = xbot.RobotInterface(cfg)
+    rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
+    robot.sense()
+    q_init = robot.getPositionReference()
+    q_init = robot.eigenToMap(q_init)
+
+except:
+    print('RobotInterface not created')
+    if wheeled_locomotion:
+        q_init = {'hip_roll_1': 0.0,
+                  'hip_pitch_1': 0.7,
+                  'knee_pitch_1': -1.4,
+                  'hip_roll_2': 0.0,
+                  'hip_pitch_2': 0.7,
+                  'knee_pitch_2': -1.4,
+                  'hip_roll_3': 0.0,
+                  'hip_pitch_3': -0.7,
+                  'knee_pitch_3': 1.4,
+                  'hip_roll_4': 0.0,
+                  'hip_pitch_4': -0.7,
+                  'knee_pitch_4': 1.4,
+                  'wheel_joint_1': 0.0,
+                  'wheel_joint_2': 0.0,
+                  'wheel_joint_3': 0.0,
+                  'wheel_joint_4': 0.0}
+    else:
+        q_init = {'hip_roll_1': 0.0,
+                  'hip_pitch_1': 0.7,
+                  'knee_pitch_1': -1.4,
+                  'hip_roll_2': 0.0,
+                  'hip_pitch_2': 0.7,
+                  'knee_pitch_2': -1.4,
+                  'hip_roll_3': 0.0,
+                  'hip_pitch_3': 0.7,
+                  'knee_pitch_3': -1.4,
+                  'hip_roll_4': 0.0,
+                  'hip_pitch_4': 0.7,
+                  'knee_pitch_4': -1.4}
+
+    if flag_upper_body:
+        q_init.update({'shoulder_yaw_1': 0.0,
+                       'shoulder_pitch_1': 0.9,
+                       'elbow_pitch_1': 1.68,
+                       'wrist_pitch_1': 0.,
+                       'wrist_yaw_1': 0.,
+                       'shoulder_yaw_2': 0.0,
+                       'shoulder_pitch_2': 0.9,
+                       'elbow_pitch_2': 1.68,
+                       'wrist_pitch_2': 0.,
+                       'wrist_yaw_2': 0.})
+
+        # q_init.update({'shoulder_yaw_1': 0.0,
+        #                'shoulder_pitch_1': -np.pi / 2,
+        #                'elbow_pitch_1': 0.0,
+        #                'wrist_pitch_1': 0.,
+        #                'wrist_yaw_1': 0.,
+        #                'shoulder_yaw_2': 0.0,
+        #                'shoulder_pitch_2': -np.pi / 2,
+        #                'elbow_pitch_2': 0.,
+        #                'wrist_pitch_2': 0.,
+        #                'wrist_yaw_2': 0.})
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 FK = kin_dyn.fk('ball_1')
 init = base_init.tolist() + list(q_init.values())
-init_pos_foot = FK(q=init)['ee_pos']
+init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos']
 base_init[2] = -init_pos_foot[2]
 
 model = FullModelInverseDynamics(problem=prb,
@@ -125,9 +189,9 @@ process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 ti = TaskInterface(prb=prb, model=model)
 
 if wheeled_locomotion:
-    ti.setTaskFromYaml(file_dir + '/../config/wheel_config.yaml')
+    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
 else:
-    ti.setTaskFromYaml(file_dir + '/../config/feet_config.yaml')
+    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_height.setRef(np.atleast_2d(base_init).T)
@@ -372,25 +436,22 @@ while not rospy.is_shutdown():
         tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
                                                 {name: solution['f_' + name][:, i] for name in model.fmap}))
 
-    jt = JointTrajectory()
-    for i in range(solution['q_res'].shape[1]):
-        jtp = JointTrajectoryPoint()
-        jtp.positions = solution['q_res'][:, i].tolist()
-        jtp.velocities = solution['v_res'][:, i].tolist()
-        if i < len(tau):
-            jtp.accelerations = solution['a_res'][:, i].tolist()
-            jtp.effort = tau[i].elements()
-        else:
-            jtp.accelerations = solution['a_res'][:, -1].tolist()
-            jtp.effort = tau[-1].elements()
+    sol_msg = WBTrajectory()
+    sol_msg.header.frame_id = 'world'
+    sol_msg.header.stamp = rospy.Time.now()
 
-        jt.points.append(jtp)
+    sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
 
+    sol_msg.q = solution['q'][:, 1].tolist()
+    sol_msg.v = solution['v'][:, 1].tolist()
+    sol_msg.a = solution['a'][:, 1].tolist()
 
-    jt.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
-    jt.header.stamp = rospy.Time.now()
+    for frame in model.getForceMap():
+        sol_msg.force_names.append(frame)
+        sol_msg.f.append(
+            Vector3(x=solution[f'f_{frame}'][0, 1], y=solution[f'f_{frame}'][1, 1], z=solution[f'f_{frame}'][2, 1]))
 
-    solution_publisher.publish(jt)
+    solution_publisher.publish(sol_msg)
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}

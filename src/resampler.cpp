@@ -61,6 +61,7 @@ bool Resampler::setState(const Eigen::VectorXd x)
     guard_function();
     if (x.size() != _x.size())
     {
+        std::cout << "wrong dimension of the state vector! " << std::to_string(x.size()) << " != " << std::to_string(_x.size()) << std::endl;;
         return false;
     }
 
@@ -120,12 +121,8 @@ void Resampler::id()
     }
     _tau = _data->tau;
 
-//    std::cout << "tau: \n" << _data->tau.transpose() << std::endl;
-
-//    std::cout << "x: " << _x.transpose() << std::endl;
     for (int i = 0; i < _frames.size(); i++)
     {
-//        std::cout << "f_" << _frames[i] << ": " << _x.segment(_model.nq + _model.nv + _model.nv + i*6, 6).transpose() << std::endl;
         Eigen::MatrixXd J;
         J.setZero(6, _model.nv);
         auto frame_id = _model.getFrameId(_frames[i]);
@@ -229,4 +226,97 @@ void Resampler::resample(double dt_res)
 {
     rk4(dt_res);
     id();
+}
+
+Eigen::VectorXd Resampler::mapToQ(std::unordered_map<std::string, double> jmap)
+{
+    auto joint_pos = pinocchio::neutral(_model);
+
+    for(auto [jname, jpos] : jmap)
+    {
+        if(!_model.existJointName(jname))
+        {
+            throw std::invalid_argument("joint does not exist (" + jname + ")");
+        }
+
+        size_t jidx = _model.getJointId(jname);
+        size_t qidx = _model.idx_qs[jidx];
+        size_t nq = _model.nqs[jidx];
+
+        if(nq == 2)
+        {
+            // throw std::invalid_argument("only 1-dof joints are supported (" + jname + ")");
+            joint_pos[qidx] = cos(jpos);
+            joint_pos[qidx+1] = sin(jpos);
+        }
+        else
+        {
+            joint_pos[qidx] = jpos;
+        }
+
+    }
+
+    return joint_pos;
+}
+
+Eigen::VectorXd Resampler::getMinimalQ(Eigen::VectorXd q)
+{
+    // add guards if q input by user is not of dimension nq()
+    int reduced_size = 0;
+
+    for(int n_joint = 0; n_joint < _model.njoints; n_joint++)
+    {
+        int nq = _model.nqs[n_joint];
+
+        if(nq == 2)
+        {
+            reduced_size++;
+        }
+        else if (nq == 7)
+        {
+            reduced_size += 6;
+        }
+        else
+        {
+            reduced_size += nq;
+        }
+    }
+
+    auto q_minimal = Eigen::VectorXd::Zero(reduced_size).eval();
+
+    int i = 0;
+    int j = 0;
+    for(int n_joint = 0; n_joint < _model.njoints; n_joint++)
+    {
+        int nq = _model.nqs[n_joint];
+
+        if(nq == 0)
+        {
+            continue;
+        }
+
+        if(nq == 7)
+        {
+            Eigen::Quaterniond quat(q(6), q(3), q(4), q(5));
+            Eigen::Vector3d rpy = quat.toRotationMatrix().eulerAngles(0, 1, 2);
+            q_minimal.segment(j, 6) << q(0), q(1), q(2), rpy;
+            j += 6;
+        }
+
+        if(nq == 1)
+        {
+            q_minimal[j] = q[i];
+            j++;
+        }
+
+        if(nq == 2)
+        {
+            q_minimal[j] = atan2(q[i], q[i+1]);
+            j++;
+        }
+        i+=nq;
+    }
+
+    return q_minimal;
+
 }

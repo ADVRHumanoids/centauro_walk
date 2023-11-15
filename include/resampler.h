@@ -5,6 +5,7 @@
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
 
 #include <urdf_parser/urdf_parser.h>
 
@@ -28,7 +29,13 @@ public:
     void getFrames(std::vector<std::string> &frames) const;
     void getTau(Eigen::VectorXd &tau) const;
 
+    Eigen::VectorXd mapToQ(std::unordered_map<std::string, double> jmap);
+    Eigen::VectorXd getMinimalQ(Eigen::VectorXd q);
+
     void resample(double dt_res);
+
+    double nq() const { return _model.nq; }
+    double nv() const { return _model.nv; }
 
 private:
     void resize();
