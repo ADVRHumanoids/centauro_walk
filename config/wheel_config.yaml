@@ -56,7 +56,9 @@ final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-  nodes: ${[N]}
+#  nodes: ${[N]}
+  nodes: all
+  cartesian_type: velocity
 #  nodes: all
   weight: *w_base_xy
 
@@ -162,7 +164,7 @@ joint_posture:
 
 joint_posture_ub:
   type: Postural
-  weight: 0.05
+  weight: 0.025
   indices: [ 16, 17, 18, 19, 20,
              21, 22, 23, 24, 25]
   nodes: all

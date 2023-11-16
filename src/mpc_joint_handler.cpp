@@ -17,7 +17,7 @@ _rate(rate)
     _model->getJointAcceleration(_qddot);
     _model->getJointEffort(_tau);
 
-    auto urdf_model = std::make_shared<urdf::ModelInterface>(_model->getUrdf());
+    auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
     _resampler = std::make_unique<Resampler>(urdf_model);
 }
 
@@ -35,20 +35,13 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
         _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});     
 
-        // second order system
         _x.resize(_old_solution.q.size() + _old_solution.v.size());
         _u.resize(_old_solution.a.size() + _old_solution.force_names.size() * 6);
-
-        // third order system
-//        _x.resize(_old_solution.q.size() + _old_solution.v.size() + _old_solution.a.size() + (_old_solution.force_names.size() * 6));
-//        _u.resize(_old_solution.j.size() + _old_solution.force_names.size() * 6);
-
-        _f.resize(_old_solution.force_names.size() * 6);
-        _fdot.resize(_old_solution.force_names.size() * 6);
 
         _p.resize(_resampler->nq());
         _v.resize(_resampler->nv());
         _a.resize(_resampler->nv());
+        _f.resize(_old_solution.force_names.size() * 6);
 
         std::vector<std::string> frames(_old_solution.force_names.data(), _old_solution.force_names.data() + _old_solution.force_names.size());
         _resampler->setFrames(frames);
@@ -60,6 +53,8 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     XBot::JointNameMap q_map;
     _robot->getPositionReference(q_map);
     _robot->getVelocityReference(qdot);
+//    _robot->getJointPosition(q_map);
+//    _robot->getJointVelocity(qdot);
 
     Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
@@ -84,13 +79,8 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         }
     }
 
-    // second order system
     _x << _p, _v;
     _u << _a, _f;
-
-    // third order system
-//    _x << _p, _v, _a, _f;
-//    _u << _j, _fdot;
 
     if(!_resampler->setState(_x))
         throw std::runtime_error("wrong dimension of the state vector! " + std::to_string(_x.size()) + " != ");
@@ -113,10 +103,8 @@ void MPCJointHandler::setTorqueOffset(XBot::JointNameMap tau_offset)
 }
 
 bool MPCJointHandler::update()
-{
+{    XBot::JointNameMap stiffness, damping;
     _robot->sense();
-    _model->syncFrom(*_robot);
-    _model->update();
 
     // resample
     // TODO: add guard to check when we exceed the dt_MPC
@@ -131,8 +119,6 @@ bool MPCJointHandler::update()
     _p = _x.head(_p.size());
     _v = _x.segment(_p.size(), _v.size());
     _a = _u.head(_a.size());
-
-    // From quaternion to RPY
 
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));

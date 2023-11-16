@@ -1,11 +1,11 @@
-control_mode:
-    wheel_joint_1: 26
-    wheel_joint_2: 26
-    wheel_joint_3: 26
-    wheel_joint_4: 26
+#control_mode:
+#    wheel_joint_1: 26
+#    wheel_joint_2: 26
+#    wheel_joint_3: 26
+#    wheel_joint_4: 26
 
-stiffness:
-    wheel_joint_1: 0
-    wheel_joint_2: 0
-    wheel_joint_3: 0
-    wheel_joint_4: 0
+#stiffness:
+#    wheel_joint_1: 0
+#    wheel_joint_2: 0
+#    wheel_joint_3: 0
+#    wheel_joint_4: 0
