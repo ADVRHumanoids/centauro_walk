@@ -103,7 +103,6 @@ base_pose = None
 base_twist = None
 
 try:
-
     robot = xbot.RobotInterface(cfg)
     rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
     rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
@@ -123,11 +122,11 @@ except:
                   'hip_pitch_2': 0.7,
                   'knee_pitch_2': -1.4,
                   'hip_roll_3': 0.0,
-                  'hip_pitch_3': -0.7,
-                  'knee_pitch_3': 1.4,
+                  'hip_pitch_3': 0.7,
+                  'knee_pitch_3': -1.4,
                   'hip_roll_4': 0.0,
-                  'hip_pitch_4': -0.7,
-                  'knee_pitch_4': 1.4,
+                  'hip_pitch_4': 0.7,
+                  'knee_pitch_4': -1.4,
                   'wheel_joint_1': 0.0,
                   'wheel_joint_2': 0.0,
                   'wheel_joint_3': 0.0,
@@ -157,17 +156,6 @@ except:
                        'elbow_pitch_2': 1.68,
                        'wrist_pitch_2': 0.,
                        'wrist_yaw_2': 0.})
-
-        # q_init.update({'shoulder_yaw_1': 0.0,
-        #                'shoulder_pitch_1': -np.pi / 2,
-        #                'elbow_pitch_1': 0.0,
-        #                'wrist_pitch_1': 0.,
-        #                'wrist_yaw_1': 0.,
-        #                'shoulder_yaw_2': 0.0,
-        #                'shoulder_pitch_2': -np.pi / 2,
-        #                'elbow_pitch_2': 0.,
-        #                'wrist_pitch_2': 0.,
-        #                'wrist_yaw_2': 0.})
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
@@ -208,35 +196,12 @@ def zmp(model):
     # formulation in forces
     num = cs.SX([0, 0])
     den = cs.SX([0])
+    pos_contact = dict()
+    force_val = dict()
 
     q = cs.SX.sym('q', model.nq)
     v = cs.SX.sym('v', model.nv)
     a = cs.SX.sym('a', model.nv)
-
-    pos_contact = dict()
-    force_val = dict()
-
-    # tau_f_res = cs.SX([0, 0, 0])
-    # f_res = cs.SX([0, 0, 0])
-    #
-    # for c in model.fmap.keys():
-    #     pos_contact[c] = cs.SX.sym('pos_contact', 3)
-    #     force_val[c] = cs.SX.sym('force_val', 3)
-    #
-    # for c in model.fmap.keys():
-    #     tau_f_res += cs.cross(pos_contact[c], force_val[c])
-    #     f_res += force_val[c]
-    #
-    # n = cs.SX([0, 0, 1])
-    #
-    # zmp = cs.cross(n, tau_f_res) / (cs.dot(f_res, n))
-    #
-    # input_list = []
-    # for elem in pos_contact.values():
-    #     input_list.append(elem)
-    #
-    # for elem in force_val.values():
-    #     input_list.append(elem)
 
     com = model.kd.centerOfMass()(q=q, v=v, a=a)['com']
 

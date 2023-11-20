@@ -11,6 +11,8 @@
 #include <XBotInterface/RobotInterface.h>
 #include <cartesian_interface/utils/RobotStatePublisher.h>
 
+#include <sensor_msgs/JointState.h>
+
 #include <algorithm>
 
 class MPCJointHandler : public MPCHandler {
@@ -41,6 +43,9 @@ private:
             map[vec1[i]] = vec2[i];
         }
     }
+
+    ros::Publisher _resampler_pub;
+    sensor_msgs::JointState msg_pub;
 
     XBot::JointNameMap _q, _qdot, _qddot, _tau;
     XBot::JointNameMap _tau_offset;

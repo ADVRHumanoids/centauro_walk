@@ -1,6 +1,8 @@
 #include "mpc_joint_handler.h"
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 
+#include <eigen_conversions/eigen_msg.h>
+
 MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
                                  int rate,
@@ -19,6 +21,8 @@ _rate(rate)
 
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
     _resampler = std::make_unique<Resampler>(urdf_model);
+
+    _resampler_pub = _nh.advertise<sensor_msgs::JointState>("resampler_solution_position", 1, true);
 }
 
 void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg)
@@ -51,6 +55,7 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     _robot->sense();
     Eigen::VectorXd q(_robot->getJointNum()), qdot(_robot->getJointNum());
     XBot::JointNameMap q_map;
+    _robot->getPositionReference(q);
     _robot->getPositionReference(q_map);
     _robot->getVelocityReference(qdot);
 //    _robot->getJointPosition(q_map);
@@ -59,8 +64,12 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
     // from eigen to quaternion
-    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-    _v << _fb_twist, qdot;
+//    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
+//    _p << _fb_pose, q;
+//    _v << _fb_twist, qdot;
+
+    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
+    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
 
     _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
     if (!_old_solution.j.empty())
@@ -69,14 +78,6 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     for (int i = 0; i < _old_solution.force_names.size(); i++)
     {
         _f.block<6, 1>(i * 6, 0) << _old_solution.f[i].x, _old_solution.f[i].y, _old_solution.f[i].z, 0, 0, 0;
-    }
-
-    if (!_old_solution.fdot.empty())
-    {
-        for (int i = 0; i < _old_solution.force_names.size(); i++)
-        {
-            _fdot.block<6, 1>(i * 6, 0) << _old_solution.fdot[i].x, _old_solution.fdot[i].y, _old_solution.fdot[i].z, 0, 0, 0;
-        }
     }
 
     _x << _p, _v;
@@ -103,13 +104,14 @@ void MPCJointHandler::setTorqueOffset(XBot::JointNameMap tau_offset)
 }
 
 bool MPCJointHandler::update()
-{    XBot::JointNameMap stiffness, damping;
+{
+    XBot::JointNameMap stiffness, damping;
     _robot->sense();
 
     // resample
     // TODO: add guard to check when we exceed the dt_MPC
 
-    _resampler->resample(1./_rate);
+//    _resampler->resample(1./_rate);
 
     // get resampled state and set it to the robot
     std::vector<std::string> joint_names(_mpc_solution.joint_names.data(), _mpc_solution.joint_names.data() + _mpc_solution.joint_names.size());
@@ -119,6 +121,13 @@ bool MPCJointHandler::update()
     _p = _x.head(_p.size());
     _v = _x.segment(_p.size(), _v.size());
     _a = _u.head(_a.size());
+
+    msg_pub.position.clear();
+    msg_pub.velocity.clear();
+    msg_pub.position.assign(_p.data(), _p.data() + _p.size());
+    msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
+    msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
+    _resampler_pub.publish(msg_pub);
 
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));

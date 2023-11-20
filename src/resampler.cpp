@@ -19,6 +19,8 @@ _time(0)
     {
         resize();
     }
+
+    _max_time = 3. / 40.;
 }
 
 void Resampler::resize()
@@ -61,7 +63,7 @@ bool Resampler::setState(const Eigen::VectorXd x)
     guard_function();
     if (x.size() != _x.size())
     {
-        std::cout << "wrong dimension of the state vector! " << std::to_string(x.size()) << " != " << std::to_string(_x.size()) << std::endl;;
+        std::cout << "wrong dimension of the state vector! " << std::to_string(x.size()) << " != " << std::to_string(_x.size()) << std::endl;
         return false;
     }
 
@@ -75,6 +77,7 @@ bool Resampler::setInput(const Eigen::VectorXd u)
     guard_function();
     if (u.size() != _u.size())
     {
+        std::cout << "wrong dimension of the input vector! " << std::to_string(u.size()) << " != " << std::to_string(_u.size()) << std::endl;
         return false;
     }
 
@@ -224,6 +227,11 @@ void Resampler::qdot(Eigen::Ref<const Eigen::VectorXd> qeig,
 
 void Resampler::resample(double dt_res)
 {
+    if (_time > _max_time)
+    {
+        std::cout << "[Resampler]: time: " << _time << " - max_time exceeded ( = " << _max_time << ")" << std::endl;
+        return;
+    }
     rk4(dt_res);
     id();
 }

@@ -76,8 +76,6 @@ void Controller::init_load_config()
             }
         }
     }
-
-
 }
 
 void Controller::init_load_model()
@@ -166,12 +164,6 @@ void Controller::set_stiffness_damping_torque(double duration)
     }
     _model->getJointEffort(tau_goal);
 
-    for (auto pair : _stiffness_map)
-    {
-        K[pair.first] = pair.second;
-        D[pair.first] = _damping_map[pair.first];
-    }
-
     double T = _time + duration;
     double dt = 1./_rate;
 
@@ -182,9 +174,8 @@ void Controller::set_stiffness_damping_torque(double duration)
             tau[pair.first] = (tau_start[pair.first] + (tau_goal[pair.first] - tau_start[pair.first]) * _time / T) - _tau_offset[pair.first];
         }
 
-
-        _robot->setStiffness(K);
-        _robot->setDamping(D);
+        _robot->setStiffness(_stiffness_map);
+        _robot->setDamping(_damping_map);
         _robot->setEffortReference(tau);
         _robot->move();
 
@@ -216,7 +207,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-//        set_stiffness_damping_torque(0.01);
+        set_stiffness_damping_torque(0.01);
     }
 }
 

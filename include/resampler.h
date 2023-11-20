@@ -34,8 +34,8 @@ public:
 
     void resample(double dt_res);
 
-    double nq() const { return _model.nq; }
-    double nv() const { return _model.nv; }
+    const int nq() const { return _model.nq; }
+    const int nv() const { return _model.nv; }
 
 private:
     void resize();
@@ -65,7 +65,7 @@ private:
     Eigen::Matrix<double, 6, -1> _J;
     std::vector<std::string> _frames;
 
-    double _time;
+    double _time, _max_time;
 };
 
 #endif // RESAMPLER_H
