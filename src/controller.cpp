@@ -207,7 +207,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.01);
+        set_stiffness_damping_torque(0.05);
     }
 }
 
