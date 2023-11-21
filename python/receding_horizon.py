@@ -59,12 +59,6 @@ rospy.sleep(1.)
 '''
 Load urdf and srdf
 '''
-
-wheeled_locomotion = True
-flag_upper_body = True
-
-model_opt = ["sensors:=false", f"upper_body:={flag_upper_body}", f"wheels:={wheeled_locomotion}", "payload:=false"]
-
 urdf = rospy.get_param(param_name='/robot_description', default='')
 if urdf == '':
     raise print('urdf not set')
@@ -85,7 +79,6 @@ dt = T / ns
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
 prb.setDt(dt)
 
-# urdf = urdf.replace('continuous', 'revolute')
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf)
 
 '''
@@ -114,48 +107,32 @@ try:
 
 except:
     print('RobotInterface not created')
-    if wheeled_locomotion:
-        q_init = {'hip_roll_1': 0.0,
-                  'hip_pitch_1': 0.7,
-                  'knee_pitch_1': -1.4,
-                  'hip_roll_2': 0.0,
-                  'hip_pitch_2': 0.7,
-                  'knee_pitch_2': -1.4,
-                  'hip_roll_3': 0.0,
-                  'hip_pitch_3': 0.7,
-                  'knee_pitch_3': -1.4,
-                  'hip_roll_4': 0.0,
-                  'hip_pitch_4': 0.7,
-                  'knee_pitch_4': -1.4,
-                  'wheel_joint_1': 0.0,
-                  'wheel_joint_2': 0.0,
-                  'wheel_joint_3': 0.0,
-                  'wheel_joint_4': 0.0}
-    else:
-        q_init = {'hip_roll_1': 0.0,
-                  'hip_pitch_1': 0.7,
-                  'knee_pitch_1': -1.4,
-                  'hip_roll_2': 0.0,
-                  'hip_pitch_2': 0.7,
-                  'knee_pitch_2': -1.4,
-                  'hip_roll_3': 0.0,
-                  'hip_pitch_3': 0.7,
-                  'knee_pitch_3': -1.4,
-                  'hip_roll_4': 0.0,
-                  'hip_pitch_4': 0.7,
-                  'knee_pitch_4': -1.4}
-
-    if flag_upper_body:
-        q_init.update({'shoulder_yaw_1': 0.0,
-                       'shoulder_pitch_1': 0.9,
-                       'elbow_pitch_1': 1.68,
-                       'wrist_pitch_1': 0.,
-                       'wrist_yaw_1': 0.,
-                       'shoulder_yaw_2': 0.0,
-                       'shoulder_pitch_2': 0.9,
-                       'elbow_pitch_2': 1.68,
-                       'wrist_pitch_2': 0.,
-                       'wrist_yaw_2': 0.})
+    q_init = {'hip_roll_1': 0.0,
+              'hip_pitch_1': 0.7,
+              'knee_pitch_1': -1.4,
+              'hip_roll_2': 0.0,
+              'hip_pitch_2': 0.7,
+              'knee_pitch_2': -1.4,
+              'hip_roll_3': 0.0,
+              'hip_pitch_3': 0.7,
+              'knee_pitch_3': -1.4,
+              'hip_roll_4': 0.0,
+              'hip_pitch_4': 0.7,
+              'knee_pitch_4': -1.4,
+              'wheel_joint_1': 0.0,
+              'wheel_joint_2': 0.0,
+              'wheel_joint_3': 0.0,
+              'wheel_joint_4': 0.0,
+              'shoulder_yaw_1': 0.0,
+              'shoulder_pitch_1': 0.9,
+              'elbow_pitch_1': 1.68,
+              'wrist_pitch_1': 0.,
+              'wrist_yaw_1': 0.,
+              'shoulder_yaw_2': 0.0,
+              'shoulder_pitch_2': 0.9,
+              'elbow_pitch_2': 1.68,
+              'wrist_pitch_2': 0.,
+              'wrist_yaw_2': 0.}
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
@@ -176,7 +153,7 @@ process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
 
-if wheeled_locomotion:
+if 'wheel_joint_1' in model.kd.joint_names():
     ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
 else:
     ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
@@ -248,7 +225,7 @@ zmp_nominal_weight = 2.5
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
 
-if wheeled_locomotion:
+if 'wheel_joint_1' in model.kd.joint_names():
     zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
@@ -358,12 +335,12 @@ gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
 
-if wheeled_locomotion:
+if 'wheel_joint_1' in model.kd.joint_names():
     jc.setBaseOriWeight(0.1)
 else:
     jc.setBasePosWeight(0.5)
 
-if wheeled_locomotion:
+if 'wheel_joint_1' in model.kd.joint_names():
     from geometry_msgs.msg import PointStamped
     zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
 

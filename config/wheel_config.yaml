@@ -45,7 +45,7 @@ costs:
 .define:
     - &w_com 0.05
     - &w_base_ori 0.5
-    - &w_base_xy 0.1
+    - &w_base_xy 1.
     - &w_ball_xy 10.
     - &w_ball_z 1.
     - &w_ball_ori 20.
@@ -59,10 +59,9 @@ final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-#  nodes: ${[N]}
-  nodes: all
-  cartesian_type: velocity
+  nodes: ${range(int(N/4), N)}
 #  nodes: all
+  cartesian_type: velocity
   weight: *w_base_xy
 
 com_height:

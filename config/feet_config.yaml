@@ -33,6 +33,7 @@ costs:
   - com_height
   - joint_regularization
   - joint_posture
+  - joint_posture_ub
 
 .define:
     - &w_com 50.
@@ -42,14 +43,16 @@ costs:
     - &w_ball_z 1.
     - &w_ball_ori 20.
     - &w_postural_roll 1.
-    - &w_postural 1.
+    - &w_postural 0.5
+    - &w_postural_ub 0.05
 
 final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-  nodes: ${range(N-5, N)}
-#  nodes: all
+#  nodes: ${range(N-5, N)}
+  nodes: all
+  cartesian_type: velocity
 #  weight: *w_base_xy
 
 com_height:
@@ -146,12 +149,21 @@ ball_4_contact:
   type: Contact
   subtask: [interaction_ball_4, zero_velocity_ball_4]
 
-
 joint_posture:
   type: Postural
   weight: *w_postural
+  indices: [0, 1, 2,
+            3, 4, 5,
+            6, 7, 8,
+            9, 10, 11]
   nodes: all
 
+joint_posture_ub:
+  type: Postural
+  weight: *w_postural_ub
+  indices:  [12, 13, 14, 15, 16,
+             17, 18, 19, 20, 21]
+  nodes: all
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 joint_regularization:
   type: Regularization

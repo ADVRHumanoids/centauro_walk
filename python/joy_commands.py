@@ -174,7 +174,7 @@ class JoyCommands:
 
             rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
             # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
-            reference = np.array([[0.1 * rot_vec[0], 0.1 * rot_vec[1]]]).T
+            reference = np.array([[0.4 * rot_vec[0], 0.4 * rot_vec[1]]]).T
 
             self.final_base_xy.setRef(reference)
         else:
