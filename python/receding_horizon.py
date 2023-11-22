@@ -369,14 +369,6 @@ while not rospy.is_shutdown():
 
     ti.rti()
     solution = ti.solution
-    dt_res = 0.01
-    ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
-
-    tau = list()
-
-    for i in range(solution['q_res'].shape[1] - 1):
-        tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
-                                                {name: solution['f_' + name][:, i] for name in model.fmap}))
 
     sol_msg = WBTrajectory()
     sol_msg.header.frame_id = 'world'
