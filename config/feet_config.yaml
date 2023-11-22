@@ -22,29 +22,29 @@ constraints:
   - ball_2_contact
   - ball_3_contact
   - ball_4_contact
+
+costs:
   - z_ball_1
   - z_ball_2
   - z_ball_3
   - z_ball_4
   - final_base_xy
   - base_orientation
-
-costs:
   - com_height
   - joint_regularization
   - joint_posture
   - joint_posture_ub
 
 .define:
-    - &w_com 50.
-    - &w_base_ori 20.
-    - &w_base_xy 10.
+    - &w_com 1.
+    - &w_base_ori 1.
+    - &w_base_xy 1.
     - &w_ball_xy 10.
-    - &w_ball_z 1.
+    - &w_ball_z 50.
     - &w_ball_ori 20.
     - &w_postural_roll 1.
     - &w_postural 0.5
-    - &w_postural_ub 0.05
+    - &w_postural_ub 10.
 
 final_base_xy:
   type: Cartesian
