@@ -125,10 +125,11 @@ class GaitManager:
 class JoyCommands:
     def __init__(self, gait_manager: GaitManager):
         self.gait_manager = gait_manager
-        self.base_weight = 15.
+        self.base_weight = 1.
         self.base_rot_weight = 0.5
         self.com_height_w = 0.02
 
+        self.smooth_joy_msg = None
         self.joy_msg = None
 
         self.final_base_xy = self.gait_manager.task_interface.getTask('final_base_xy')
@@ -136,9 +137,20 @@ class JoyCommands:
         self.base_orientation = self.gait_manager.task_interface.getTask('base_orientation')
 
         rospy.Subscriber('/joy', Joy, self.joy_callback)
+        self.publisher = rospy.Publisher('smooth_joy', Joy, queue_size=1)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
 
-    def joy_callback(self, msg):
+    def smooth(self):
+        alpha = 0.1
+        as_list = list(self.smooth_joy_msg.axes)
+        for index in range(len(self.joy_msg.axes)):
+            as_list[index] = alpha * self.joy_msg.axes[index] + (1 - alpha) * self.smooth_joy_msg.axes[index]
+        self.smooth_joy_msg.axes = tuple(as_list)
+        self.publisher.publish(self.smooth_joy_msg)
+
+    def joy_callback(self, msg:Joy):
+        if self.smooth_joy_msg is None:
+            self.smooth_joy_msg = msg
         self.joy_msg = msg
 
     def setBasePosWeight(self, w):
@@ -148,33 +160,27 @@ class JoyCommands:
         self.base_rot_weight = w
 
     def run(self, solution):
+        if self.smooth_joy_msg is not None:
+            self.smooth()
 
         if self.joy_msg.buttons[4] == 1:
             # step
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
                 self.gait_manager.trot()
-                # self.gait_manager.trot_jumped()
-                # self.gait_manager.slide()
-                # self.gait_manager.crawl()
-                # self.gait_manager.leap()
-                # self.gait_manager.walk()
-                # self.gait_manager.jump()
-                # self.gait_manager.wheelie()
-                # self.gait_manager.step('wheel_1')
         else:
             # stand
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
                 self.gait_manager.stand()
 
-        if np.abs(self.joy_msg.axes[0]) > 0.1 or np.abs(self.joy_msg.axes[1]) > 0.1:
-            # move com on x axis w.r.t the base
-
-            vec = np.array([self.base_weight * self.joy_msg.axes[1],
-                            self.base_weight * self.joy_msg.axes[0], 0])
+        if np.abs(self.smooth_joy_msg.axes[0]) > 0.1 or np.abs(self.smooth_joy_msg.axes[1]) > 0.1:
+            # move base on x-axis in local frame
+            vec = np.array([self.base_weight * self.smooth_joy_msg.axes[1],
+                            self.base_weight * self.smooth_joy_msg.axes[0], 0])
 
             rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
             # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
-            reference = np.array([[0.4 * rot_vec[0], 0.4 * rot_vec[1]]]).T
+            reference = np.array([[1. * rot_vec[0], 1. * rot_vec[1]]]).T
+            print(reference.T)
 
             self.final_base_xy.setRef(reference)
         else:
@@ -183,60 +189,15 @@ class JoyCommands:
             reference = np.array([[0., 0.]]).T
             self.final_base_xy.setRef(reference)
 
-        if np.abs(self.joy_msg.axes[3]) > 0.1:
+        if np.abs(self.smooth_joy_msg.axes[3]) > 0.1:
             # rotate base around z
-            d_angle = np.pi / 2 * self.joy_msg.axes[3] * self.base_rot_weight
+            d_angle = np.pi / 2 * self.smooth_joy_msg.axes[3] * self.base_rot_weight
             axis = [0, 0, 1]
             q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, axis)
-
             # set orientation of the quaternion
             reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
+            print(reference)
             self.base_orientation.setRef(reference)
-
-        elif self.joy_msg.axes[7] == 1:
-            # rotate base around y
-            d_angle = np.pi / 10
-            axis = [0, 1, 0]
-            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
-
-            # set orientation of the quaternion
-            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
-            self.base_orientation.setRef(reference)
-
-        elif self.joy_msg.axes[7] == -1:
-            # rotate base around y
-            d_angle = - np.pi / 10
-            axis = [0, 1, 0]
-            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
-
-            # set orientation of the quaternion
-            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
-            self.base_orientation.setRef(reference)
-
-        elif self.joy_msg.axes[6] == 1:
-            # rotate base around x
-            d_angle = np.pi / 10
-            axis = [1, 0, 0]
-            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
-
-            # set orientation of the quaternion
-            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
-            self.base_orientation.setRef(reference)
-
-        elif self.joy_msg.axes[6] == -1:
-            # rotate base around x
-            d_angle = -np.pi / 10
-            axis = [1, 0, 0]
-            rot_vec = self._rotate_vector(axis, solution['q'][[6, 3, 4, 5], 0])
-            q_result = self._incremental_rotate(solution['q'][[6, 3, 4, 5], 0], d_angle, rot_vec)
-
-            # set orientation of the quaternion
-            reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
-            self.base_orientation.setRef(reference)
-
         else:
             # set rotation of the base as the current one
             reference = np.array([[0., 0., 0., solution['q'][3, 0], solution['q'][4, 0], solution['q'][5, 0], solution['q'][6, 0]]]).T

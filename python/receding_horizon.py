@@ -125,12 +125,16 @@ except:
               'wheel_joint_4': 0.0,
               'shoulder_yaw_1': 0.0,
               'shoulder_pitch_1': 0.9,
+              # 'shoulder_pitch_1': -np.pi / 2,
               'elbow_pitch_1': 1.68,
+              # 'elbow_pitch_1': 0.0,
               'wrist_pitch_1': 0.,
               'wrist_yaw_1': 0.,
               'shoulder_yaw_2': 0.0,
               'shoulder_pitch_2': 0.9,
+              # 'shoulder_pitch_2': -np.pi / 2,
               'elbow_pitch_2': 1.68,
+              # 'elbow_pitch_2': 0.,
               'wrist_pitch_2': 0.,
               'wrist_yaw_2': 0.}
 
@@ -307,6 +311,7 @@ for cname, cforces in ti.model.cmap.items():
 vel_lims = model.kd.velocityLimits()
 prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
 prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
+
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
@@ -314,7 +319,6 @@ ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
 
-iteration = 0
 rate = rospy.Rate(1 / dt)
 
 contact_list_repl = list(model.cmap.keys())
@@ -338,7 +342,7 @@ jc = JoyCommands(gm)
 if 'wheel_joint_1' in model.kd.joint_names():
     jc.setBaseOriWeight(0.1)
 else:
-    jc.setBasePosWeight(0.5)
+    jc.setBasePosWeight(1.0)
 
 if 'wheel_joint_1' in model.kd.joint_names():
     from geometry_msgs.msg import PointStamped
@@ -365,18 +369,16 @@ while not rospy.is_shutdown():
 
     jc.run(solution)
 
-    iteration = iteration + 1
-
     ti.rti()
     solution = ti.solution
-    dt_res = 0.01
-    ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
+    # dt_res = 0.01
+    # ti.resample(dt_res=dt_res, nodes=[0, 1], resample_tau=False)
 
     tau = list()
 
-    for i in range(solution['q_res'].shape[1] - 1):
-        tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
-                                                {name: solution['f_' + name][:, i] for name in model.fmap}))
+    # for i in range(solution['q_res'].shape[1] - 1):
+    #     tau.append(ti.model.computeTorqueValues(solution['q_res'][:, i], solution['v_res'][:, i], solution['a_res'][:, i],
+    #                                             {name: solution['f_' + name][:, i] for name in model.fmap}))
 
     sol_msg = WBTrajectory()
     sol_msg.header.frame_id = 'world'
