@@ -16,6 +16,8 @@ int main(int argc, char** argv)
         nhpr.getParam("rate", rate);
     }
 
+    std::cout << "running rate at " << rate << " Hz" << std::endl;
+
     Controller controller(nh, rate);
 
     ros::Rate r(rate);

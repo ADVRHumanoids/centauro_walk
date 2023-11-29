@@ -30,7 +30,7 @@ costs:
   - acceleration_regularization
   - force_regularization
   - joint_posture
-  - joint_posture_ub
+#  - joint_posture_ub
   - base_orientation
   - z_ball_1
   - z_ball_2
@@ -74,8 +74,9 @@ base_orientation:
   type: Cartesian
   distal_link: base_link
   indices: [3, 4, 5]
-#  nodes: ${[N]}
+#  nodes: ${range(N-8, N)}
   nodes: all
+  cartesian_type: velocity
   weight: *w_base_ori
 
 # ===============================
@@ -106,7 +107,7 @@ interaction_wheel_1:
   type: VertexForce
   frame: ball_1
   fn_min: 10.0
-  enable_fc: true
+  enable_fc: false
   friction_coeff: 0.5
   vertex_frames:
     - wheel_1
@@ -115,7 +116,7 @@ interaction_wheel_2:
   type: VertexForce
   frame: ball_2
   fn_min: 10.0
-  enable_fc: true
+  enable_fc: false
   friction_coeff: 0.5
   vertex_frames:
     - wheel_2
@@ -124,7 +125,7 @@ interaction_wheel_3:
   type: VertexForce
   frame: ball_3
   fn_min: 10.0
-  enable_fc: true
+  enable_fc: false
   friction_coeff: 0.5
   vertex_frames:
     - wheel_3
@@ -133,7 +134,7 @@ interaction_wheel_4:
   type: VertexForce
   frame: ball_4
   fn_min: 10.0
-  enable_fc: true
+  enable_fc: false
   friction_coeff: 0.5
   vertex_frames:
     - wheel_4

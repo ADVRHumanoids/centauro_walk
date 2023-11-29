@@ -1,10 +1,14 @@
 #include "resampler.h"
+#include "utils.h"
+#include <chrono>
+#include <thread>
 
 Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model, std::vector<std::string> frames, int sys_order):
 _urdf(urdf_model),
 _frames(frames),
 _sys_order(sys_order),
-_time(0)
+_time(0),
+_warning_printed(false)
 {
     // parse pinocchio model from urdf
     pinocchio::urdf::buildModel(urdf_model, _model);
@@ -20,7 +24,7 @@ _time(0)
         resize();
     }
 
-    _max_time = 3. / 40.;
+    _max_time = 1.5 / 30.;
 }
 
 void Resampler::resize()
@@ -229,9 +233,10 @@ void Resampler::resample(double dt_res)
 {
     if (_time > _max_time)
     {
-        std::cout << "[Resampler]: time: " << _time << " - max_time exceeded ( = " << _max_time << ")" << std::endl;
+        ColoredTextPrinter::print("[Resampler]: time: " + std::to_string(_time) + " - max_time exceeded ( = " + std::to_string(_max_time) + ")", ColoredTextPrinter::TextColor::Yellow);
         return;
     }
+
     rk4(dt_res);
     id();
 }

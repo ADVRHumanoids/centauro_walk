@@ -4,7 +4,7 @@ import horizon.utils.kin_dyn as kd
 from horizon.problem import Problem
 from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
-from horizon.utils import trajectoryGenerator, resampler_trajectory, utils
+from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, analyzer
 from horizon.ros import replay_trajectory
 from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
@@ -53,7 +53,7 @@ def gt_twist_callback(msg):
 rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
 
-solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=10)
+solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 rospy.sleep(1.)
 
 '''
@@ -72,8 +72,8 @@ file_dir = os.getcwd()
 '''
 Initialize Horizon problem
 '''
-ns = 40
-T = 3
+ns = 30
+T = 1.5
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -94,6 +94,7 @@ cfg.set_bool_parameter('is_model_floating_base', True)
 
 base_pose = None
 base_twist = None
+robot = None
 
 try:
     robot = xbot.RobotInterface(cfg)
@@ -169,6 +170,19 @@ c_phases = dict()
 for c in model.cmap.keys():
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
+# weight more roll joints
+white_list_indices = list()
+white_list = []
+
+white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
+
+postural_joints = np.array(list(range(7, model.nq)))
+for joint in white_list:
+    white_list_indices.append(7 + model.joint_names.index(joint))
+
+if white_list:
+    prb.createResidual("min_q_white_list", 5. * (model.q[white_list_indices] - model.q0[white_list_indices]))
+
 def zmp(model):
     # formulation in forces
     num = cs.SX([0, 0])
@@ -229,28 +243,34 @@ if 'wheel_joint_1' in model.kd.joint_names():
     zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-stance_duration = 5
-flight_duration = 5
+short_stance_duration = 2
+stance_duration = 8
+flight_duration = 8
 for c in model.cmap.keys():
     # stance phase normal
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
+    stance_phase_short = pyphase.Phase(short_stance_duration, f'stance_{c}_short')
     if ti.getTask(f'{c}_contact') is not None:
         stance_phase.addItem(ti.getTask(f'{c}_contact'))
+        stance_phase_short.addItem(ti.getTask(f'{c}_contact'))
     else:
         raise Exception('task not found')
 
     c_phases[c].registerPhase(stance_phase)
+    c_phases[c].registerPhase(stance_phase_short)
 
     # flight phase normal
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
+    ee_vel = model.kd.frameVelocity(c, model.kd_frame)(q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.05, [None, 0, None]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot + 0.01, 0.1, [None, 0, None]))
     if ti.getTask(f'z_{c}') is not None:
         flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
     else:
         raise Exception('task not found')
-    # flight_phase.addConstraint(prb.getConstraints(f'{c}_vert'), nodes=[0 ,flight_duration-1])  # nodes=[0, 1, 2]
+    cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
+    flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
     c_phases[c].registerPhase(flight_phase)
 
 # register zmp phase
@@ -307,6 +327,7 @@ for cname, cforces in ti.model.cmap.items():
 vel_lims = model.kd.velocityLimits()
 prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
 prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
+
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
@@ -314,7 +335,6 @@ ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
 
-iteration = 0
 rate = rospy.Rate(1 / dt)
 
 contact_list_repl = list(model.cmap.keys())
@@ -344,6 +364,8 @@ if 'wheel_joint_1' in model.kd.joint_names():
     from geometry_msgs.msg import PointStamped
     zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
 
+anal = analyzer.ProblemAnalyzer(prb)
+
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -357,6 +379,15 @@ while not rospy.is_shutdown():
     prb.getState().setInitialGuess(xig)
     prb.setInitialState(x0=xig[:, 0])
 
+    if False: #robot is not None:
+        robot.sense()
+        q = robot.getJointPosition()
+        q = np.hstack([base_pose, q])
+        model.q.setBounds(q, q, nodes=0)
+        qdot = robot.getJointVelocity()
+        qdot = np.hstack([base_twist, qdot])
+        model.v.setBounds(qdot, qdot, nodes=0)
+
     # shift phases of phase manager
     tic = time.time()
     pm.shift()
@@ -364,8 +395,6 @@ while not rospy.is_shutdown():
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
     jc.run(solution)
-
-    iteration = iteration + 1
 
     ti.rti()
     solution = ti.solution
@@ -376,16 +405,20 @@ while not rospy.is_shutdown():
 
     sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
 
-    sol_msg.q = solution['q'][:, 1].tolist()
-    sol_msg.v = solution['v'][:, 1].tolist()
-    sol_msg.a = solution['a'][:, 1].tolist()
+    sol_msg.q = solution['q'][:, 0].tolist()
+    sol_msg.v = solution['v'][:, 0].tolist()
+    # sol_msg.q = solution['q'][:, 1].tolist()
+    # sol_msg.v = solution['v'][:, 1].tolist()
+    sol_msg.a = solution['a'][:, 0].tolist()
 
     for frame in model.getForceMap():
         sol_msg.force_names.append(frame)
         sol_msg.f.append(
-            Vector3(x=solution[f'f_{frame}'][0, 1], y=solution[f'f_{frame}'][1, 1], z=solution[f'f_{frame}'][2, 1]))
+            Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
 
     solution_publisher.publish(sol_msg)
+
+    # anal.printConstraints()
 
     # replay stuff
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}

@@ -2,9 +2,10 @@ solver:
   type: ilqr
   ipopt.linear_solver: ma57
   ipopt.tol: 0.1
-  ilqr.tol: 0.01
+#  ilqr.merit_der_threshold: 1e-3
+#  ilqr.defect_norm_threshold: 1e-3
   ipopt.constr_viol_tol: 0.01
-  ilqr.constr_viol_tol: 0.01
+  ilqr.constraint_violation_threshold: 1e-2
 #  ipopt.hessian_approximation: exact
   ipopt.print_level: 5
   ipopt.suppress_all_output: 'yes'
@@ -33,17 +34,17 @@ costs:
   - com_height
   - joint_regularization
   - joint_posture
-  - joint_posture_ub
+#  - joint_posture_ub
 
 .define:
-    - &w_com 1.
-    - &w_base_ori 1.
-    - &w_base_xy 1.
+    - &w_com 100.
+    - &w_base_ori 5.
+    - &w_base_xy 5.
     - &w_ball_xy 10.
     - &w_ball_z 50.
     - &w_ball_ori 20.
     - &w_postural_roll 1.
-    - &w_postural 0.5
+    - &w_postural 1.
     - &w_postural_ub 10.
 
 final_base_xy:
@@ -53,7 +54,7 @@ final_base_xy:
 #  nodes: ${range(N-5, N)}
   nodes: all
   cartesian_type: velocity
-#  weight: *w_base_xy
+  weight: *w_base_xy
 
 com_height:
   type: Cartesian
@@ -66,8 +67,10 @@ base_orientation:
   type: Cartesian
   distal_link: base_link
   indices: [3, 4, 5]
-  nodes: ${range(N-8, N)}
-#  weight: *w_base_ori
+#  nodes: ${range(N-8, N)}
+  nodes: all
+  cartesian_type: velocity
+  weight: *w_base_ori
 
 # ===============================
 
@@ -169,7 +172,7 @@ joint_regularization:
   type: Regularization
   nodes: all
   weight:
-    velocity: 1e-1
+#    velocity: 1e-1
     acceleration: 1e-2 # 0.01
     force: 1e-3 # todo <----- how to do? if there are more forces...
 

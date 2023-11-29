@@ -25,7 +25,10 @@ void MPCHandler::gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg)
                                           quat.toRotationMatrix().eulerAngles(0, 1, 2)(1),
                                           quat.toRotationMatrix().eulerAngles(0, 1, 2)(2));
 
-    _fb_pose << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w;
+    _fb_pose << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z,
+                msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w;
+
+    _fb_pose_rpy << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, rpy;
 }
 
 void MPCHandler::gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg)

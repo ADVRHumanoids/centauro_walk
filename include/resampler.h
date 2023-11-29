@@ -66,6 +66,8 @@ private:
     std::vector<std::string> _frames;
 
     double _time, _max_time;
+
+    bool _warning_printed;
 };
 
 #endif // RESAMPLER_H

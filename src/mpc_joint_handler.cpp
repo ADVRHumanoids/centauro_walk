@@ -3,6 +3,8 @@
 
 #include <eigen_conversions/eigen_msg.h>
 
+#include "utils.h"
+
 MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
                                  int rate,
@@ -22,15 +24,17 @@ _rate(rate)
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
     _resampler = std::make_unique<Resampler>(urdf_model);
 
-    _resampler_pub = _nh.advertise<sensor_msgs::JointState>("resampler_solution_position", 1, true);
+    _resampler_pub = _nh.advertise<sensor_msgs::JointState>("/resampler_solution_position", 1, true);
 }
 
 void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg)
 {
-    if (!_mpc_solution.q.empty())
-        _old_solution = _mpc_solution;
-    else
-        _old_solution = *msg;
+//    if (!_mpc_solution.q.empty())
+//        _old_solution = _mpc_solution;
+//    else
+//        _old_solution = *msg;
+
+    ColoredTextPrinter::print("MPC message received", ColoredTextPrinter::TextColor::Green);
 
     _mpc_solution = *msg;
 
@@ -39,15 +43,15 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
         _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});     
 
-        _x.resize(_old_solution.q.size() + _old_solution.v.size());
-        _u.resize(_old_solution.a.size() + _old_solution.force_names.size() * 6);
+        _x.resize(_mpc_solution.q.size() + _mpc_solution.v.size());
+        _u.resize(_mpc_solution.a.size() + _mpc_solution.force_names.size() * 6);
 
         _p.resize(_resampler->nq());
         _v.resize(_resampler->nv());
         _a.resize(_resampler->nv());
-        _f.resize(_old_solution.force_names.size() * 6);
+        _f.resize(_mpc_solution.force_names.size() * 6);
 
-        std::vector<std::string> frames(_old_solution.force_names.data(), _old_solution.force_names.data() + _old_solution.force_names.size());
+        std::vector<std::string> frames(_mpc_solution.force_names.data(), _mpc_solution.force_names.data() + _mpc_solution.force_names.size());
         _resampler->setFrames(frames);
     }
 
@@ -55,29 +59,29 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     _robot->sense();
     Eigen::VectorXd q(_robot->getJointNum()), qdot(_robot->getJointNum());
     XBot::JointNameMap q_map;
-    _robot->getPositionReference(q);
-    _robot->getPositionReference(q_map);
-    _robot->getVelocityReference(qdot);
-//    _robot->getJointPosition(q_map);
-//    _robot->getJointVelocity(qdot);
+//    _robot->getPositionReference(q);
+//    _robot->getPositionReference(q_map);
+//    _robot->getVelocityReference(qdot);
+    _robot->getJointPosition(q);
+    _robot->getJointVelocity(qdot);
 
     Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
     // from eigen to quaternion
 //    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-//    _p << _fb_pose, q;
-//    _v << _fb_twist, qdot;
+    _p << _fb_pose, q;
+    _v << _fb_twist, qdot;
 
-    _p = Eigen::VectorXd::Map(_old_solution.q.data(), _old_solution.q.size());
-    _v = Eigen::VectorXd::Map(_old_solution.v.data(), _old_solution.v.size());
+//    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
+//    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
+    _a = Eigen::VectorXd::Map(_mpc_solution.a.data(), _mpc_solution.a.size());
 
-    _a = Eigen::VectorXd::Map(_old_solution.a.data(), _old_solution.a.size());
-    if (!_old_solution.j.empty())
-        _j = Eigen::VectorXd::Map(_old_solution.j.data(), _old_solution.j.size());
+    if (!_mpc_solution.j.empty())
+        _j = Eigen::VectorXd::Map(_mpc_solution.j.data(), _mpc_solution.j.size());
 
-    for (int i = 0; i < _old_solution.force_names.size(); i++)
+    for (int i = 0; i < _mpc_solution.force_names.size(); i++)
     {
-        _f.block<6, 1>(i * 6, 0) << _old_solution.f[i].x, _old_solution.f[i].y, _old_solution.f[i].z, 0, 0, 0;
+        _f.block<6, 1>(i * 6, 0) << _mpc_solution.f[i].x, _mpc_solution.f[i].y, _mpc_solution.f[i].z, 0, 0, 0;
     }
 
     _x << _p, _v;
@@ -95,12 +99,18 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
 void MPCJointHandler::init_publishers_and_subscribers()
 {
-    _mpc_sub = _nh.subscribe("/mpc_solution", 10, &MPCJointHandler::mpc_joint_callback, this);
+    _mpc_sub = _nh.subscribe("/mpc_solution", 1, &MPCJointHandler::mpc_joint_callback, this);
 }
 
 void MPCJointHandler::setTorqueOffset(XBot::JointNameMap tau_offset)
 {
     _tau_offset = tau_offset;
+}
+
+void MPCJointHandler::smooth(const Eigen::VectorXd state, const Eigen::VectorXd input, Eigen::VectorXd& out)
+{
+    double alpha = 0.1;
+    out = alpha * input + (1-alpha) * state;
 }
 
 bool MPCJointHandler::update()
@@ -111,7 +121,7 @@ bool MPCJointHandler::update()
     // resample
     // TODO: add guard to check when we exceed the dt_MPC
 
-//    _resampler->resample(1./_rate);
+    _resampler->resample(1./_rate);
 
     // get resampled state and set it to the robot
     std::vector<std::string> joint_names(_mpc_solution.joint_names.data(), _mpc_solution.joint_names.data() + _mpc_solution.joint_names.size());
@@ -124,6 +134,7 @@ bool MPCJointHandler::update()
 
     msg_pub.position.clear();
     msg_pub.velocity.clear();
+//    msg_pub.header.stamp = ros::Time::now();
     msg_pub.position.assign(_p.data(), _p.data() + _p.size());
     msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
     msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
@@ -131,6 +142,16 @@ bool MPCJointHandler::update()
 
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
+
+//    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
+//    Eigen::VectorXd q_current_robot, q_smooth, qdot_current_robot, qdot_smooth;
+//    _robot->getPositionReference(q_current_robot);
+//    _robot->getVelocityReference(qdot_current_robot);
+//    q_current << _fb_pose_rpy, q_current_robot;
+//    qdot_current << _fb_twist, qdot_current_robot;
+
+//    smooth(q_current, q_euler, q_smooth);
+//    smooth(qdot_current, _v, qdot_smooth);
 
     vectors_to_map<std::string, double>(_joint_names, q_euler, _q);
     vectors_to_map<std::string, double>(_joint_names, _v, _qdot);

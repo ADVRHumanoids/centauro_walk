@@ -32,6 +32,8 @@ private:
 
     void mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg);
 
+    void smooth(const Eigen::VectorXd state, const Eigen::VectorXd in, Eigen::VectorXd& out);
+
     template<typename key, typename value>
     void vectors_to_map(const std::vector<key> vec1, const Eigen::Matrix<value, 1, -1> vec2, std::unordered_map<key, value>& map)
     {

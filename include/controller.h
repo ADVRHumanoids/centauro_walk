@@ -13,25 +13,6 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 
-class ColoredTextPrinter {
-public:
-    // ANSI color codes for text
-    enum class TextColor {
-        Black = 30,
-        Red,
-        Green,
-        Yellow,
-        Blue,
-        Magenta,
-        Cyan,
-        White
-    };
-
-    static void print(const std::string& text, TextColor color) {
-        std::cout << "\033[" << static_cast<int>(color) << "m" << text << "\033[0m";
-    }
-};
-
 class Controller {
 public:
     Controller(ros::NodeHandle nh, int rate);

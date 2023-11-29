@@ -36,6 +36,7 @@ protected:
     ros::Subscriber _mpc_sub;
 
     Eigen::VectorXd _fb_pose;
+    Vector6d _fb_pose_rpy;
     Eigen::VectorXd _fb_twist;
 };
 

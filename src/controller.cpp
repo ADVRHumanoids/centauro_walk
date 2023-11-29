@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "utils.h"
 #include <chrono>
 #include <thread>
 #include <xbot_msgs/JointState.h>
@@ -196,7 +197,8 @@ void Controller::run()
     {
         if (_init)
         {
-            _mpc_handler->update(); // update model
+            _mpc_handler->update();
+            return;
         }
     }
     else
@@ -208,6 +210,11 @@ void Controller::run()
     {
         _init = true;
         set_stiffness_damping_torque(0.1);
+        _robot->setControlMode(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
+        if (!_ctrl_map.empty())
+        {
+            _robot->setControlMode(_ctrl_map);
+        }
     }
 }
 
