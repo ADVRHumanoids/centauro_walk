@@ -120,20 +120,21 @@ except:
               'hip_roll_4': 0.0,
               'hip_pitch_4': 0.7,
               'knee_pitch_4': -1.4,
-              'wheel_joint_1': 0.0,
-              'wheel_joint_2': 0.0,
-              'wheel_joint_3': 0.0,
-              'wheel_joint_4': 0.0,
-              'shoulder_yaw_1': 0.0,
-              'shoulder_pitch_1': 0.9,
-              'elbow_pitch_1': 1.68,
-              'wrist_pitch_1': 0.,
-              'wrist_yaw_1': 0.,
-              'shoulder_yaw_2': 0.0,
-              'shoulder_pitch_2': 0.9,
-              'elbow_pitch_2': 1.68,
-              'wrist_pitch_2': 0.,
-              'wrist_yaw_2': 0.}
+              # 'wheel_joint_1': 0.0,
+              # 'wheel_joint_2': 0.0,
+              # 'wheel_joint_3': 0.0,
+              # 'wheel_joint_4': 0.0,
+              # 'shoulder_yaw_1': 0.0,
+              # 'shoulder_pitch_1': 0.9,
+              # 'elbow_pitch_1': 1.68,
+              # 'wrist_pitch_1': 0.,
+              # 'wrist_yaw_1': 0.,
+              # 'shoulder_yaw_2': 0.0,
+              # 'shoulder_pitch_2': 0.9,
+              # 'elbow_pitch_2': 1.68,
+              # 'wrist_pitch_2': 0.,
+              # 'wrist_yaw_2': 0.
+              }
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
@@ -360,12 +361,11 @@ if 'wheel_joint_1' in model.kd.joint_names():
 else:
     jc.setBasePosWeight(0.5)
 
-if 'wheel_joint_1' in model.kd.joint_names():
-    from geometry_msgs.msg import PointStamped
-    zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
+# if 'wheel_joint_1' in model.kd.joint_names():
+#     from geometry_msgs.msg import PointStamped
+#     zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
 
-anal = analyzer.ProblemAnalyzer(prb)
-
+# anal = analyzer.ProblemAnalyzer(prb)
 
 while not rospy.is_shutdown():
     # set initial state and initial guess
@@ -379,7 +379,8 @@ while not rospy.is_shutdown():
     prb.getState().setInitialGuess(xig)
     prb.setInitialState(x0=xig[:, 0])
 
-    if False: #robot is not None:
+    # closed loop
+    if robot is not None:
         robot.sense()
         q = robot.getJointPosition()
         q = np.hstack([base_pose, q])

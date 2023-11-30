@@ -34,7 +34,7 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 //    else
 //        _old_solution = *msg;
 
-    ColoredTextPrinter::print("MPC message received", ColoredTextPrinter::TextColor::Green);
+    ColoredTextPrinter::print("MPC message received:", ColoredTextPrinter::TextColor::Green);
 
     _mpc_solution = *msg;
 
@@ -57,27 +57,30 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
     // set state and input to Resampler (?)
     _robot->sense();
-    Eigen::VectorXd q(_robot->getJointNum()), qdot(_robot->getJointNum());
+
+    // getting the state from the robot (position and velocity)
+    // q map for joint positions from the robot
     XBot::JointNameMap q_map;
-//    _robot->getPositionReference(q);
-//    _robot->getPositionReference(q_map);
-//    _robot->getVelocityReference(qdot);
-    _robot->getJointPosition(q);
+    // qdot vector for velocities from the robot
+    Eigen::VectorXd qdot(_robot->getJointNum());
+
+    _robot->getJointPosition(q_map);
     _robot->getJointVelocity(qdot);
 
     Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
     // from eigen to quaternion
-//    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-    _p << _fb_pose, q;
+    // (FOR CLOSED LOOP)
+    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
     _v << _fb_twist, qdot;
 
+    // getting the input from the MPC solution (FOR OPEN LOOP)
 //    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
 //    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
     _a = Eigen::VectorXd::Map(_mpc_solution.a.data(), _mpc_solution.a.size());
 
-    if (!_mpc_solution.j.empty())
-        _j = Eigen::VectorXd::Map(_mpc_solution.j.data(), _mpc_solution.j.size());
+//    if (!_mpc_solution.j.empty())
+//        _j = Eigen::VectorXd::Map(_mpc_solution.j.data(), _mpc_solution.j.size());
 
     for (int i = 0; i < _mpc_solution.force_names.size(); i++)
     {
@@ -86,6 +89,9 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
     _x << _p, _v;
     _u << _a, _f;
+
+//    ColoredTextPrinter::print("state of the robot that goes to the resampler :", ColoredTextPrinter::TextColor::Red);
+//    std::cout << _x << std::endl;
 
     if(!_resampler->setState(_x))
         throw std::runtime_error("wrong dimension of the state vector! " + std::to_string(_x.size()) + " != ");
@@ -115,19 +121,27 @@ void MPCJointHandler::smooth(const Eigen::VectorXd state, const Eigen::VectorXd 
 
 bool MPCJointHandler::update()
 {
-    XBot::JointNameMap stiffness, damping;
     _robot->sense();
+
+    Eigen::VectorXd q_robot(_robot->getJointNum());
+    _robot->getJointPosition(q_robot);
+
+//    std::cout << "current position of the robot: " << std::endl;
+//    std::cout << q_robot << std::endl;
 
     // resample
     // TODO: add guard to check when we exceed the dt_MPC
 
+//    std::cout << "MPC state before resampling: " << std::endl;
+//    std::cout << _x.head(_p.size()) << std::endl;
+
     _resampler->resample(1./_rate);
 
     // get resampled state and set it to the robot
-    std::vector<std::string> joint_names(_mpc_solution.joint_names.data(), _mpc_solution.joint_names.data() + _mpc_solution.joint_names.size());
     Eigen::VectorXd tau;
     _resampler->getState(_x);
     _resampler->getTau(tau);
+
     _p = _x.head(_p.size());
     _v = _x.segment(_p.size(), _v.size());
     _a = _u.head(_a.size());
@@ -139,6 +153,11 @@ bool MPCJointHandler::update()
     msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
     msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
     _resampler_pub.publish(msg_pub);
+
+//    std::cout << "MPC joint position: " << std::endl;
+//    std::cout << _p << std::endl;
+
+
 
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
@@ -158,8 +177,8 @@ bool MPCJointHandler::update()
     vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
     vectors_to_map<std::string, double>(_joint_names, tau, _tau);
 
-    for (auto &pair : _tau)
-        pair.second -= _tau_offset[pair.first];
+//    for (auto &pair : _tau)
+//        pair.second -= _tau_offset[pair.first];
 
     _robot->setPositionReference(_q);
     _robot->setVelocityReference(_qdot);
