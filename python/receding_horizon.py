@@ -18,7 +18,7 @@ import horizon.utils.analyzer as analyzer
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
-
+import colorama
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from kyon_controller.msg import WBTrajectory
 
@@ -54,6 +54,7 @@ rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+
 rospy.sleep(1.)
 
 '''
@@ -103,7 +104,8 @@ try:
     while base_pose is None or base_twist is None:
         rospy.sleep(0.01)
     robot.sense()
-    q_init = robot.getPositionReference()
+    # q_init = robot.getPositionReference()
+    q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
 except:
@@ -367,7 +369,16 @@ else:
 
 # anal = analyzer.ProblemAnalyzer(prb)
 
+# import matplotlib.pyplot as plt
+# plt.ion()  # Turn on interactive mode
+# fig, ax = plt.subplots()
+# line, = ax.plot(range(prb.getNNodes() - 1), ti.solver_bs.getConstraintsValues()['dynamics'][0, :])  # Plot initial data
+# ax.set_ylim(-2., 2.)  # Set your desired limits here
+
+
 while not rospy.is_shutdown():
+
+    # tic = time.time()
     # set initial state and initial guess
     shift_num = -1
 
@@ -383,9 +394,11 @@ while not rospy.is_shutdown():
     if robot is not None:
         robot.sense()
         q = robot.getJointPosition()
+        # q = robot.getPositionReference()
         q = np.hstack([base_pose, q])
         model.q.setBounds(q, q, nodes=0)
         qdot = robot.getJointVelocity()
+        # qdot = robot.getVelocityReference()
         qdot = np.hstack([base_twist, qdot])
         model.v.setBounds(qdot, qdot, nodes=0)
 
@@ -398,6 +411,25 @@ while not rospy.is_shutdown():
     jc.run(solution)
 
     ti.rti()
+
+
+    # line.set_ydata(ti.solver_rti.getConstraintsValues()['dynamics'][0, :])
+    # #
+    # ax.relim()  # Update the limits of the axes
+    # ax.autoscale_view()  # Autoscale the axes view
+    # fig.canvas.draw()
+    # fig.canvas.flush_events()
+    #
+    # plt.pause(0.0001) # Add a small delay to see the changes
+
+
+
+    # for elem_name, elem_values in ti.solver_rti.getConstraintsValues().items():
+    #     print(f"{colorama.Fore.GREEN}{elem_name}:  {elem_values}{colorama.Fore.RESET}")
+
+    # for elem_name, elem_values in ti.solver_rti.getCostsValues().items():
+    #     print(f"{colorama.Fore.RED}{elem_name}:  {elem_values}{colorama.Fore.RESET}")
+
     solution = ti.solution
 
     sol_msg = WBTrajectory()
@@ -418,15 +450,17 @@ while not rospy.is_shutdown():
             Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
 
     solution_publisher.publish(sol_msg)
-
     # anal.printConstraints()
 
     # replay stuff
-    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])
-    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    if robot is None:
+        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+        repl.publish_joints(solution['q'][:, 0])
+        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
-    rate.sleep()
+    # rate.sleep()
+
+    # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
 print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')

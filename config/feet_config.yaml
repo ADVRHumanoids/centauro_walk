@@ -37,15 +37,18 @@ costs:
 #  - joint_posture_ub
 
 .define:
-    - &w_com 100.
-    - &w_base_ori 5.
-    - &w_base_xy 5.
-    - &w_ball_xy 10.
-    - &w_ball_z 50.
-    - &w_ball_ori 20.
-    - &w_postural_roll 1.
+    - &w_com 1.
+    - &w_base_ori 1.
+    - &w_base_xy 10.
+    - &w_ball_z 100.
     - &w_postural 1.
     - &w_postural_ub 10.
+    - &w_v 1e-2
+    - &w_a 5e-2
+    - &w_f 1e-2
+    - &w_ball_ori 20.
+    - &w_ball_xy 10.
+    - &w_postural_roll 1.
 
 final_base_xy:
   type: Cartesian
@@ -172,9 +175,9 @@ joint_regularization:
   type: Regularization
   nodes: all
   weight:
-#    velocity: 1e-1
-    acceleration: 1e-2 # 0.01
-    force: 1e-3 # todo <----- how to do? if there are more forces...
+    velocity: *w_v
+    acceleration: *w_a # 0.01
+    force: *w_f # todo <----- how to do? if there are more forces...
 
 z_ball_1:
   type: Cartesian

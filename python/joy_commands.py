@@ -30,6 +30,7 @@ class GaitManager:
                 phase_i.addPhase(phase_i.getRegisteredPhase(f'flight_{contact_name}_short'))
 
     def cycle(self, cycle_list):
+
         # how do I know that the stance phase is called stance_{c} or flight_{c}?
         for flag_contact, contact_name in zip(cycle_list, self.contact_phases.keys()):
             phase_i = self.contact_phases[contact_name]
@@ -117,6 +118,10 @@ class GaitManager:
         cycle_list = [0, 0, 1, 1]
         self.cycle(cycle_list)
 
+    def give_paw(self):
+        cycle_list = [0, 1, 1, 1]
+        self.cycle(cycle_list)
+
     def stand(self):
         cycle_list = [1, 1, 1, 1]
         self.cycle(cycle_list)
@@ -168,6 +173,10 @@ class JoyCommands:
             # step
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
                 self.gait_manager.trot()
+        elif self.joy_msg.buttons[5] == 1:
+            # step
+            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+                self.gait_manager.step('ball_1')
         else:
             # stand
             if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:

@@ -143,8 +143,8 @@ void Controller::set_stiffness_damping_torque(double duration)
 {
     // initialize with the current position of the robot
     _robot->sense();
-    _model->syncFrom(*_robot);
-    _model->update();
+//    _model->syncFrom(*_robot);
+//    _model->update();
 
     // prepare to set stiffness and damping to zero
     XBot::JointNameMap K, D;
@@ -163,7 +163,19 @@ void Controller::set_stiffness_damping_torque(double duration)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
     }
-    _model->getJointEffort(tau_goal);
+
+
+//    ColoredTextPrinter::print("Initial torques: \n", ColoredTextPrinter::TextColor::Blue);
+//    for (auto pair : K)
+//    {
+//        std::cout << pair.first << std::endl;
+//        std::cout << K[pair.first] << std::endl;
+//        std::cout << D[pair.first] << std::endl;
+//        std::cout << tau_start[pair.first] << std::endl;
+//    }
+
+
+    _robot->getJointEffort(tau_goal);
 
     double T = _time + duration;
     double dt = 1./_rate;
@@ -209,7 +221,7 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.1);
+        set_stiffness_damping_torque(0.01);
         _robot->setControlMode(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
         if (!_ctrl_map.empty())
         {

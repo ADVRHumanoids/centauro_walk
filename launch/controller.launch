@@ -1,7 +1,7 @@
 <launch>
     <node pkg="kyon_controller" type="controller" name="kyon_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/kyon_controller_config.yaml"/>
-        <param name="rate" value="800"/>
+        <param name="rate" value="1000"/>
     </node>
 
     <node pkg="joy" type="joy_node" name="joy_node">
