@@ -104,9 +104,6 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     _x << _p, _v;
     _u << _a, _f;
 
-//    ColoredTextPrinter::print("state of the robot that goes to the resampler :", ColoredTextPrinter::TextColor::Red);
-//    std::cout << _x << std::endl;
-
     if(!_resampler->setState(_x))
         throw std::runtime_error("wrong dimension of the state vector! " + std::to_string(_x.size()) + " != ");
     if(!_resampler->setInput(_u))
@@ -140,15 +137,7 @@ bool MPCJointHandler::update()
     Eigen::VectorXd q_robot(_robot->getJointNum());
     _robot->getJointPosition(q_robot);
 
-//    std::cout << "current position of the robot: " << std::endl;
-//    std::cout << q_robot << std::endl;
-
     // resample
-    // TODO: add guard to check when we exceed the dt_MPC
-
-//    std::cout << "MPC state before resampling: " << std::endl;
-//    std::cout << _x.head(_p.size()) << std::endl;
-
     _resampler->resample(1./_rate);
 
     // get resampled state and set it to the robot
@@ -162,16 +151,10 @@ bool MPCJointHandler::update()
 
     msg_pub.position.clear();
     msg_pub.velocity.clear();
-//    msg_pub.header.stamp = ros::Time::now();
     msg_pub.position.assign(_p.data(), _p.data() + _p.size());
     msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
     msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
     _resampler_pub.publish(msg_pub);
-
-//    std::cout << "MPC joint position: " << std::endl;
-//    std::cout << _p << std::endl;
-
-
 
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));

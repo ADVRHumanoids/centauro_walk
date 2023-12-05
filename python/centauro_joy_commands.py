@@ -165,7 +165,7 @@ class JoyCommands:
             # reference = np.array([[0., 0.]]).T
             self.final_base_xy.setRef(reference)
 
-        if np.abs(self.smooth_joy_msg.axes[3]) > 0.1:
+        if np.abs(self.smooth_joy_msg.axes[3]) > 0.1 or np.abs(self.smooth_joy_msg.axes[4]) > 0.1:
             # position mode
             # d_angle = np.pi / 2 * self.smooth_joy_msg.axes[3] * self.base_rot_weight
             # axis = [0, 0, 1]
@@ -173,23 +173,8 @@ class JoyCommands:
             # reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
 
             # velocity mode
-            reference = np.array([[0., 0., self.base_rot_weight * self.smooth_joy_msg.axes[3]]]).T
-            self.base_orientation.setRef(reference)
-        else:
-            # set rotation of the base as the current one
-            # reference = np.array([[0., 0., 0., solution['q'][3, 0], solution['q'][4, 0], solution['q'][5, 0], solution['q'][6, 0]]]).T
-            reference = np.array([[0., 0., 0.]]).T
-            self.base_orientation.setRef(reference)
-
-        if np.abs(self.smooth_joy_msg.axes[4]) > 0.1:
-            # position mode
-            # d_angle = np.pi / 2 * self.smooth_joy_msg.axes[3] * self.base_rot_weight
-            # axis = [0, 0, 1]
-            # q_result = self._incremental_rotate(solution['q'][[6, 3 , 4, 5], 0], d_angle, axis)
-            # reference = np.array([[0., 0., 0., q_result.x, q_result.y, q_result.z, q_result.w]]).T
-
-            # velocity mode
-            reference = np.array([[0., self.base_rot_weight * self.smooth_joy_msg.axes[4], 0.]]).T
+            reference = np.array([[0., self.base_rot_weight * self.smooth_joy_msg.axes[4], self.base_rot_weight * self.smooth_joy_msg.axes[3]]]).T
+            print(reference.T)
             self.base_orientation.setRef(reference)
         else:
             # set rotation of the base as the current one

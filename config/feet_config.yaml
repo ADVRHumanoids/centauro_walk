@@ -37,8 +37,8 @@ costs:
 #  - joint_posture_ub
 
 .define:
-    - &w_com 100.
-    - &w_base_ori 1.
+    - &w_com 50.
+    - &w_base_ori 50.
     - &w_base_xy 10.
     - &w_ball_z 100.
     - &w_postural 5.
