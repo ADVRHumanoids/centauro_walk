@@ -5,10 +5,10 @@
 #    wheel_joint_4: 26
 
 define:
-    - &low_stiff 0.
-    - &low_damp 0.
-#    - &low_stiff 400.
-#    - &low_damp 40.
+#    - &low_stiff 0.
+#    - &low_damp 0.
+    - &low_stiff 50.
+    - &low_damp 5.
 
 stiffness:
     hip_roll_1: *low_stiff

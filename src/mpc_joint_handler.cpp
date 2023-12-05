@@ -71,12 +71,12 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
     // from eigen to quaternion
     // (FOR CLOSED LOOP)
-    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-    _v << _fb_twist, qdot;
+//    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
+//    _v << _fb_twist, qdot;
 
     // getting the input from the MPC solution (FOR OPEN LOOP)
-//    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
-//    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
+    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
+    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
     _a = Eigen::VectorXd::Map(_mpc_solution.a.data(), _mpc_solution.a.size());
 
 //    if (!_mpc_solution.j.empty())

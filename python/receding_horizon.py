@@ -246,7 +246,7 @@ if 'wheel_joint_1' in model.kd.joint_names():
     zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-short_stance_duration = 2
+short_stance_duration = 1
 stance_duration = 8
 flight_duration = 8
 for c in model.cmap.keys():
@@ -267,7 +267,7 @@ for c in model.cmap.keys():
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ee_vel = model.kd.frameVelocity(c, model.kd_frame)(q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot + 0.01, 0.1, [None, 0, None]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.1, [None, 0, None]))
     if ti.getTask(f'z_{c}') is not None:
         flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
     else:
@@ -351,6 +351,8 @@ global joy_msg
 
 xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
+time_elapsed_solving_list = list()
+time_elapsed_all_list = list()
 
 from joy_commands import GaitManager, JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
@@ -376,8 +378,8 @@ else:
 # ax.set_ylim(-2., 2.)  # Set your desired limits here
 
 
+# while not rospy.is_shutdown():
 while not rospy.is_shutdown():
-
     # tic = time.time()
     # set initial state and initial guess
     shift_num = -1
@@ -410,8 +412,10 @@ while not rospy.is_shutdown():
 
     jc.run(solution)
 
+    tic = time.time()
     ti.rti()
-
+    time_elapsed_solving = time.time() - tic
+    time_elapsed_solving_list.append(time_elapsed_solving)
 
     # line.set_ydata(ti.solver_rti.getConstraintsValues()['dynamics'][0, :])
     # #
@@ -453,14 +457,22 @@ while not rospy.is_shutdown():
     # anal.printConstraints()
 
     # replay stuff
-    if robot is None:
-        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-        repl.publish_joints(solution['q'][:, 0])
-        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # if robot is None:
+    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    repl.publish_joints(solution['q'][:, 0])
+    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
-    # rate.sleep()
+
+    time_elapsed_all = time.time() - tic
+    time_elapsed_all_list.append(time_elapsed_all)
+
+    rate.sleep()
+
+
 
     # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
 print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
+print(f'average time elapsed solving: {sum(time_elapsed_solving_list) / len(time_elapsed_solving_list)}')
+print(f'average time elapsed all: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
