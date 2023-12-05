@@ -175,16 +175,23 @@ for c in model.cmap.keys():
 
 # weight more roll joints
 white_list_indices = list()
+black_list_indices = list()
 white_list = []
+black_list = ['wheel_joint_1', 'wheel_joint_2', 'wheel_joint_3', 'wheel_joint_4']
 
-white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
+# white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
 
 postural_joints = np.array(list(range(7, model.nq)))
+for joint in black_list:
+    black_list_indices.append(model.joint_names.index(joint))
 for joint in white_list:
     white_list_indices.append(7 + model.joint_names.index(joint))
+postural_joints = np.delete(postural_joints, black_list_indices)
 
 if white_list:
     prb.createResidual("min_q_white_list", 5. * (model.q[white_list_indices] - model.q0[white_list_indices]))
+# if black_list:
+#     prb.createResidual('velocity_regularization', 0.1 * model.v[postural_joints])
 
 def zmp(model):
     # formulation in forces
