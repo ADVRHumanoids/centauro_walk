@@ -19,33 +19,33 @@ solver:
   print_time: 0
 
 constraints:
-  - contact_1
-  - contact_2
-  - contact_3
-  - contact_4
+  - ball_1_contact
+  - ball_2_contact
+  - ball_3_contact
+  - ball_4_contact
 
 costs:
-  - z_contact_1
-  - z_contact_2
-  - z_contact_3
-  - z_contact_4
+  - z_ball_1
+  - z_ball_2
+  - z_ball_3
+  - z_ball_4
   - final_base_xy
   - base_orientation
   - com_height
   - joint_regularization
   - joint_posture
-  - joint_posture_ub
+#  - joint_posture_ub
 
 .define:
-    - &w_com 1.
+    - &w_com 100.
     - &w_base_ori 1.
-    - &w_base_xy 1.
-    - &w_contact_z 50.
-    - &w_postural 1.
-    - &w_postural_ub 1.
+    - &w_base_xy 10.
+    - &w_ball_z 100.
+    - &w_postural 5.
+    - &w_postural_ub 10.
     - &w_v 1e-2
-    - &w_a 1e-2
-    - &w_f 1e-3
+    - &w_a 5e-2
+    - &w_f 1e-2
     - &w_ball_ori 20.
     - &w_ball_xy 10.
     - &w_postural_roll 1.
@@ -54,9 +54,9 @@ final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-  nodes: ${range(N-5, N)}
-#  nodes: all
-  cartesian_type: position
+#  nodes: ${range(N-5, N)}
+  nodes: all
+  cartesian_type: velocity
   weight: *w_base_xy
 
 com_height:
@@ -77,137 +77,133 @@ base_orientation:
 
 # ===============================
 
-zero_velocity_1:
+zero_velocity_ball_1:
   type: Cartesian
-  distal_link: contact_1
+  distal_link: ball_1
   indices: [0, 1, 2]
   cartesian_type: velocity
 
-zero_velocity_2:
+zero_velocity_ball_2:
   type: Cartesian
-  distal_link: contact_2
+  distal_link: ball_2
   indices: [0, 1, 2]
   cartesian_type: velocity
 
-zero_velocity_3:
+zero_velocity_ball_3:
   type: Cartesian
-  distal_link: contact_3
+  distal_link: ball_3
   indices: [0, 1, 2]
   cartesian_type: velocity
 
-zero_velocity_4:
+zero_velocity_ball_4:
   type: Cartesian
-  distal_link: contact_4
+  distal_link: ball_4
   indices: [0, 1, 2]
   cartesian_type: velocity
 
 # ==================================
 
-interaction_1:
+interaction_ball_1:
   type: VertexForce
-  frame: contact_1
+  frame: ball_1
   fn_min: 10.0
   enable_fc: true
   friction_coeff: 0.5
   vertex_frames:
-    - contact_1
+    - ball_1
 
-interaction_2:
+interaction_ball_2:
   type: VertexForce
-  frame: contact_2
+  frame: ball_2
   fn_min: 10.0
   enable_fc: true
   friction_coeff: 0.5
   vertex_frames:
-    - contact_2
+    - ball_2
 
-interaction_3:
+interaction_ball_3:
   type: VertexForce
-  frame: contact_3
+  frame: ball_3
   fn_min: 10.0
   enable_fc: true
   friction_coeff: 0.5
   vertex_frames:
-    - contact_3
+    - ball_3
 
-interaction_4:
+interaction_ball_4:
   type: VertexForce
-  frame: contact_4
+  frame: ball_4
   fn_min: 10.0
   enable_fc: true
   friction_coeff: 0.5
   vertex_frames:
-    - contact_4
+    - ball_4
 
-contact_1:
+ball_1_contact:
   type: Contact
-  subtask: [interaction_1, zero_velocity_1]
+  subtask: [interaction_ball_1, zero_velocity_ball_1]
 
-contact_2:
+ball_2_contact:
   type: Contact
-  subtask: [interaction_2, zero_velocity_2]
+  subtask: [interaction_ball_2, zero_velocity_ball_2]
 
-contact_3:
+ball_3_contact:
   type: Contact
-  subtask: [interaction_3, zero_velocity_3]
+  subtask: [interaction_ball_3, zero_velocity_ball_3]
 
-contact_4:
+ball_4_contact:
   type: Contact
-  subtask: [interaction_4, zero_velocity_4]
+  subtask: [interaction_ball_4, zero_velocity_ball_4]
 
 joint_posture:
   type: Postural
   weight: *w_postural
-  indices: [0, 1, 2, 3,
-            4, 5, 6, 7,
-            8, 9, 10, 11,
-            12, 13, 14, 15]
+  indices: [0, 1, 2,
+            3, 4, 5,
+            6, 7, 8,
+            9, 10, 11]
   nodes: all
 
 joint_posture_ub:
   type: Postural
   weight: *w_postural_ub
-  indices:  [16,
-             17, 18, 19, 20, 21, 22,
-             23, 24, 25, 26, 27, 28,
-             29, 30
-             ]
+  indices:  [12, 13, 14, 15, 16,
+             17, 18, 19, 20, 21]
   nodes: all
-
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 joint_regularization:
   type: Regularization
   nodes: all
   weight:
-#    velocity: *w_v
+    velocity: *w_v
     acceleration: *w_a # 0.01
     force: *w_f # todo <----- how to do? if there are more forces...
 
-z_contact_1:
+z_ball_1:
   type: Cartesian
-  distal_link: contact_1
+  distal_link: ball_1
   indices: [2]
   cartesian_type: position
-  weight: *w_contact_z
+  weight: *w_ball_z
 
-z_contact_2:
+z_ball_2:
   type: Cartesian
-  distal_link: contact_2
+  distal_link: ball_2
   indices: [2]
   cartesian_type: position
-  weight: *w_contact_z
+  weight: *w_ball_z
 
-z_contact_3:
+z_ball_3:
   type: Cartesian
-  distal_link: contact_3
+  distal_link: ball_3
   indices: [2]
   cartesian_type: position
-  weight: *w_contact_z
+  weight: *w_ball_z
 
-z_contact_4:
+z_ball_4:
   type: Cartesian
-  distal_link: contact_4
+  distal_link: ball_4
   indices: [2]
   cartesian_type: position
-  weight: *w_contact_z
+  weight: *w_ball_z
 
