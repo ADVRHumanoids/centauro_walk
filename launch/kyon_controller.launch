@@ -1,0 +1,14 @@
+<launch>
+    <arg name="gui" default="true"/>
+    <arg name="joy" default="true"/>
+    <arg name="gazebo" default="false"/>
+
+    <param name="robot_description"
+         command="$(find xacro)/xacro $(find kyon_urdf)/urdf/kyon.urdf.xacro floating_joint:=true upper_body:=false sensors:=false payload:=false"/>
+         <param name="robot_description_semantic"
+              command="$(find xacro)/xacro $(find kyon_srdf)/srdf/kyon.srdf.xacro floating_joint:=false upper_body:=false sensors:=false payload:=false"/>
+
+    <node pkg="kyon_controller" type="controller" name="kyon_controller_node" output="screen"/>
+
+    <node if="$(arg gui)" pkg="rviz" type="rviz" name="rviz" args="-d $(find kyon_controller)/config/kyon_controller.rviz"/>
+</launch>
