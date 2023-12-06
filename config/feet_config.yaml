@@ -170,10 +170,15 @@ joint_posture_ub:
   indices:  [12, 13, 14, 15, 16,
              17, 18, 19, 20, 21]
   nodes: all
+
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 joint_regularization:
   type: Regularization
   nodes: all
+  indices: [0, 1, 2]
+#  indices:
+#    velocity: all
+#    acceleration: [4, 5, 6]
   weight:
     velocity: *w_v
     acceleration: *w_a # 0.01

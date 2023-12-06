@@ -49,28 +49,28 @@ class GaitManager:
     def trot_jumped(self):
 
         #  diagonal 1 duration 4
-        self.contact_phases['ball_2'].addPhase(self.contact_phases['ball_2'].getRegisteredPhase(f'flight_ball_2'))
-        self.contact_phases['ball_3'].addPhase(self.contact_phases['ball_3'].getRegisteredPhase(f'flight_ball_3'))
+        self.contact_phases['contact_2'].addPhase(self.contact_phases['contact_2'].getRegisteredPhase(f'flight_ball_2'))
+        self.contact_phases['contact_3'].addPhase(self.contact_phases['contact_3'].getRegisteredPhase(f'flight_ball_3'))
 
         # diagonal 2 short stance 1 (3 times)
-        self.contact_phases['ball_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'stance_ball_1_short'))
-        self.contact_phases['ball_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'stance_ball_1_short'))
-        self.contact_phases['ball_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'stance_ball_1_short'))
-        self.contact_phases['ball_4'].addPhase(self.contact_phases['ball_4'].getRegisteredPhase(f'stance_ball_4_short'))
-        self.contact_phases['ball_4'].addPhase(self.contact_phases['ball_4'].getRegisteredPhase(f'stance_ball_4_short'))
-        self.contact_phases['ball_4'].addPhase(self.contact_phases['ball_4'].getRegisteredPhase(f'stance_ball_4_short'))
+        self.contact_phases['contact_1'].addPhase(self.contact_phases['contact_1'].getRegisteredPhase(f'stance_contact_1_short'))
+        self.contact_phases['contact_1'].addPhase(self.contact_phases['contact_1'].getRegisteredPhase(f'stance_contact_1_short'))
+        self.contact_phases['contact_1'].addPhase(self.contact_phases['contact_1'].getRegisteredPhase(f'stance_contact_1_short'))
+        self.contact_phases['contact_4'].addPhase(self.contact_phases['contact_4'].getRegisteredPhase(f'stance_contact_4_short'))
+        self.contact_phases['contact_4'].addPhase(self.contact_phases['contact_4'].getRegisteredPhase(f'stance_contact_4_short'))
+        self.contact_phases['contact_4'].addPhase(self.contact_phases['contact_4'].getRegisteredPhase(f'stance_contact_4_short'))
 
         #  diagonal 2 duration 4
-        self.contact_phases['ball_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'flight_ball_1'))
-        self.contact_phases['ball_4'].addPhase(self.contact_phases['ball_4'].getRegisteredPhase(f'flight_ball_4'))
+        self.contact_phases['contact_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'flight_ball_1'))
+        self.contact_phases['contact_4'].addPhase(self.contact_phases['ball_4'].getRegisteredPhase(f'flight_ball_4'))
 
         # diagonal 1 short stance 1 (3 times)
-        self.contact_phases['ball_2'].addPhase(self.contact_phases['ball_2'].getRegisteredPhase(f'stance_ball_2_short'))
-        self.contact_phases['ball_2'].addPhase(self.contact_phases['ball_2'].getRegisteredPhase(f'stance_ball_2_short'))
-        self.contact_phases['ball_2'].addPhase(self.contact_phases['ball_2'].getRegisteredPhase(f'stance_ball_2_short'))
-        self.contact_phases['ball_3'].addPhase(self.contact_phases['ball_3'].getRegisteredPhase(f'stance_ball_3_short'))
-        self.contact_phases['ball_3'].addPhase(self.contact_phases['ball_3'].getRegisteredPhase(f'stance_ball_3_short'))
-        self.contact_phases['ball_3'].addPhase(self.contact_phases['ball_3'].getRegisteredPhase(f'stance_ball_3_short'))
+        self.contact_phases['contact_2'].addPhase(self.contact_phases['contact_2'].getRegisteredPhase(f'stance_contact_2_short'))
+        self.contact_phases['contact_2'].addPhase(self.contact_phases['contact_2'].getRegisteredPhase(f'stance_contact_2_short'))
+        self.contact_phases['contact_2'].addPhase(self.contact_phases['contact_2'].getRegisteredPhase(f'stance_contact_2_short'))
+        self.contact_phases['contact_3'].addPhase(self.contact_phases['contact_3'].getRegisteredPhase(f'stance_contact_3_short'))
+        self.contact_phases['contact_3'].addPhase(self.contact_phases['contact_3'].getRegisteredPhase(f'stance_contact_3_short'))
+        self.contact_phases['contact_3'].addPhase(self.contact_phases['contact_3'].getRegisteredPhase(f'stance_contact_3_short'))
 
 
         # self.contact_phases['ball_1'].addPhase(self.contact_phases['ball_1'].getRegisteredPhase(f'stance_ball_1'))
@@ -171,15 +171,15 @@ class JoyCommands:
 
         if self.joy_msg.buttons[4] == 1:
             # step
-            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+            if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 self.gait_manager.trot()
         elif self.joy_msg.buttons[5] == 1:
             # step
-            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
-                self.gait_manager.step('ball_1')
+            if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
+                self.gait_manager.step('contact_1')
         else:
             # stand
-            if self.gait_manager.contact_phases['ball_1'].getEmptyNodes() > 0:
+            if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 self.gait_manager.stand()
 
         if np.abs(self.smooth_joy_msg.axes[0]) > 0.1 or np.abs(self.smooth_joy_msg.axes[1]) > 0.1:
