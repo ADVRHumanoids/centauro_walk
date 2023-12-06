@@ -1,8 +1,8 @@
-#control_mode:
-#    wheel_joint_1: 26
-#    wheel_joint_2: 26
-#    wheel_joint_3: 26
-#    wheel_joint_4: 26
+control_mode:
+    wheel_joint_1: 26
+    wheel_joint_2: 26
+    wheel_joint_3: 26
+    wheel_joint_4: 26
 
 define:
 #    - &low_stiff 0.
@@ -33,10 +33,10 @@ stiffness:
 #    elbow_pitch_2: 100
 #    wrist_pitch_2: 50
 #    wrist_yaw_2: 50
-#    wheel_joint_1: 0
-#    wheel_joint_2: 0
-#    wheel_joint_3: 0
-#    wheel_joint_4: 0
+    wheel_joint_1: 0
+    wheel_joint_2: 0
+    wheel_joint_3: 0
+    wheel_joint_4: 0
 
 #stiffness:
 #    hip_roll_1: 0
@@ -89,10 +89,10 @@ damping:
 #    elbow_pitch_2: 5
 #    wrist_pitch_2: 5
 #    wrist_yaw_2: 5
-#    wheel_joint_1: 10
-#    wheel_joint_2: 10
-#    wheel_joint_3: 10
-#    wheel_joint_4: 10
+    wheel_joint_1: 10
+    wheel_joint_2: 10
+    wheel_joint_3: 10
+    wheel_joint_4: 10
 
 #damping:
 #    hip_roll_1: 0

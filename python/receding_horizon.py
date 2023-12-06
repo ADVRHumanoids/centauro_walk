@@ -177,7 +177,11 @@ for c in model.cmap.keys():
 white_list_indices = list()
 black_list_indices = list()
 white_list = []
-black_list = ['wheel_joint_1', 'wheel_joint_2', 'wheel_joint_3', 'wheel_joint_4']
+
+if 'wheel_joint_1' in model.kd.joint_names():
+    black_list = ['wheel_joint_1', 'wheel_joint_2', 'wheel_joint_3', 'wheel_joint_4']
+else:
+    black_list = []
 
 # white_list = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4']
 
@@ -249,8 +253,8 @@ zmp_nominal_weight = 2.5
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
 
-if 'wheel_joint_1' in model.kd.joint_names():
-    zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
+# if 'wheel_joint_1' in model.kd.joint_names():
+#     zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
 short_stance_duration = 1
@@ -467,6 +471,7 @@ while not rospy.is_shutdown():
     # if robot is None:
     repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
     repl.publish_joints(solution['q'][:, 0])
+    # repl.publish_joints(solution['q'][:, ns], prefix='last')
     repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])

@@ -5,9 +5,6 @@
 #include <xbot_msgs/JointState.h>
 #include <geometry_msgs/PoseStamped.h>
 
-#include <cartesio_acceleration_support/Force.h>
-#include <cartesio_acceleration_support/ForceLimits.h>
-
 #include <eigen_conversions/eigen_msg.h>
 
 #include <kdl_conversions/kdl_msg.h>
