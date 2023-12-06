@@ -8,6 +8,7 @@
 MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
                                  int rate,
+                                 YAML::Node config,
                                  XBot::RobotInterface::Ptr robot):
 MPCHandler(nh),
 _model(model),
@@ -22,7 +23,20 @@ _rate(rate)
     _model->getJointEffort(_tau);
 
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
-    _resampler = std::make_unique<Resampler>(urdf_model);
+
+    std::map<std::string, double> fixed_joints = {};
+
+    if (config["fixed_joints"])
+    {
+        fixed_joints = config["fixed_joints"].as<std::map<std::string, double>>();
+        ColoredTextPrinter::print("Fixing joints: ", ColoredTextPrinter::TextColor::Green);
+        for (auto elem : fixed_joints)
+        {
+            ColoredTextPrinter::print(elem.first + ": " + std::to_string(elem.second), ColoredTextPrinter::TextColor::Green);
+        }
+    }
+
+    _resampler = std::make_unique<Resampler>(urdf_model, fixed_joints);
 
     _resampler_pub = _nh.advertise<sensor_msgs::JointState>("/resampler_solution_position", 1, true);
 }
@@ -64,19 +78,19 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     // qdot vector for velocities from the robot
     Eigen::VectorXd qdot(_robot->getJointNum());
 
-    _robot->getJointPosition(q_map);
-    _robot->getJointVelocity(qdot);
+//    _robot->getJointPosition(q_map);
+//    _robot->getJointVelocity(qdot);
 
-    Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
+//    Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
 
     // from eigen to quaternion
     // (FOR CLOSED LOOP)
-    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-    _v << _fb_twist, qdot;
+//    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
+//    _v << _fb_twist, qdot;
 
     // getting the input from the MPC solution (FOR OPEN LOOP)
-//    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
-//    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
+    _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
+    _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
     _a = Eigen::VectorXd::Map(_mpc_solution.a.data(), _mpc_solution.a.size());
 
 //    if (!_mpc_solution.j.empty())

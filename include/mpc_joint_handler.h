@@ -21,6 +21,7 @@ public:
     MPCJointHandler(ros::NodeHandle nh,
                     XBot::ModelInterface::Ptr model,
                     int rate,
+                    YAML::Node config,
                     XBot::RobotInterface::Ptr robot = nullptr);
 
     void setTorqueOffset(XBot::JointNameMap tau_offset);
@@ -28,6 +29,7 @@ public:
     bool update() override;
 
 private:
+
     void init_publishers_and_subscribers();
 
     void mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg);

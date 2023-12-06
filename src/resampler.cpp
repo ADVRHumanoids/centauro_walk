@@ -3,15 +3,56 @@
 #include <chrono>
 #include <thread>
 
-Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model, std::vector<std::string> frames, int sys_order):
+Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
+                     std::map<std::string, double> fixed_joints,
+                     std::vector<std::string> frames,
+                     int sys_order
+                     ):
 _urdf(urdf_model),
 _frames(frames),
 _sys_order(sys_order),
 _time(0),
 _warning_printed(false)
 {
+    pinocchio::Model model_full;
     // parse pinocchio model from urdf
-    pinocchio::urdf::buildModel(urdf_model, _model);
+    pinocchio::urdf::buildModel(urdf_model, model_full);
+
+    std::vector<pinocchio::JointIndex> joints_to_lock;
+    auto joint_pos = pinocchio::neutral(model_full);
+
+    for(auto [jname, jpos] : fixed_joints)
+    {
+        if(!model_full.existJointName(jname))
+        {
+            throw std::invalid_argument("joint does not exist (" + jname + ")");
+        }
+
+        size_t jidx = model_full.getJointId(jname);
+        size_t qidx = model_full.idx_qs[jidx];
+        size_t nq = model_full.nqs[jidx];
+
+
+        if(nq == 1)
+        {
+            joints_to_lock.push_back(jidx);
+            joint_pos[qidx] = jpos;
+        }
+        else if(nq == 2)
+        {
+            joints_to_lock.push_back(jidx);
+            joint_pos[qidx] = cos(jpos);
+            joint_pos[qidx+1] = sin(jpos);
+        }
+        else
+        {
+            throw std::invalid_argument("only 1-dof and 2-dof fixed joints are supported (" + jname + ")");
+        }
+
+    }
+
+    pinocchio::buildReducedModel(model_full, joints_to_lock, joint_pos, _model);
+
     _data = std::make_unique<pinocchio::Data>(_model);
 
     if (_sys_order != 2  && _sys_order != 3)

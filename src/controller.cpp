@@ -23,7 +23,7 @@ _init(false)
     init_load_model();
     init_load_publishers_and_subscribers();
 
-    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _robot);
+    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _config, _robot);
     _mpc_handler->setTorqueOffset(_tau_offset);
 }
 

@@ -83,8 +83,6 @@ dt = T / ns
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
 prb.setDt(dt)
 
-kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf)
-
 '''
 Build ModelInterface and RobotStatePublisher
 '''
@@ -113,25 +111,25 @@ try:
 
 except:
     print('RobotInterface not created')
-    fixed_joint_map = {'torso_yaw': 0.00,  # 0.00,
-
-                       'j_arm1_1': 1.50,  # 1.60,
-                       'j_arm1_2': 0.1,  # 0.,
-                       'j_arm1_3': 0.2,  # 1.5,
-                       'j_arm1_4': -2.2,  # 0.3,
-                       'j_arm1_5': 0.00,  # 0.00,
-                       'j_arm1_6': -1.3,  # 0.,
-                       # 'j_arm1_7': 0.0,    # 0.0,
-
-                       'j_arm2_1': 1.50,  # 1.60,
-                       'j_arm2_2': 0.1,  # 0.,
-                       'j_arm2_3': -0.2,  # 1.5,
-                       'j_arm2_4': -2.2,  # -0.3,
-                       'j_arm2_5': 0.0,  # 0.0,
-                       'j_arm2_6': -1.3,  # 0.,
-                       # 'j_arm2_7': 0.0,    # 0.0,
-                       'd435_head_joint': 0.0,
-                       'velodyne_joint': 0.0,
+    # fixed_joint_map = {'torso_yaw': 0.00,  # 0.00,
+    #
+    #                    'j_arm1_1': 1.50,  # 1.60,
+    #                    'j_arm1_2': 0.1,  # 0.,
+    #                    'j_arm1_3': 0.2,  # 1.5,
+    #                    'j_arm1_4': -2.2,  # 0.3,
+    #                    'j_arm1_5': 0.00,  # 0.00,
+    #                    'j_arm1_6': -1.3,  # 0.,
+    #                    # 'j_arm1_7': 0.0,    # 0.0,
+    #
+    #                    'j_arm2_1': 1.50,  # 1.60,
+    #                    'j_arm2_2': 0.1,  # 0.,
+    #                    'j_arm2_3': -0.2,  # 1.5,
+    #                    'j_arm2_4': -2.2,  # -0.3,
+    #                    'j_arm2_5': 0.0,  # 0.0,
+    #                    'j_arm2_6': -1.3,  # 0.,
+    #                    # 'j_arm2_7': 0.0,    # 0.0,
+    #                    'd435_head_joint': 0.0,
+    #                    'velodyne_joint': 0.0,
 
                        # 'hip_yaw_1': -0.746,
                        # 'hip_pitch_1': -1.254,
@@ -152,10 +150,30 @@ except:
                        # 'hip_pitch_4': -1.254,
                        # 'knee_pitch_4': -1.555,
                        # 'ankle_pitch_4': -0.3,
-                       }
+                       # }
 
     # initial config
     q_init = {
+
+        'torso_yaw': 0.00,  # 0.00,
+        'j_arm1_1': 1.50,  # 1.60,
+        'j_arm1_2': 0.1,  # 0.,
+        'j_arm1_3': 0.2,  # 1.5,
+        'j_arm1_4': -2.2,  # 0.3,
+        'j_arm1_5': 0.00,  # 0.00,
+        'j_arm1_6': -1.3,  # 0.,
+        # 'j_arm1_7': 0.0,    # 0.0,
+
+        'j_arm2_1': 1.50,  # 1.60,
+        'j_arm2_2': 0.1,  # 0.,
+        'j_arm2_3': -0.2,  # 1.5,
+        'j_arm2_4': -2.2,  # -0.3,
+        'j_arm2_5': 0.0,  # 0.0,
+        'j_arm2_6': -1.3,  # 0.,
+        # 'j_arm2_7': 0.0,    # 0.0,
+
+        'd435_head_joint': 0.0,
+        'velodyne_joint': 0.0,
         'hip_yaw_1': -0.746,
         'hip_pitch_1': -1.254,
         'knee_pitch_1': -1.555,
@@ -178,16 +196,23 @@ except:
     }
 
     wheels = [f'j_wheel_{i + 1}' for i in range(4)]
-    q_init.update(zip(wheels, 4 * [0.]))
+    wheels_map = dict(zip(wheels, 4 * [0.]))
 
     ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
+    ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
     # q_init.update(zip(ankle_yaws, 4 * [0.]))
-    q_init.update(dict(ankle_yaw_1=np.pi/4))
-    q_init.update(dict(ankle_yaw_2=-np.pi/4))
-    q_init.update(dict(ankle_yaw_3=-np.pi/4))
-    q_init.update(dict(ankle_yaw_4=np.pi/4))
+    # q_init.update(dict(ankle_yaw_1=np.pi/4))
+    # q_init.update(dict(ankle_yaw_2=-np.pi/4))
+    # q_init.update(dict(ankle_yaw_3=-np.pi/4))
+    # q_init.update(dict(ankle_yaw_4=np.pi/4))
 
-    q_init.update(fixed_joint_map)
+    fixed_joint_map = dict()
+    fixed_joint_map.update(wheels_map)
+    fixed_joint_map.update(ankle_yaws_map)
+    # q_init.update(fixed_joint_map)
+
+    # ===================================
+kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
 base_init = np.array([0, 0, 0., 0, 0, 0, 1])
 
@@ -199,7 +224,8 @@ base_init[2] = -init_pos_foot[2]
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
-                                 base_init=base_init
+                                 base_init=base_init,
+                                 fixed_joint_map=fixed_joint_map
                                  )
 
 rospy.set_param('mpc/robot_description', urdf)
@@ -209,9 +235,9 @@ process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 ti = TaskInterface(prb=prb, model=model)
 
 # if 'j_wheel_1' in model.kd.joint_names():
-ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
+# ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
 # else:
-#     ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
+ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_height.setRef(np.atleast_2d(base_init).T)
@@ -353,7 +379,8 @@ contact_list_repl = list(model.cmap.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]),
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
-                                           trajectory_markers=contact_list_repl)
+                                           trajectory_markers=contact_list_repl,
+                                           fixed_joint_map=fixed_joint_map)
                                            # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
 
 global joy_msg
@@ -363,7 +390,7 @@ time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from joy_commands import GaitManager, JoyCommands
+from centauro_joy_commands import GaitManager, JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 

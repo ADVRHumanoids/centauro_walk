@@ -17,6 +17,7 @@ public:
     typedef std::unique_ptr<Resampler> UniquePtr;
 
     Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
+              std::map<std::string, double> fixed_joints,
               std::vector<std::string> frames = {},
               int sys_order = 2);
 
