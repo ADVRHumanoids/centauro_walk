@@ -159,18 +159,18 @@ bool MPCJointHandler::update()
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
 
-//    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
-//    Eigen::VectorXd q_current_robot, q_smooth, qdot_current_robot, qdot_smooth;
-//    _robot->getPositionReference(q_current_robot);
-//    _robot->getVelocityReference(qdot_current_robot);
-//    q_current << _fb_pose_rpy, q_current_robot;
-//    qdot_current << _fb_twist, qdot_current_robot;
+    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
+    Eigen::VectorXd q_current_robot, q_smooth, qdot_current_robot, qdot_smooth;
+    _robot->getPositionReference(q_current_robot);
+    _robot->getVelocityReference(qdot_current_robot);
+    q_current << _fb_pose_rpy, q_current_robot;
+    qdot_current << _fb_twist, qdot_current_robot;
 
-//    smooth(q_current, q_euler, q_smooth);
-//    smooth(qdot_current, _v, qdot_smooth);
+    smooth(q_current, q_euler, q_smooth);
+    smooth(qdot_current, _v, qdot_smooth);
 
-    vectors_to_map<std::string, double>(_joint_names, q_euler, _q);
-    vectors_to_map<std::string, double>(_joint_names, _v, _qdot);
+    vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
+    vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
     vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
     vectors_to_map<std::string, double>(_joint_names, tau, _tau);
 
