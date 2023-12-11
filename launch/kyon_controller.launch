@@ -8,5 +8,5 @@
         <param name="autorepeat_rate" value="20"/>
     </node>
 
-    <node pkg="kyon_controller" type="receding_horizon.py" name="mpc_node" output="screen"/>
+    <node pkg="kyon_controller" type="kyon_receding_horizon.py" name="mpc_node" output="screen"/>
 </launch>
