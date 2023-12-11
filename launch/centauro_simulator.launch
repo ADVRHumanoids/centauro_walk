@@ -1,5 +1,17 @@
 <launch>
+    <arg name="arms" default="true"/>
+    <arg name="legs" default="true"/>
+    <arg name="velodyne" default="false"/>
+    <arg name="realsense" default="false"/>
+    <arg name="end_effector_left" default="ball"/>
+    <arg name="end_effector_right" default="ball"/>
     <arg name="xbot2_config" default="$(find centauro_config)/centauro_basic.yaml"/>
+
+    <param name="robot_description"
+         command="$(find xacro)/xacro $(find centauro_urdf)/urdf/centauro_robot.urdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) velodyne:=$(arg velodyne) realsense:=$(arg realsense) end_effector_left:=$(arg end_effector_left) end_effector_right:=$(arg end_effector_right)"/>
+
+    <param name="robot_description_semantic"
+              command="$(find xacro)/xacro $(find centauro_srdf)/srdf/centauro.srdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) velodyne:=$(arg velodyne) realsense:=$(arg realsense) end_effector_left:=$(arg end_effector_left) end_effector_right:=$(arg end_effector_right)"/>
 
     <include file="$(find centauro_gazebo)/launch/centauro_world.launch" pass_all_args="true"/>
 

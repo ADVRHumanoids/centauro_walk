@@ -136,6 +136,7 @@ class JoyCommands:
 
         if self.joy_msg.buttons[4] == 1:
             # step
+            self.setBasePosWeight(2.)
             if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 # self.gait_manager.trot()
                 self.gait_manager.crawl()
@@ -145,6 +146,7 @@ class JoyCommands:
                 self.gait_manager.step('contact_1')
         else:
             # stand
+            self.setBasePosWeight(1.)
             if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 self.gait_manager.stand()
 
@@ -154,13 +156,13 @@ class JoyCommands:
                             self.base_weight * self.smooth_joy_msg.axes[0], 0])
 
             rot_vec = self._rotate_vector(vec, solution['q'][[6, 3, 4, 5], 0])
-            # reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
-            reference = np.array([[1.5 * rot_vec[0], 1. * rot_vec[1]]]).T
+            reference = np.array([[solution['q'][0, 0] + rot_vec[0], solution['q'][1, 0] + rot_vec[1], 0., 0., 0., 0., 0.]]).T
+            # reference = np.array([[1.5 * rot_vec[0], 1. * rot_vec[1]]]).T
             self.final_base_xy.setRef(reference)
         else:
             # move it back in the middle
-            # reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
-            reference = np.array([[0., 0.]]).T
+            reference = np.array([[solution['q'][0, 0], solution['q'][1, 0], 0., 0., 0., 0., 0.]]).T
+            # reference = np.array([[0., 0.]]).T
             self.final_base_xy.setRef(reference)
 
         if np.abs(self.smooth_joy_msg.axes[3]) > 0.1:

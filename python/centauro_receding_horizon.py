@@ -234,10 +234,7 @@ process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
 
-# if 'j_wheel_1' in model.kd.joint_names():
-# ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
-# else:
-ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
+ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/centauro_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_height.setRef(np.atleast_2d(base_init).T)
@@ -315,7 +312,6 @@ stance_duration = 8
 flight_duration = 8
 c_i = 0
 for c in model.getContacts():
-
     c_i += 1  # because contact task start from contact_1
     # stance phase normal
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')

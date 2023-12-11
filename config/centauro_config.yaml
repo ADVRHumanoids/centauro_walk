@@ -2,12 +2,13 @@ solver:
   type: ilqr
   ipopt.linear_solver: ma57
   ipopt.tol: 0.1
-  ilqr.tol: 0.01
+#  ilqr.merit_der_threshold: 1e-3
+#  ilqr.defect_norm_threshold: 1e-3
   ipopt.constr_viol_tol: 0.01
-  ilqr.constr_viol_tol: 0.01
+  ilqr.constraint_violation_threshold: 1e-2
 #  ipopt.hessian_approximation: exact
   ipopt.print_level: 5
-  ipopt.suppress_all_output: 'no'
+  ipopt.suppress_all_output: 'yes'
   ipopt.sb: 'yes'
   ilqr.suppress_all_output: 'yes'
   ilqr.codegen_enabled: true
@@ -18,49 +19,44 @@ solver:
   print_time: 0
 
 constraints:
-  - contact_1_contact
-  - contact_2_contact
-  - contact_3_contact
-  - contact_4_contact
-#  - z_ball_1
-#  - z_ball_2
-#  - z_ball_3
-#  - z_ball_4
-  - final_base_xy
-  - base_orientation
-#  - joint_limits
+  - contact_1
+  - contact_2
+  - contact_3
+  - contact_4
 
 costs:
-#  - com_height
+  - z_contact_1
+  - z_contact_2
+  - z_contact_3
+  - z_contact_4
+  - final_base_xy
+  - base_orientation
+  - com_height
   - joint_regularization
   - joint_posture
-  - joint_upper_body_posture
+  - joint_posture_ub
 
 .define:
-    - &w_com 0.05
-    - &w_base_ori 5.
+    - &w_com 1.
+    - &w_base_ori 1.
     - &w_base_xy 10.
-    - &w_ball_xy 10.
-    - &w_ball_z 1.
+    - &w_contact_z 50.
+    - &w_postural 1.
+    - &w_postural_ub 1.
+    - &w_v 1e-2
+    - &w_a 1e-2
+    - &w_f 1e-3
     - &w_ball_ori 20.
+    - &w_ball_xy 10.
     - &w_postural_roll 1.
-    - &w_postural 0.25
-    - &w_ub_postural 0.05
-    - &w_ankle_postural 0.075
-#    - &w_wheel_inclination 100.
-    - &wheel_radius 0.124
-
-joint_limits:
-  type: JointLimits
-  nodes: all
 
 final_base_xy:
   type: Cartesian
-  distal_link: pelvis
+  distal_link: base_link
   indices: [0, 1]
-#  nodes: ${[N]}
-  nodes: all
-  cartesian_type: velocity
+  nodes: ${range(N-5, N)}
+#  nodes: all
+  cartesian_type: position
   weight: *w_base_xy
 
 com_height:
@@ -72,36 +68,42 @@ com_height:
 
 base_orientation:
   type: Cartesian
-  distal_link: pelvis
+  distal_link: base_link
   indices: [3, 4, 5]
-  nodes: ${[N]}
+#  nodes: ${range(N-8, N)}
+  nodes: all
+  cartesian_type: velocity
   weight: *w_base_ori
 
 # ===============================
 
-rolling_contact_1:
-  type: Rolling
-  frame: wheel_1
-  radius: *wheel_radius
+zero_velocity_1:
+  type: Cartesian
+  distal_link: contact_1
+  indices: [0, 1, 2]
+  cartesian_type: velocity
 
-rolling_contact_2:
-  type: Rolling
-  frame: wheel_2
-  radius: *wheel_radius
+zero_velocity_2:
+  type: Cartesian
+  distal_link: contact_2
+  indices: [0, 1, 2]
+  cartesian_type: velocity
 
-rolling_contact_3:
-  type: Rolling
-  frame: wheel_3
-  radius: *wheel_radius
+zero_velocity_3:
+  type: Cartesian
+  distal_link: contact_3
+  indices: [0, 1, 2]
+  cartesian_type: velocity
 
-rolling_contact_4:
-  type: Rolling
-  frame: wheel_4
-  radius: *wheel_radius
+zero_velocity_4:
+  type: Cartesian
+  distal_link: contact_4
+  indices: [0, 1, 2]
+  cartesian_type: velocity
 
 # ==================================
 
-interaction_contact_1:
+interaction_1:
   type: VertexForce
   frame: contact_1
   fn_min: 10.0
@@ -110,7 +112,7 @@ interaction_contact_1:
   vertex_frames:
     - contact_1
 
-interaction_contact_2:
+interaction_2:
   type: VertexForce
   frame: contact_2
   fn_min: 10.0
@@ -119,7 +121,7 @@ interaction_contact_2:
   vertex_frames:
     - contact_2
 
-interaction_contact_3:
+interaction_3:
   type: VertexForce
   frame: contact_3
   fn_min: 10.0
@@ -128,7 +130,7 @@ interaction_contact_3:
   vertex_frames:
     - contact_3
 
-interaction_contact_4:
+interaction_4:
   type: VertexForce
   frame: contact_4
   fn_min: 10.0
@@ -137,49 +139,39 @@ interaction_contact_4:
   vertex_frames:
     - contact_4
 
-contact_1_contact:
+contact_1:
   type: Contact
-  subtask: [interaction_contact_1, rolling_contact_1]
+  subtask: [interaction_1, zero_velocity_1]
 
-contact_2_contact:
+contact_2:
   type: Contact
-  subtask: [interaction_contact_2, rolling_contact_2]
+  subtask: [interaction_2, zero_velocity_2]
 
-contact_3_contact:
+contact_3:
   type: Contact
-  subtask: [interaction_contact_3, rolling_contact_3]
+  subtask: [interaction_3, zero_velocity_3]
 
-contact_4_contact:
+contact_4:
   type: Contact
-  subtask: [interaction_contact_4, rolling_contact_4]
-
-joint_posture_ankles:
-  type: Postural
-  weight: *w_ankle_postural
-  indices: [4, 10, 16, 22]
-  nodes: all
+  subtask: [interaction_4, zero_velocity_4]
 
 joint_posture:
   type: Postural
   weight: *w_postural
-  indices: [ 0, 1, 2, 3, # 4, #5, no postural on ankle yaw, no wheel
-             6, 7, 8, 9, # 10, #11,
-             12, 13, 14, 15, # 16, #17
-             18, 19, 20, 21, # 22, #23
-             24                      # torso yaw
-#             25, 26, 27, 28, 29, 30, # left arm
-#             31, 32, 33, 34, 35, 36, # right arm
-#             37, 38                  #head joints
-  ]
+  indices: [0, 1, 2, 3,
+            4, 5, 6, 7,
+            8, 9, 10, 11,
+            12, 13, 14, 15]
   nodes: all
 
-joint_upper_body_posture:
+joint_posture_ub:
   type: Postural
-  weight: *w_ub_postural
-  indices: [ 25, 26, 27, 28, 29, 30, # left arm
-             31, 32, 33, 34, 35, 36, # right arm
-             37, 38                  # head joints
-  ]
+  weight: *w_postural_ub
+  indices:  [16,
+             17, 18, 19, 20, 21, 22,
+             23, 24, 25, 26, 27, 28,
+             29, 30
+             ]
   nodes: all
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
@@ -187,58 +179,35 @@ joint_regularization:
   type: Regularization
   nodes: all
   weight:
-#    velocity: 1e-1
-    acceleration: 1e-3 # 0.01
-    force: 1e-4 # todo <----- how to do? if there are more forces...
+#    velocity: *w_v
+    acceleration: *w_a # 0.01
+    force: *w_f # todo <----- how to do? if there are more forces...
 
-z_ball_1:
+z_contact_1:
   type: Cartesian
   distal_link: contact_1
   indices: [2]
   cartesian_type: position
-  weight: *w_ball_z
+  weight: *w_contact_z
 
-z_ball_2:
+z_contact_2:
   type: Cartesian
   distal_link: contact_2
   indices: [2]
   cartesian_type: position
-  weight: *w_ball_z
+  weight: *w_contact_z
 
-z_ball_3:
+z_contact_3:
   type: Cartesian
   distal_link: contact_3
   indices: [2]
   cartesian_type: position
-  weight: *w_ball_z
+  weight: *w_contact_z
 
-z_ball_4:
+z_contact_4:
   type: Cartesian
   distal_link: contact_4
   indices: [2]
   cartesian_type: position
-  weight: *w_ball_z
+  weight: *w_contact_z
 
-#inclination_wheel_1:
-#  type: Cartesian
-#  distal_link: wheel_1
-#  indices: [3, 4, 5]
-#  weight: *w_wheel_inclination
-#
-#inclination_wheel_2:
-#  type: Cartesian
-#  distal_link: wheel_2
-#  indices: [3, 4, 5]
-#  weight: *w_wheel_inclination
-#
-#inclination_wheel_3:
-#  type: Cartesian
-#  distal_link: wheel_3
-#  indices: [3, 4, 5]
-#  weight: *w_wheel_inclination
-#
-#inclination_wheel_4:
-#  type: Cartesian
-#  distal_link: wheel_4
-#  indices: [3, 4, 5]
-#  weight: *w_wheel_inclination

@@ -15,8 +15,8 @@ fixed_joints:
     ankle_yaw_4: 0.785
 
 define:
-    - &low_stiff 0.
-    - &low_damp 0.
+    - &low_stiff 200.
+    - &low_damp 10.
     - &high_stiff 8000.
     - &high_damp 40.
 
@@ -51,14 +51,6 @@ stiffness:
     knee_pitch_3: *low_stiff
     knee_pitch_4: *low_stiff
     torso_yaw: *low_stiff
-#    ankle_yaw_1: *high_stiff
-#    ankle_yaw_2: *high_stiff
-#    ankle_yaw_3: *high_stiff
-#    ankle_yaw_4: *high_stiff
-#    j_wheel_1: *high_stiff
-#    j_wheel_2: *high_stiff
-#    j_wheel_3: *high_stiff
-#    j_wheel_4: *high_stiff
 
 
 damping:
@@ -92,11 +84,4 @@ damping:
     knee_pitch_3: *low_damp
     knee_pitch_4: *low_damp
     torso_yaw: *low_damp
-#    ankle_yaw_1: *high_damp
-#    ankle_yaw_2: *high_damp
-#    ankle_yaw_3: *high_damp
-#    ankle_yaw_4: *high_damp
-#    j_wheel_1: *high_damp
-#    j_wheel_2: *high_damp
-#    j_wheel_3: *high_damp
-#    j_wheel_4: *high_damp
+
