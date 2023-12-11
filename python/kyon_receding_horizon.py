@@ -158,9 +158,9 @@ process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 ti = TaskInterface(prb=prb, model=model)
 
 if 'wheel_joint_1' in model.kd.joint_names():
-    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/wheel_config.yaml')
+    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/kyon_wheel_config.yaml')
 else:
-    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/feet_config.yaml')
+    ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/kyon_feet_config.yaml')
 
 com_height = ti.getTask('com_height')
 com_height.setRef(np.atleast_2d(base_init).T)
