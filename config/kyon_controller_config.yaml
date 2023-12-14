@@ -9,6 +9,8 @@ define:
 #    - &low_damp 0.
     - &low_stiff 50.
     - &low_damp 5.
+    - &high_stiff 2000.
+    - &high_damp 100.
 
 stiffness:
     hip_roll_1: *low_stiff
