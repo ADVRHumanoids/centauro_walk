@@ -40,7 +40,7 @@ private:
     void vectors_to_map(const std::vector<key> vec1, const Eigen::Matrix<value, 1, -1> vec2, std::unordered_map<key, value>& map)
     {
         if (vec1.size() != vec2.size())
-            throw std::runtime_error("you are trying to merge two vectors of different size in the same map!");
+            throw std::runtime_error("you are trying to merge two vectors of different size in the same map! (" + std::to_string(vec1.size()) + " != " + std::to_string(vec2.size()) + ")");
 
         for (int i = 0; i < vec1.size(); i++)
         {
