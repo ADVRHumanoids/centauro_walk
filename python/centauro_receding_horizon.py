@@ -70,9 +70,6 @@ if srdf == '':
 
 file_dir = os.getcwd()
 
-# replace continuous joints with revolute
-urdf = urdf.replace('continuous', 'revolute')
-
 '''
 Initialize Horizon problem
 '''
@@ -195,24 +192,28 @@ except:
         'ankle_pitch_4': -0.3,
     }
 
-    wheels = [f'j_wheel_{i + 1}' for i in range(4)]
-    wheels_map = dict(zip(wheels, 4 * [0.]))
+wheels = [f'j_wheel_{i + 1}' for i in range(4)]
+wheels_map = dict(zip(wheels, 4 * [0.]))
 
-    ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
-    ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
-    # q_init.update(zip(ankle_yaws, 4 * [0.]))
-    # q_init.update(dict(ankle_yaw_1=np.pi/4))
-    # q_init.update(dict(ankle_yaw_2=-np.pi/4))
-    # q_init.update(dict(ankle_yaw_3=-np.pi/4))
-    # q_init.update(dict(ankle_yaw_4=np.pi/4))
+ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
+ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
+# q_init.update(zip(ankle_yaws, 4 * [0.]))
+# q_init.update(dict(ankle_yaw_1=np.pi/4))
+# q_init.update(dict(ankle_yaw_2=-np.pi/4))
+# q_init.update(dict(ankle_yaw_3=-np.pi/4))
+# q_init.update(dict(ankle_yaw_4=np.pi/4))
 
-    fixed_joint_map = dict()
-    fixed_joint_map.update(wheels_map)
-    fixed_joint_map.update(ankle_yaws_map)
+fixed_joint_map = dict()
+fixed_joint_map.update(wheels_map)
+fixed_joint_map.update(ankle_yaws_map)
     # q_init.update(fixed_joint_map)
 
-    # ===================================
+
+# replace continuous joints with revolute
+urdf = urdf.replace('continuous', 'revolute')
+
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
+
 
 base_init = np.array([0, 0, 0., 0, 0, 0, 1])
 
@@ -429,11 +430,26 @@ while not rospy.is_shutdown():
     # closed loop
     if robot is not None:
         robot.sense()
-        q = robot.getJointPosition()
+        q_map = robot.getJointPositionMap()
+
+        for fixed_joint in fixed_joint_map:
+            if fixed_joint in q_map:
+                del q_map[fixed_joint]
+
+        q = np.array(list(q_map.values()))
+
         # q = robot.getPositionReference()
         q = np.hstack([base_pose, q])
         model.q.setBounds(q, q, nodes=0)
         qdot = robot.getJointVelocity()
+        qdot_map = robot.eigenToMap(qdot)
+
+        for fixed_joint in fixed_joint_map:
+            if fixed_joint in qdot_map:
+                del qdot_map[fixed_joint]
+
+        qdot = np.array(list(qdot_map.values()))
+
         # qdot = robot.getVelocityReference()
         qdot = np.hstack([base_twist, qdot])
         model.v.setBounds(qdot, qdot, nodes=0)

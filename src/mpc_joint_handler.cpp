@@ -24,19 +24,25 @@ _rate(rate)
 
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
 
-    std::map<std::string, double> fixed_joints = {};
+    std::map<std::string, double> fixed_joints_map = {};
+
 
     if (config["fixed_joints"])
     {
-        fixed_joints = config["fixed_joints"].as<std::map<std::string, double>>();
+        fixed_joints_map = config["fixed_joints"].as<std::map<std::string, double>>();
+
+        for (const auto &pair : fixed_joints_map) {
+            _fixed_joints.push_back(pair.first);
+        }
+
         ColoredTextPrinter::print("Fixing joints: ", ColoredTextPrinter::TextColor::Green);
-        for (auto elem : fixed_joints)
+        for (auto elem : fixed_joints_map)
         {
             ColoredTextPrinter::print(elem.first + ": " + std::to_string(elem.second), ColoredTextPrinter::TextColor::Green);
         }
     }
 
-    _resampler = std::make_unique<Resampler>(urdf_model, fixed_joints);
+    _resampler = std::make_unique<Resampler>(urdf_model, fixed_joints_map);
 
     _resampler_pub = _nh.advertise<sensor_msgs::JointState>("/resampler_solution_position", 1, true);
 }
@@ -159,26 +165,45 @@ bool MPCJointHandler::update()
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
 
-//    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
-    Eigen::VectorXd q_current_robot, q_smooth, qdot_current_robot, qdot_smooth;
-//    XBot::JointNameMap q_current_robot, qdot_current_robot;
+    // create variables:
+    // reduced to account for fixed joints,
+    // smooth and current_robot to filter the MPC reference
+    Eigen::VectorXd q_reduced(_model->getJointNum() - _fixed_joints.size()), qdot_reduced(_model->getJointNum() - _fixed_joints.size());
+    Eigen::VectorXd q_smooth, qdot_smooth;
+    XBot::JointNameMap q_current_robot, qdot_current_robot;
 
+    // get current state from robot for smoothing
     _robot->getPositionReference(q_current_robot);
     _robot->getVelocityReference(qdot_current_robot);
+
+    // if fixed joints, remove them from the state
+    for (auto name : _fixed_joints)
+    {
+        auto q_it = q_current_robot.find(name);
+        if (q_it != q_current_robot.end())
+        {
+            q_current_robot.erase(q_it);
+        }
+
+        auto qdot_it = qdot_current_robot.find(name);
+        if (qdot_it != qdot_current_robot.end())
+        {
+            qdot_current_robot.erase(qdot_it);
+        }
+    }
+
+    // transform from JointNameMap to Eigen for smoothing
+    _robot->mapToEigen(q_current_robot, q_reduced);
+    _robot->mapToEigen(qdot_current_robot, qdot_reduced);
+
 //    q_current << _fb_pose_rpy, q_current_robot;
-//    qdot_current << _fb_twist, qdot_current_robot;
+//    qdot_current << _fb_twist, q_current_robot;
 
-//    smooth(q_current, q_euler, q_smooth);
-//    smooth(qdot_current, _v, qdot_smooth);
+    // smooth mpc reference with current reference
+    smooth(q_reduced, q_euler.tail(q_euler.size() - 6), q_smooth);
+    smooth(qdot_reduced, _v.tail(_v.size() - 6), qdot_smooth);
 
-//    vectors_to_map<std::string, double>(_joint_names, q_current, _q);
-//    vectors_to_map<std::string, double>(_joint_names, qdot_current, _qdot);
-//    vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
-//    vectors_to_map<std::string, double>(_joint_names, tau, _tau);
-
-    smooth(q_current_robot, q_euler.tail(q_euler.size() - 6), q_smooth);
-    smooth(qdot_current_robot, _v.tail(_v.size() - 6), qdot_smooth);
-
+    // zip togheter joint names and relative values (joint names comes from MPC message, it does not contain fixed joint strings)
     vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
     vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
     vectors_to_map<std::string, double>(_joint_names, tau.tail(tau.size() - 6), _tau);
