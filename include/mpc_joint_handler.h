@@ -59,6 +59,7 @@ private:
 
     std::vector<std::string> _joint_names;
     std::vector<std::string> _fixed_joints;
+    std::map<std::string, double> _fixed_joints_map;
 
     Eigen::VectorXd _x, _u;
     kyon_controller::WBTrajectory _mpc_solution, _old_solution;

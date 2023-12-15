@@ -50,6 +50,64 @@ def gt_twist_callback(msg):
                            msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
 
 
+def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
+    robot.sense()
+
+    # manage fixed joints if any
+    q_map = robot.getJointPositionMap()
+
+    for fixed_joint in fixed_joint_map:
+        if fixed_joint in q_map:
+            del q_map[fixed_joint]
+
+    q_index = 0
+    for j_name in robot_joint_names:
+        q_robot[q_index] = q_map[j_name]
+        q_index += 1
+
+    # numerical problem: two quaternions can represent the same rotation
+    # if difference between the base orientation in the state x and the sensed one base_pose < 0, change sign
+    state_quat_conjugate = np.copy(x_opt[3:7, 0])
+    state_quat_conjugate[:3] *= -1.0
+
+    # normalize the quaternion
+    state_quat_conjugate = state_quat_conjugate / np.linalg.norm(x_opt[3:7, 0])
+    diff_quat = _quaternion_multiply(base_pose[3:], state_quat_conjugate)
+
+    if diff_quat[3] < 0:
+        base_pose[3:] = -base_pose[3:]
+
+    q = np.hstack([base_pose, q_robot])
+    model.q.setBounds(q, q, nodes=0)
+
+    qdot = robot.getJointVelocity()
+    qdot_map = robot.eigenToMap(qdot)
+
+    for fixed_joint in fixed_joint_map:
+        if fixed_joint in qdot_map:
+            del qdot_map[fixed_joint]
+
+    qdot_index = 0
+    for j_name in robot_joint_names:
+        qdot_robot[qdot_index] = qdot_map[j_name]
+        qdot_index += 1
+
+    # VELOCITY OF PINOCCHIO IS LOCAL, BASE_TWIST FROM  XBOTCORE IS GLOBAL:
+    # transform it in local
+    r_base = Rotation.from_quat(base_pose[3:]).as_matrix()
+
+    r_adj = np.zeros([6, 6])
+    r_adj[:3, :3] = r_base.T
+    r_adj[3:6, 3:6] = r_base.T
+
+    # rotate in the base frame the relative velocity (ee_v_distal - ee_v_base_distal)
+    ee_rel = r_adj @ base_twist
+
+    qdot = np.hstack([ee_rel, qdot_robot])
+    model.v.setBounds(qdot, qdot, nodes=0)
+
+
+
 
 rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
@@ -398,6 +456,10 @@ def _quaternion_multiply(q1, q2):
     z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
     return np.array([x, y, z, w])
 
+robot_joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
+
+q_robot = np.zeros(len(robot_joint_names))
+qdot_robot = np.zeros(len(robot_joint_names))
 
 # while not rospy.is_shutdown():
 while not rospy.is_shutdown():
@@ -415,45 +477,7 @@ while not rospy.is_shutdown():
 
     # closed loop
     if robot is not None:
-        robot.sense()
-        q = robot.getJointPosition()
-        # q = robot.getPositionReference()
-
-        # numerical problem: two quaternions can represent the same rotation
-        # if difference between the base orientation in the state x and the sensed one base_pose < 0, change sign
-        state_quat_conjugate = np.copy(x_opt[3:7, 0])
-        state_quat_conjugate[:3] *= -1.0
-
-        # normalize the quaternion
-        state_quat_conjugate = state_quat_conjugate / np.linalg.norm(x_opt[3:7, 0])
-        diff_quat = _quaternion_multiply(base_pose[3:], state_quat_conjugate)
-
-        if diff_quat[3] < 0:
-            base_pose[3:] = -base_pose[3:]
-
-        q = np.hstack([base_pose, q])
-
-        model.q.setBounds(q, q, nodes=0)
-        qdot = robot.getJointVelocity()
-        # qdot = robot.getVelocityReference()
-        # r_base = Rotation.from_quat(base_pose[3:]).as_matrix()
-        # base_v_l = base_twist[:3].copy()
-        # base_v_r = r_base.T @ base_twist[3:]
-
-        # VELOCITY OF PINOCCHIO IS LOCAL, BASE_TWIST FROM  XBOTCORE IS GLOBAL:
-        # transform it in local
-        r_base = Rotation.from_quat(base_pose[3:]).as_matrix()
-
-        r_adj = np.zeros([6, 6])
-        r_adj[:3, :3] = r_base.T
-        r_adj[3:6, 3:6] = r_base.T
-
-        # rotate in the base frame the relative velocity (ee_v_distal - ee_v_base_distal)
-        ee_rel = r_adj @ base_twist
-
-        # qdot = np.hstack([base_v_l, base_v_r, qdot])
-        qdot = np.hstack([ee_rel, qdot])
-        model.v.setBounds(qdot, qdot, nodes=0)
+        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
         # print("base_pose: ", base_pose)
     # shift phases of phase manager
