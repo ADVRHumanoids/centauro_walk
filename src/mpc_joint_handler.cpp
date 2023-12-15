@@ -55,7 +55,7 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     if (!_is_callback_done)
     {
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
-        _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});     
+//        _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});
 
         _x.resize(_mpc_solution.q.size() + _mpc_solution.v.size());
         _u.resize(_mpc_solution.a.size() + _mpc_solution.force_names.size() * 6);
@@ -159,20 +159,29 @@ bool MPCJointHandler::update()
     Eigen::VectorXd q_euler(_model->getJointNum());
     q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
 
-    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
+//    Eigen::VectorXd q_current(_model->getJointNum()), qdot_current(_model->getJointNum());
     Eigen::VectorXd q_current_robot, q_smooth, qdot_current_robot, qdot_smooth;
+//    XBot::JointNameMap q_current_robot, qdot_current_robot;
+
     _robot->getPositionReference(q_current_robot);
     _robot->getVelocityReference(qdot_current_robot);
-    q_current << _fb_pose_rpy, q_current_robot;
-    qdot_current << _fb_twist, qdot_current_robot;
+//    q_current << _fb_pose_rpy, q_current_robot;
+//    qdot_current << _fb_twist, qdot_current_robot;
 
-    smooth(q_current, q_euler, q_smooth);
-    smooth(qdot_current, _v, qdot_smooth);
+//    smooth(q_current, q_euler, q_smooth);
+//    smooth(qdot_current, _v, qdot_smooth);
+
+//    vectors_to_map<std::string, double>(_joint_names, q_current, _q);
+//    vectors_to_map<std::string, double>(_joint_names, qdot_current, _qdot);
+//    vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
+//    vectors_to_map<std::string, double>(_joint_names, tau, _tau);
+
+    smooth(q_current_robot, q_euler.tail(q_euler.size() - 6), q_smooth);
+    smooth(qdot_current_robot, _v.tail(_v.size() - 6), qdot_smooth);
 
     vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
     vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
-    vectors_to_map<std::string, double>(_joint_names, _a, _qddot);
-    vectors_to_map<std::string, double>(_joint_names, tau, _tau);
+    vectors_to_map<std::string, double>(_joint_names, tau.tail(tau.size() - 6), _tau);
 
     for (auto &pair : _tau)
         pair.second -= _tau_offset[pair.first];
