@@ -1,0 +1,115 @@
+solver:
+  type: ilqr
+  ipopt.linear_solver: ma57
+  ipopt.tol: 0.1
+  ilqr.tol: 0.01
+  ipopt.constr_viol_tol: 0.01
+  ilqr.constr_viol_tol: 0.01
+#  ipopt.hessian_approximation: exact
+  ipopt.print_level: 5
+  ipopt.suppress_all_output: 'yes'
+  ipopt.sb: 'yes'
+  ilqr.suppress_all_output: 'yes'
+  ilqr.codegen_enabled: true
+  ilqr.codegen_workdir: /tmp/soafwg
+  ilqr.enable_gn: true
+  ilqr.hxx_reg_base: 0.0
+  ilqr.n_threads: 0
+  print_time: 0
+
+constraints:
+  - rolling_contact_1
+  - rolling_contact_2
+  - rolling_contact_3
+  - rolling_contact_4
+
+costs:
+  - final_base_xy
+  - com_height
+  - velocity_regularization
+  - acceleration_regularization
+  - force_regularization
+  - joint_posture
+
+
+.define:
+    - &w_com 1.
+    - &w_base_ori 1.
+    - &w_base_xy 1.
+    - &w_ball_xy 10.
+    - &w_ball_z 10.
+    - &w_ball_ori 20.
+    - &w_postural_roll 1.
+    - &w_postural 0.1
+    - &w_postural_ub 0.5
+#    - &w_wheel_inclination 100.
+    - &wheel_radius 0.124
+
+final_base_xy:
+  type: Cartesian
+  distal_link: base_link
+  indices: [0, 1]
+#  nodes: ${range(5, N)}
+  nodes: all
+  cartesian_type: velocity
+  weight: *w_base_xy
+
+rolling_contact_1:
+  type: Rolling
+  frame: J_wheel_A
+  radius: *wheel_radius
+  nodes: all
+
+rolling_contact_2:
+  type: Rolling
+  frame: J_wheel_B
+  radius: *wheel_radius
+  nodes: all
+
+rolling_contact_3:
+  type: Rolling
+  frame: J_wheel_C
+  radius: *wheel_radius
+  nodes: all
+
+rolling_contact_4:
+  type: Rolling
+  frame: J_wheel_D
+  radius: *wheel_radius
+  nodes: all
+
+# ==================================
+
+joint_posture:
+  type: Postural
+  weight: *w_postural
+  indices: [0, 2, 4, 6]
+  nodes: all
+
+joint_posture_ub:
+  type: Postural
+  weight: *w_postural_ub
+  indices: [8, 9, 10, 11, 12, 13]
+  nodes: all
+
+# todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
+velocity_regularization:
+  type: Regularization
+  nodes: all
+  indices: [0, 2, 4, 6,
+            8, 9, 10, 11, 12, 13]
+  weight:
+    velocity: 0.001
+
+acceleration_regularization:
+  type: Regularization
+  nodes: all
+  weight:
+    acceleration: 1e-3 # 0.01
+
+force_regularization:
+  type: Regularization
+  nodes: all
+  weight:
+    force: 1e-4 # todo <----- how to do? if there are more forces...
+
