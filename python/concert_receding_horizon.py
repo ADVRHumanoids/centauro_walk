@@ -20,7 +20,7 @@ from xbot_interface import xbot_interface as xbot
 from scipy.spatial.transform import Rotation
 import colorama
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
-# from kyon_controller.msg import WBTrajectory
+from kyon_controller.msg import WBTrajectory
 
 import casadi as cs
 import rospy
@@ -72,10 +72,10 @@ class CartesioSolver:
         qmdl = np.zeros(self.xbot_model.getJointNum())
 
         qmdl[6:] = q[7:]
-        base_pose = Affine3(pos=base_pos)
-        base_pose.linear = base_rot
+        xbot_base_pose = Affine3(pos=base_pos)
+        xbot_base_pose.linear = base_rot
         self.xbot_model.setJointPosition(qmdl)
-        self.xbot_model.setFloatingBasePose(base_pose)
+        self.xbot_model.setFloatingBasePose(xbot_base_pose)
         self.xbot_model.update()
 
     def update_ci(self):
@@ -84,7 +84,6 @@ class CartesioSolver:
         Tref = self.task.getPoseReference()[0]
         xy_ref = np.array([Tref.translation.tolist() + [0, 0, 0, 1]]).T
         self.mpc_task.setRef(xy_ref)
-        # final_base_xyz.setRef(Tref.translation.tolist() + [0, 0, 0, 1])
 
 def ci_interface(urdf, srdf, ti, ee_name, mpc_task):
 
@@ -170,33 +169,21 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     model.v.setBounds(qdot, qdot, nodes=0)
 
 
-
-
-
 rospy.init_node('concert_receding')
 roscpp.init('concert_receding', [])
 
-# solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
-# rospy.sleep(1.)
+solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+rospy.sleep(1.)
 
-'''
-Load urdf and srdf
-'''
-
-with open("modularbot.urdf", "rb") as f:
-    urdf = f.read().decode("UTF-8")
-
-with open("modularbot.srdf", "rb") as f:
-    srdf = f.read().decode("UTF-8")
 # get from ros param the urdf and srdf
 
-# urdf = rospy.get_param(param_name='/robot_description', default='')
-# if urdf == '':
-#     raise print('urdf not set')
-#
-# srdf = rospy.get_param(param_name='/robot_description_semantic', default='')
-# if srdf == '':
-#     raise print('srdf not set')
+urdf = rospy.get_param(param_name='/robot_description_xbot', default='')
+if urdf == '':
+    raise print('urdf not set')
+
+srdf = rospy.get_param(param_name='/robot_description_semantic', default='')
+if srdf == '':
+    raise print('srdf not set')
 
 file_dir = os.getcwd()
 
@@ -215,51 +202,53 @@ kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf)
 '''
 Build ModelInterface and RobotStatePublisher
 '''
-# cfg = co.ConfigOptions()
-# cfg.set_urdf(urdf)
-# cfg.set_srdf(srdf)
-# cfg.generate_jidmap()
-# cfg.set_string_parameter('model_type', 'RBDL')
-# cfg.set_string_parameter('framework', 'ROS')
-# cfg.set_bool_parameter('is_model_floating_base', True)
+cfg = co.ConfigOptions()
+cfg.set_urdf(urdf)
+cfg.set_srdf(srdf)
+cfg.generate_jidmap()
+cfg.set_string_parameter('model_type', 'RBDL')
+cfg.set_string_parameter('framework', 'ROS')
+cfg.set_bool_parameter('is_model_floating_base', True)
 #
 robot = None
 
-# try:
-#     robot = xbot.RobotInterface(cfg)
-#     rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-#     rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-#     while base_pose is None or base_twist is None:
-#         rospy.sleep(0.01)
-#     robot.sense()
-#     q_init = robot.getPositionReference()
+try:
+    robot = xbot.RobotInterface(cfg)
+    rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
+    robot.sense()
+    q_init = robot.getPositionReference()
     # q_init = robot.getJointPosition()
-    # q_init = robot.eigenToMap(q_init)
+    q_init = robot.eigenToMap(q_init)
 #
-# except:
-print('RobotInterface not created')
-q_init = {'J1_A': 0.0,
-          'J_wheel_A': 0.0,
-          'J1_B': 0.0,
-          'J_wheel_B': 0.0,
-          'J1_C': 0.0,
-          'J_wheel_C': 0.0,
-          'J1_D': 0.0,
-          'J_wheel_D': 0.0,
-          'J1_E': 0.0,
-          'J2_E': -0.5,
-          'J3_E': 0.0,
-          'J4_E': 0.5,
-          'J5_E': 0.0,
-          'J6_E': -0.5
-          }
+except:
+    print('RobotInterface not created')
+    q_init = {'J1_A': 0.0,
+              'J_wheel_A': 0.0,
+              'J1_B': 0.0,
+              'J_wheel_B': 0.0,
+              'J1_C': 0.0,
+              'J_wheel_C': 0.0,
+              'J1_D': 0.0,
+              'J_wheel_D': 0.0,
+              'J1_E': 0.0,
+              'J2_E': -0.5,
+              'J3_E': 0.0,
+              'J4_E': 0.5,
+              'J5_E': 0.0,
+              'J6_E': -0.5
+              }
+
 
 base_init = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
+wheel_radius = 0.16
 FK = kin_dyn.fk('J_wheel_A')
 init = base_init.tolist() + list(q_init.values())
 init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos']
-base_init[2] = -init_pos_foot[2]
+base_init[2] = -init_pos_foot[2] + wheel_radius
 
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
@@ -267,23 +256,29 @@ model = FullModelInverseDynamics(problem=prb,
                                  base_init=base_init
                                  )
 
-rospy.set_param('mpc/robot_description', urdf)
-bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_description:=mpc/robot_description'
-process = subprocess.Popen(bashCommand.split(), start_new_session=True)
+# create robot description if robot is not found
+if not robot:
+    rospy.set_param('mpc/robot_description', urdf)
+    robot_state_pub_command = 'rosrun robot_state_publisher robot_state_publisher robot_description:=mpc/robot_description'
+    robot_state_pub_process = subprocess.Popen(robot_state_pub_command.split(), start_new_session=True)
+
+# spawn the cartesian marker for end effector control
+cartesian_marker_command = 'rosrun cartesian_interface marker_spawner'
+cartesian_marker_process = subprocess.Popen(cartesian_marker_command.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
 
-# ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/concert_config.yaml')
-ti.setTaskFromYaml('/home/francesco/catkin_ws/external/kyon_controller/config/concert_config.yaml')
+ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/concert_config.yaml')
 
-# ee_xyz_task = ti.getTask('ee_xyz')
-# final_base_xy = ti.getTask('final_base_xy')
-
-pm = pymanager.PhaseManager(ns)
+# pm = pymanager.PhaseManager(ns)
 # phase manager handling
-c_phases = dict()
-for c in model.cmap.keys():
-    c_phases[c] = pm.addTimeline(f'{c}_timeline')
+# c_phases = dict()
+# for c in model.cmap.keys():
+#     c_phases[c] = pm.addTimeline(f'{c}_timeline')
+
+# print(ti.getTask('ee_xyz').getValues())
+#
+# exit()
 
 # weight more roll joints
 white_list_indices = list()
@@ -412,13 +407,10 @@ while not rospy.is_shutdown():
     ci.update_ci()
 
     # closed loop
-    if robot is not None:
-        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
+    # if robot is not None:
+    #     set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
-        # print("base_pose: ", base_pose)
-    # shift phases of phase manager
     tic = time.time()
-    pm.shift()
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
@@ -451,31 +443,31 @@ while not rospy.is_shutdown():
     solution = ti.solution
 
     # ================ SOLUTION MESSAGE FOR CONTROLLER =================
-    # sol_msg = WBTrajectory()
-    # sol_msg.header.frame_id = 'world'
-    # sol_msg.header.stamp = rospy.Time.now()
-    #
-    # sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
+    sol_msg = WBTrajectory()
+    sol_msg.header.frame_id = 'world'
+    sol_msg.header.stamp = rospy.Time.now()
 
-    # sol_msg.q = solution['q'][:, 0].tolist()
-    # sol_msg.v = solution['v'][:, 0].tolist()
-    # sol_msg.q = solution['q'][:, 1].tolist()
-    # sol_msg.v = solution['v'][:, 1].tolist()
-    # sol_msg.a = solution['a'][:, 0].tolist()
-
-    # for frame in model.getForceMap():
-    #     sol_msg.force_names.append(frame)
-    #     sol_msg.f.append(
-    #         Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
+    sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
     #
-    # solution_publisher.publish(sol_msg)
+    sol_msg.q = solution['q'][:, 0].tolist()
+    sol_msg.v = solution['v'][:, 0].tolist()
+    sol_msg.q = solution['q'][:, 1].tolist()
+    sol_msg.v = solution['v'][:, 1].tolist()
+    sol_msg.a = solution['a'][:, 0].tolist()
+    #
+    for frame in model.getForceMap():
+        sol_msg.force_names.append(frame)
+        sol_msg.f.append(
+            Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
+
+    solution_publisher.publish(sol_msg)
 
     # replay stuff
-    # if robot is None:
-    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])
+    if robot is None:
+        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+        repl.publish_joints(solution['q'][:, 0])
     # repl.publish_joints(solution['q'][:, ns], prefix='last')
-    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
     # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
 
