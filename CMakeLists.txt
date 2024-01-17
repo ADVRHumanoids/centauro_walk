@@ -51,6 +51,12 @@ target_link_libraries(controller
     mpc_handler
     ${catkin_LIBRARIES})
 
+install(TARGETS controller
+ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 add_library(mpc_handler
     src/mpc_handler.cpp
     src/mpc_joint_handler.cpp
@@ -64,4 +70,30 @@ target_link_libraries(mpc_handler
     ${urdfdom_LIBRARIES}
 )
 
+install(TARGETS mpc_handler
+ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
+# =============
+
+install(DIRECTORY launch/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+    FILES_MATCHING PATTERN "*.launch"
+    )
+
+install(DIRECTORY config/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+    FILES_MATCHING PATTERN "*.yaml"
+    )
+
+install(DIRECTORY rviz/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz
+    FILES_MATCHING PATTERN "*.rviz"
+    )
+
+install(DIRECTORY python/ USE_SOURCE_PERMISSIONS
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/python
+    FILES_MATCHING PATTERN "*.py"
+    )
