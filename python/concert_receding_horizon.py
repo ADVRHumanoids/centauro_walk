@@ -83,7 +83,7 @@ class CartesioSolver:
         self.ciros.run()
         Tref = self.task.getPoseReference()[0]
         xy_ref = np.array([Tref.translation.tolist() + [0, 0, 0, 1]]).T
-        # self.mpc_task.setRef(xy_ref)
+        self.mpc_task.setRef(xy_ref)
         # final_base_xyz.setRef(Tref.translation.tolist() + [0, 0, 0, 1])
 
 def ci_interface(urdf, srdf, ti, ee_name, mpc_task):
@@ -168,6 +168,7 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
 
     qdot = np.hstack([ee_rel, qdot_robot])
     model.v.setBounds(qdot, qdot, nodes=0)
+
 
 
 
@@ -275,7 +276,6 @@ ti = TaskInterface(prb=prb, model=model)
 # ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/concert_config.yaml')
 ti.setTaskFromYaml('/home/francesco/catkin_ws/external/kyon_controller/config/concert_config.yaml')
 
-
 # ee_xyz_task = ti.getTask('ee_xyz')
 # final_base_xy = ti.getTask('final_base_xy')
 
@@ -359,11 +359,11 @@ time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from concert_joy_commands import GaitManager, JoyCommands
-contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
-gm = GaitManager(ti, pm, contact_phase_map)
+# from concert_joy_commands import GaitManager, JoyCommands
+# contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
+# gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands(gm)
+# jc = JoyCommands(gm)
 
 
 # if 'wheel_joint_1' in model.kd.joint_names():
@@ -422,7 +422,7 @@ while not rospy.is_shutdown():
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
-    jc.run(solution)
+    # jc.run(solution)
 
     tic = time.time()
     ti.rti()

@@ -25,28 +25,25 @@ constraints:
 
 costs:
   - ee_xyz
-  - final_base_xy
-  - com_height
+#  - final_base_xy
   - velocity_regularization
   - acceleration_regularization
-  - force_regularization
-  - joint_posture
+  - posture_cart
+  - posture_arm
 
 
 .define:
-    - &w_e_xy 10.
-    - &w_com 1.
+    - &w_e_xy 1.
     - &w_base_xy 1.
-    - &w_postural_roll 1.
-    - &w_postural 0.1
-    - &w_postural_ub 0.5
-    - &wheel_radius 0.124
+    - &w_postural_cart 0.1
+    - &w_postural_arm 0.1
+    - &wheel_radius 0.16
 
 ee_xyz:
   type: Cartesian
   distal_link: ee_E
   indices: [0, 1, 2]
-  nodes: ${range(10, N)}
+  nodes: ${range(5, N)}
   weight: *w_e_xy
 
 final_base_xy:
@@ -84,15 +81,15 @@ rolling_contact_4:
 
 # ==================================
 
-joint_posture:
+posture_cart:
   type: Postural
-  weight: *w_postural
+  weight: *w_postural_cart
   indices: [0, 2, 4, 6]
   nodes: all
 
-joint_posture_ub:
+posture_arm:
   type: Postural
-  weight: *w_postural_ub
+  weight: *w_postural_arm
   indices: [8, 9, 10, 11, 12, 13]
   nodes: all
 
@@ -100,20 +97,22 @@ joint_posture_ub:
 velocity_regularization:
   type: Regularization
   nodes: all
-  indices: [0, 2, 4, 6,
-            8, 9, 10, 11, 12, 13]
+#  indices: [0, 2, 4, 6,
+#            8, 9, 10, 11, 12, 13]
   weight:
-    velocity: 0.001
+    velocity: 0.01
 
 acceleration_regularization:
   type: Regularization
   nodes: all
+#  indices: [ 0, 2, 4, 6,
+#             8, 9, 10, 11, 12, 13 ]
   weight:
-    acceleration: 1e-3 # 0.01
+    acceleration: 1e-2 # 0.01
 
-force_regularization:
-  type: Regularization
-  nodes: all
-  weight:
-    force: 1e-4 # todo <----- how to do? if there are more forces...
+#force_regularization:
+#  type: Regularization
+#  nodes: all
+#  weight:
+#    force: 1e-4 # todo <----- how to do? if there are more forces...
 

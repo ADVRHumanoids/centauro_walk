@@ -1,0 +1,3 @@
+<launch>
+    <include file="$(find concert_gazebo)/launch/concert.launch" pass_all_args="true"/>
+</launch>
