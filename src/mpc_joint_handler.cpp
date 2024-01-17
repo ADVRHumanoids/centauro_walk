@@ -13,7 +13,8 @@ MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
 MPCHandler(nh),
 _model(model),
 _robot(robot),
-_rate(rate)
+_rate(rate),
+_flag_id(true)
 {
     init_publishers_and_subscribers();
 
@@ -71,7 +72,14 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
 
         std::vector<std::string> frames(_mpc_solution.force_names.data(), _mpc_solution.force_names.data() + _mpc_solution.force_names.size());
         _resampler->setFrames(frames);
+
+        if (frames.empty())
+        {
+            _flag_id = false;
+        }
     }
+
+
 
     // set state and input to Resampler (?)
     _robot->sense();
@@ -144,7 +152,11 @@ bool MPCJointHandler::update()
     // get resampled state and set it to the robot
     Eigen::VectorXd tau;
     _resampler->getState(_x);
-    _resampler->getTau(tau);
+
+    if (_flag_id)
+    {
+        _resampler->getTau(tau);
+    }
 
     _p = _x.head(_p.size());
     _v = _x.segment(_p.size(), _v.size());
@@ -154,7 +166,12 @@ bool MPCJointHandler::update()
     msg_pub.velocity.clear();
     msg_pub.position.assign(_p.data(), _p.data() + _p.size());
     msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
-    msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
+    
+    if (_flag_id)
+    {
+        msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
+    }
+
     _resampler_pub.publish(msg_pub);
 
 
@@ -215,14 +232,25 @@ bool MPCJointHandler::update()
     // zip togheter joint names and relative values (joint names comes from MPC message, it does not contain fixed joint strings)
     vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
     vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
-    vectors_to_map<std::string, double>(_joint_names, tau.tail(tau.size() - 6), _tau);
 
-    for (auto &pair : _tau)
-        pair.second -= _tau_offset[pair.first];
+
+    if (_flag_id)
+    {
+        vectors_to_map<std::string, double>(_joint_names, tau.tail(tau.size() - 6), _tau);
+
+
+        for (auto &pair : _tau)
+            pair.second -= _tau_offset[pair.first];
+    }
 
     _robot->setPositionReference(_q);
     _robot->setVelocityReference(_qdot);
-    _robot->setEffortReference(_tau);
+
+    if (_flag_id)
+    { 
+        _robot->setEffortReference(_tau);
+    }
+    
     _robot->move();
 
     return true;

@@ -70,6 +70,8 @@ private:
     XBot::ModelInterface::Ptr _model;
     XBot::RobotInterface::Ptr _robot;
     int _rate;
+
+    bool _flag_id;
 };
 
 #endif // MPC_JOINT_HANDLER_H

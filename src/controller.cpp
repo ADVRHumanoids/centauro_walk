@@ -13,7 +13,7 @@ Controller::Controller(ros::NodeHandle nh, int rate):
 _nh(nh),
 _nhpr("~"),
 _time(0),
-_rate(rate),
+_rate(rate), 
 _init(false)
 {
     init_load_config();

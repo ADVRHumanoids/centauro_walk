@@ -97,15 +97,8 @@ void Resampler::resize()
     _J.setZero(6, _model.nv);
 }
 
-void Resampler::guard_function()
-{
-    if (_frames.empty())
-        throw std::runtime_error("You forgot to assign contact frames. You can do that from Resampler Constructor or using setFrames() function.");
-}
-
 bool Resampler::setState(const Eigen::VectorXd x)
 {
-    guard_function();
     if (x.size() != _x.size())
     {
         std::cout << "wrong dimension of the state vector! " << std::to_string(x.size()) << " != " << std::to_string(_x.size()) << std::endl;
@@ -119,7 +112,6 @@ bool Resampler::setState(const Eigen::VectorXd x)
 
 bool Resampler::setInput(const Eigen::VectorXd u)
 {
-    guard_function();
     if (u.size() != _u.size())
     {
         std::cout << "wrong dimension of the input vector! " << std::to_string(u.size()) << " != " << std::to_string(_u.size()) << std::endl;
@@ -158,7 +150,6 @@ void Resampler::getFrames(std::vector<std::string> &frames) const
 
 void Resampler::id()
 {
-    guard_function();
     if (_sys_order == 2)
     {
         pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _u.segment(0, _model.nv));
@@ -167,8 +158,10 @@ void Resampler::id()
     {
         pinocchio::rnea(_model, *_data, _x.segment(0, _model.nq), _x.segment(_model.nq, _model.nv), _x.segment(_model.nq + _model.nv, _model.nv));
     }
-    _tau = _data->tau;
 
+    _tau = _data->tau;
+    
+    // if frames is empty, skip this part
     for (int i = 0; i < _frames.size(); i++)
     {
         Eigen::MatrixXd J;
@@ -279,7 +272,11 @@ void Resampler::resample(double dt_res)
     }
 
     rk4(dt_res);
-    id();
+
+    if (!_frames.empty())
+    {
+        id();
+    }
 }
 
 Eigen::VectorXd Resampler::mapToQ(std::unordered_map<std::string, double> jmap)
