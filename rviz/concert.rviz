@@ -322,6 +322,15 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz/InteractiveMarkers
+      Enable Transparency: true
+      Enabled: true
+      Name: InteractiveMarkers
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: false
+      Update Topic: /ee_E_cartesian_marker_server/update
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -350,7 +359,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10
+      Distance: 5.277319431304932
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -358,17 +367,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 0.34851351380348206
+        Y: -0.24342767894268036
+        Z: 0.5351612567901611
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.785398006439209
+      Pitch: 0.28039848804473877
       Target Frame: <Fixed Frame>
-      Yaw: 0.785398006439209
+      Yaw: 1.5103973150253296
     Saved: ~
 Window Geometry:
   Displays:
