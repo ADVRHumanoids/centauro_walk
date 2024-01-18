@@ -165,69 +165,29 @@ try:
 
 except:
     print('RobotInterface not created')
-    # fixed_joint_map = {'torso_yaw': 0.00,  # 0.00,
-    #
-    #                    'j_arm1_1': 1.50,  # 1.60,
-    #                    'j_arm1_2': 0.1,  # 0.,
-    #                    'j_arm1_3': 0.2,  # 1.5,
-    #                    'j_arm1_4': -2.2,  # 0.3,
-    #                    'j_arm1_5': 0.00,  # 0.00,
-    #                    'j_arm1_6': -1.3,  # 0.,
-    #                    # 'j_arm1_7': 0.0,    # 0.0,
-    #
-    #                    'j_arm2_1': 1.50,  # 1.60,
-    #                    'j_arm2_2': 0.1,  # 0.,
-    #                    'j_arm2_3': -0.2,  # 1.5,
-    #                    'j_arm2_4': -2.2,  # -0.3,
-    #                    'j_arm2_5': 0.0,  # 0.0,
-    #                    'j_arm2_6': -1.3,  # 0.,
-    #                    # 'j_arm2_7': 0.0,    # 0.0,
-    #                    'd435_head_joint': 0.0,
-    #                    'velodyne_joint': 0.0,
-
-                       # 'hip_yaw_1': -0.746,
-                       # 'hip_pitch_1': -1.254,
-                       # 'knee_pitch_1': -1.555,
-                       # 'ankle_pitch_1': -0.3,
-                       #
-                       # 'hip_yaw_2': 0.746,
-                       # 'hip_pitch_2': 1.254,
-                       # 'knee_pitch_2': 1.555,
-                       # 'ankle_pitch_2': 0.3,
-                       #
-                       # 'hip_yaw_3': 0.746,
-                       # 'hip_pitch_3': 1.254,
-                       # 'knee_pitch_3': 1.555,
-                       # 'ankle_pitch_3': 0.3,
-                       #
-                       # 'hip_yaw_4': -0.746,
-                       # 'hip_pitch_4': -1.254,
-                       # 'knee_pitch_4': -1.555,
-                       # 'ankle_pitch_4': -0.3,
-                       # }
 
     # initial config
     q_init = {
 
-        'torso_yaw': 0.00,  # 0.00,
-        'j_arm1_1': 1.50,  # 1.60,
-        'j_arm1_2': 0.1,  # 0.,
-        'j_arm1_3': 0.2,  # 1.5,
-        'j_arm1_4': -2.2,  # 0.3,
-        'j_arm1_5': 0.00,  # 0.00,
-        'j_arm1_6': -1.3,  # 0.,
+        # 'torso_yaw': 0.00,  # 0.00,
+        # 'j_arm1_1': 1.50,  # 1.60,
+        # 'j_arm1_2': 0.1,  # 0.,
+        # 'j_arm1_3': 0.2,  # 1.5,
+        # 'j_arm1_4': -2.2,  # 0.3,
+        # 'j_arm1_5': 0.00,  # 0.00,
+        # 'j_arm1_6': -1.3,  # 0.,
         # 'j_arm1_7': 0.0,    # 0.0,
 
-        'j_arm2_1': 1.50,  # 1.60,
-        'j_arm2_2': 0.1,  # 0.,
-        'j_arm2_3': -0.2,  # 1.5,
-        'j_arm2_4': -2.2,  # -0.3,
-        'j_arm2_5': 0.0,  # 0.0,
-        'j_arm2_6': -1.3,  # 0.,
+        # 'j_arm2_1': 1.50,  # 1.60,
+        # 'j_arm2_2': 0.1,  # 0.,
+        # 'j_arm2_3': -0.2,  # 1.5,
+        # 'j_arm2_4': -2.2,  # -0.3,
+        # 'j_arm2_5': 0.0,  # 0.0,
+        # 'j_arm2_6': -1.3,  # 0.,
         # 'j_arm2_7': 0.0,    # 0.0,
 
-        'd435_head_joint': 0.0,
-        'velodyne_joint': 0.0,
+        # 'd435_head_joint': 0.0,
+        # 'velodyne_joint': 0.0,
         'hip_yaw_1': -0.746,
         'hip_pitch_1': -1.254,
         'knee_pitch_1': -1.555,
@@ -254,16 +214,20 @@ wheels_map = dict(zip(wheels, 4 * [0.]))
 
 ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
 ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
-# q_init.update(zip(ankle_yaws, 4 * [0.]))
-# q_init.update(dict(ankle_yaw_1=np.pi/4))
-# q_init.update(dict(ankle_yaw_2=-np.pi/4))
-# q_init.update(dict(ankle_yaw_3=-np.pi/4))
-# q_init.update(dict(ankle_yaw_4=np.pi/4))
+
+arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
+arm_joints_map = dict(zip(arm_joints, [1.50, 0.1, 0.2, -2.2, 0., -1.3, 1.50, 0.1, -0.2, -2.2, 0.0, -1.3]))
+
+torso_map = {'torso_yaw': 0.}
+
+head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
 
 fixed_joint_map = dict()
 fixed_joint_map.update(wheels_map)
 fixed_joint_map.update(ankle_yaws_map)
-    # q_init.update(fixed_joint_map)
+fixed_joint_map.update(arm_joints_map)
+fixed_joint_map.update(torso_map)
+fixed_joint_map.update(head_map)
 
 
 # replace continuous joints with revolute
@@ -366,10 +330,15 @@ zmp_fun = zmp(model)(*input_zmp)
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
 short_stance_duration = 2
-stance_duration = 8
-flight_duration = 8
+stance_duration = 16
+flight_duration = 16
 c_i = 0
-for c in model.getContacts():
+
+for c in model.getContactMap():
+    c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
+    prb.createResidual(f'{c}_ori', c_ori.T - np.array([0, 0, 1]))
+
+for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
     # stance phase normal
     stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
@@ -435,7 +404,6 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            model.kd_frame, model.kd,
                                            trajectory_markers=contact_list_repl,
                                            fixed_joint_map=fixed_joint_map)
-                                           # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
 
 global joy_msg
 
@@ -450,22 +418,6 @@ gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands(gm)
 
-if 'j_wheel_1' in model.kd.joint_names():
-    jc.setBaseOriWeight(0.1)
-else:
-    jc.setBasePosWeight(0.5)
-#
-# if 'wheel_joint_1' in model.kd.joint_names():
-#     from geometry_msgs.msg import PointStamped
-#     zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
-
-# anal = analyzer.ProblemAnalyzer(prb)
-
-# import matplotlib.pyplot as plt
-# plt.ion()  # Turn on interactive mode
-# fig, ax = plt.subplots()
-# line, = ax.plot(range(prb.getNNodes() - 1), ti.solver_bs.getConstraintsValues()['dynamics'][0, :])  # Plot initial data
-# ax.set_ylim(-2., 2.)  # Set your desired limits here
 def _quaternion_multiply(q1, q2):
     x1, y1, z1, w1 = q1
     x2, y2, z2, w2 = q2
@@ -481,10 +433,7 @@ q_robot = np.zeros(len(robot_joint_names))
 qdot_robot = np.zeros(len(robot_joint_names))
 
 while not rospy.is_shutdown():
-# iter_ros = 0
-# while iter_ros < 1000:
-#     iter_ros += 1
-    tic = time.time()
+
     # set initial state and initial guess
     shift_num = -1
 
@@ -500,38 +449,9 @@ while not rospy.is_shutdown():
     if robot is not None:
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
-    # shift phases of phase manager
-    # tic = time.time()
     pm.shift()
-    # time_elapsed_shifting = time.time() - tic
-    # time_elapsed_shifting_list.append(time_elapsed_shifting)
-
     jc.run(solution)
-
-    # tic = time.time()
     ti.rti()
-
-    # time_elapsed_solving = time.time() - tic
-    # time_elapsed_solving_list.append(time_elapsed_solving)
-
-    # line.set_ydata(ti.solver_rti.getConstraintsValues()['dynamics'][0, :])
-    # #
-    # ax.relim()  # Update the limits of the axes
-    # ax.autoscale_view()  # Autoscale the axes view
-    # fig.canvas.draw()
-    # fig.canvas.flush_events()
-    #
-    # plt.pause(0.0001) # Add a small delay to see the changes
-
-
-
-    # for elem_name, elem_values in ti.solver_rti.getConstraintsValues().items():
-    #     print(f"{colorama.Fore.GREEN}{elem_name}:  {elem_values}{colorama.Fore.RESET}")
-    #
-    # for elem_name, elem_values in ti.solver_rti.getCostsValues().items():
-    #     print(f"{colorama.Fore.RED}{elem_name}:  {elem_values}{colorama.Fore.RESET}")
-
-
     solution = ti.solution
 
     sol_msg = WBTrajectory()
@@ -542,8 +462,6 @@ while not rospy.is_shutdown():
 
     sol_msg.q = solution['q'][:, 0].tolist()
     sol_msg.v = solution['v'][:, 0].tolist()
-    # sol_msg.q = solution['q'][:, 1].tolist()
-    # sol_msg.v = solution['v'][:, 1].tolist()
     sol_msg.a = solution['a'][:, 0].tolist()
 
     for frame in model.getForceMap():
@@ -552,23 +470,14 @@ while not rospy.is_shutdown():
             Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
 
     solution_publisher.publish(sol_msg)
-    # anal.printConstraints()
 
     # replay stuff
     if robot is None:
         repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
         repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
-    # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
-    # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
-
-    time_elapsed_all = time.time() - tic
-    time_elapsed_all_list.append(time_elapsed_all)
 
     rate.sleep()
 
-    # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
-# print(f'average time elapsed shifting: {sum(time_elapsed_shifting_list) / len(time_elapsed_shifting_list)}')
-# print(f'average time elapsed solving: {sum(time_elapsed_solving_list) / len(time_elapsed_solving_list)}')
 print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
