@@ -86,14 +86,6 @@ void Controller::init_load_model()
     _model->setJointPosition(qhome);
     _model->update();
 
-    // Add offset to move the world in the middle of the feet
-//    Eigen::Affine3d lfoot;
-//    _model->getPose("ball_1", lfoot);
-//    lfoot.translation()(1) = 0;
-//    lfoot.linear().setIdentity();
-//    _model->setFloatingBasePose(lfoot.inverse());
-//    _model->update();
-
     try
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
@@ -160,17 +152,6 @@ void Controller::set_stiffness_damping_torque(double duration)
     {
         tau_start[pair.first] = K[pair.first] * (q_ref[pair.first] - q[pair.first]) + D[pair.first] * (qdot_ref[pair.first] - qdot[pair.first]);
     }
-
-
-//    ColoredTextPrinter::print("Initial torques: \n", ColoredTextPrinter::TextColor::Blue);
-//    for (auto pair : K)
-//    {
-//        std::cout << pair.first << std::endl;
-//        std::cout << K[pair.first] << std::endl;
-//        std::cout << D[pair.first] << std::endl;
-//        std::cout << tau_start[pair.first] << std::endl;
-//    }
-
 
     _robot->getJointEffort(tau_goal);
 

@@ -131,7 +131,7 @@ file_dir = os.getcwd()
 Initialize Horizon problem
 '''
 ns = 30
-T = 1.5
+T = 3.0
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -167,8 +167,8 @@ except:
     print('RobotInterface not created')
 
     # initial config
+    base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
     q_init = {
-
         # 'torso_yaw': 0.00,  # 0.00,
         # 'j_arm1_1': 1.50,  # 1.60,
         # 'j_arm1_2': 0.1,  # 0.,
@@ -229,24 +229,15 @@ fixed_joint_map.update(arm_joints_map)
 fixed_joint_map.update(torso_map)
 fixed_joint_map.update(head_map)
 
-
 # replace continuous joints with revolute
 urdf = urdf.replace('continuous', 'revolute')
 
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
-
-base_init = np.array([0, 0, 0., 0, 0, 0, 1])
-
-FK = kin_dyn.fk('wheel_1')
-init = base_init.tolist() + list(q_init.values())
-init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos']
-base_init[2] = -init_pos_foot[2]
-
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
-                                 base_init=base_init,
+                                 base_init=base_pose,
                                  fixed_joint_map=fixed_joint_map
                                  )
 
@@ -255,15 +246,12 @@ bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_descript
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
-
 ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/centauro_config.yaml')
-
-com_height = ti.getTask('com_height')
-com_height.setRef(np.atleast_2d(base_init).T)
 
 tg = trajectoryGenerator.TrajectoryGenerator()
 
 pm = pymanager.PhaseManager(ns)
+
 # phase manager handling
 c_phases = dict()
 for c in model.cmap.keys():
@@ -366,8 +354,6 @@ for c in model.getContactMap():
     cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
     c_phases[c].registerPhase(flight_phase)
-
-
 
 for c in model.cmap.keys():
     stance = c_phases[c].getRegisteredPhase(f'stance_{c}')

@@ -30,8 +30,8 @@ fixed_joints:
     velodyne_joint: 0.0
 
 define:
-    - &low_stiff 0.
-    - &low_damp 0.
+    - &low_stiff 200.
+    - &low_damp 20.
     - &high_stiff 1000.
     - &high_damp 20.
 

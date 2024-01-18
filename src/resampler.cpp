@@ -65,7 +65,7 @@ _warning_printed(false)
         resize();
     }
 
-    _max_time = 1.5 / 30.;
+    _max_time = 3.0 / 30.;
 }
 
 void Resampler::resize()
