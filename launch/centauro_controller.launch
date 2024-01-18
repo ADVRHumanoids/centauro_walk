@@ -1,7 +1,7 @@
 <launch>
     <node pkg="kyon_controller" type="controller" name="centauro_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/centauro_controller_config.yaml"/>
-        <param name="rate" value="1000"/>
+        <param name="rate" value="700"/>
     </node>
 
     <node pkg="joy" type="joy_node" name="joy_node">

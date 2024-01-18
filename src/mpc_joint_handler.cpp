@@ -48,11 +48,6 @@ _flag_id(true)
 
 void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg)
 {
-//    if (!_mpc_solution.q.empty())
-//        _old_solution = _mpc_solution;
-//    else
-//        _old_solution = *msg;
-
     ColoredTextPrinter::print("MPC message received:", ColoredTextPrinter::TextColor::Green);
 
     _mpc_solution = *msg;
@@ -60,7 +55,6 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
     if (!_is_callback_done)
     {
         _joint_names.insert(_joint_names.begin(), std::begin(_mpc_solution.joint_names), std::end(_mpc_solution.joint_names));
-//        _joint_names.insert(_joint_names.begin(), {"VIRTUALJOINT_1", "VIRTUALJOINT_2", "VIRTUALJOINT_3", "VIRTUALJOINT_4", "VIRTUALJOINT_5", "VIRTUALJOINT_6"});
 
         _x.resize(_mpc_solution.q.size() + _mpc_solution.v.size());
         _u.resize(_mpc_solution.a.size() + _mpc_solution.force_names.size() * 6);
@@ -79,34 +73,13 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
         }
     }
 
-
-
     // set state and input to Resampler (?)
     _robot->sense();
 
-    // getting the state from the robot (position and velocity)
-    // q map for joint positions from the robot
-    XBot::JointNameMap q_map;
-    // qdot vector for velocities from the robot
-    Eigen::VectorXd qdot(_robot->getJointNum());
-
-//    _robot->getJointPosition(q_map);
-//    _robot->getJointVelocity(qdot);
-
-//    Eigen::VectorXd q_pinocchio = _resampler->mapToQ(q_map);
-
-    // from eigen to quaternion
-    // (FOR CLOSED LOOP)
-//    _p << _fb_pose, q_pinocchio.tail(_resampler->nq() - 7);
-//    _v << _fb_twist, qdot;
-
-    // getting the input from the MPC solution (FOR OPEN LOOP)
+    // getting the input from the MPC solution
     _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
     _v = Eigen::VectorXd::Map(_mpc_solution.v.data(), _mpc_solution.v.size());
     _a = Eigen::VectorXd::Map(_mpc_solution.a.data(), _mpc_solution.a.size());
-
-//    if (!_mpc_solution.j.empty())
-//        _j = Eigen::VectorXd::Map(_mpc_solution.j.data(), _mpc_solution.j.size());
 
     for (int i = 0; i < _mpc_solution.force_names.size(); i++)
     {
@@ -152,6 +125,7 @@ bool MPCJointHandler::update()
     // get resampled state and set it to the robot
     Eigen::VectorXd tau;
     _resampler->getState(_x);
+    _resampler->getInput(_u);
 
     if (_flag_id)
     {
