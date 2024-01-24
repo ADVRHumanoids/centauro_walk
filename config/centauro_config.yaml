@@ -39,7 +39,7 @@ costs:
 .define:
     - &w_com 0.1
     - &w_base_ori 1.
-    - &w_base_xy 50.
+    - &w_base_xy 0.
     - &w_contact_z 50.
     - &w_postural 0.1
     - &w_postural_ub 1.
