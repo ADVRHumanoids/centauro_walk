@@ -30,15 +30,19 @@ IMU:
 LF:
     type: Cartesian
     distal_link: contact_1
+    indices: [0, 1, 2]
 
 RF:
     type: Cartesian
     distal_link: contact_2
+    indices: [0, 1, 2]
 
 LR:
     type: Cartesian
     distal_link: contact_3
+    indices: [0, 1, 2]
 
 RR:
     type: Cartesian
     distal_link: contact_4
+    indices: [0, 1, 2]

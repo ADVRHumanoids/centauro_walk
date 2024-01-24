@@ -128,8 +128,8 @@ file_dir = rospkg.RosPack().get_path('kyon_controller')
 '''
 Initialize Horizon problem
 '''
-ns = 30
-T = 3.
+ns = 40
+T = 3.0
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -160,7 +160,7 @@ try:
     # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
     rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
     rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
-    rospy.Publisher()
+
     while base_pose is None or base_twist is None:
         rospy.sleep(0.01)
     robot.sense()
@@ -383,10 +383,6 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
-# set ForceTorqueSensor to BaseEstimation
-ft_dict = dict()
-for c in model.getForceMap():
-    ft_dict[c] = pybase_estimation.BaseEstimation.CreateDummyFtSensor(c)
 
 ti.bootstrap()
 ti.load_initial_guess()
@@ -440,6 +436,7 @@ while not rospy.is_shutdown():
                                                         y=solution[f'f_{frame}'][1, 0],
                                                         z=solution[f'f_{frame}'][2, 0]),
                                           torque=Vector3(x=0., y=0., z=0.)))
+
     wrench_pub.publish(wrench_msg)
 
     # set initial state and initial guess
@@ -454,8 +451,8 @@ while not rospy.is_shutdown():
     prb.setInitialState(x0=xig[:, 0])
 
     # closed loop
-    # if robot is not None:
-    #     set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
+    if robot is not None:
+        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
     jc.run(solution)
