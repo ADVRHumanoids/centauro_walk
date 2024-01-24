@@ -1,6 +1,4 @@
 #!/usr/bin/python3
-
-import horizon.utils.kin_dyn as kd
 from horizon.problem import Problem
 from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
@@ -8,19 +6,22 @@ from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, anal
 from horizon.ros import replay_trajectory
 from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
-from matlogger2 import matlogger
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
-from sensor_msgs.msg import Joy
 import cartesian_interface.roscpp_utils as roscpp
+import cartesian_interface.pyci as pyci
+import cartesian_interface.affine3
 import horizon.utils.analyzer as analyzer
+
+from base_estimation import pybase_estimation
+from base_estimation.msg import ContactWrenches
+from geometry_msgs.msg import Wrench
 
 from scipy.spatial.transform import Rotation
 
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
-import colorama
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from kyon_controller.msg import WBTrajectory
 
@@ -29,14 +30,12 @@ import rospy
 import rospkg
 import numpy as np
 import subprocess
-import os
-import time
+import yaml
 
 import horizon.utils as utils
 
 global base_pose
 global base_twist
-
 
 def gt_pose_callback(msg):
     global base_pose
@@ -49,7 +48,6 @@ def gt_twist_callback(msg):
     global base_twist
     base_twist = np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z,
                            msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
-
 
 def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
     robot.sense()
@@ -125,13 +123,13 @@ srdf = rospy.get_param(param_name='/robot_description_semantic', default='')
 if srdf == '':
     raise print('srdf not set')
 
-file_dir = os.getcwd()
+file_dir = rospkg.RosPack().get_path('kyon_controller')
 
 '''
 Initialize Horizon problem
 '''
 ns = 30
-T = 3.0
+T = 3.
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -148,18 +146,25 @@ cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
 
+model_xbot = xbot.ModelInterface(cfg)
+rspub = pyci.RobotStatePublisher(model_xbot)
+
 base_pose = None
 base_twist = None
+# est = None
 robot = None
 
 try:
     robot = xbot.RobotInterface(cfg)
-    rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+    rospy.Publisher()
     while base_pose is None or base_twist is None:
         rospy.sleep(0.01)
     robot.sense()
-    # q_init = robot.getPositionReference()
+    model_xbot.syncFrom(robot)
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
@@ -378,6 +383,11 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
+# set ForceTorqueSensor to BaseEstimation
+ft_dict = dict()
+for c in model.getForceMap():
+    ft_dict[c] = pybase_estimation.BaseEstimation.CreateDummyFtSensor(c)
+
 ti.bootstrap()
 ti.load_initial_guess()
 solution = ti.solution
@@ -418,7 +428,19 @@ robot_joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['uni
 q_robot = np.zeros(len(robot_joint_names))
 qdot_robot = np.zeros(len(robot_joint_names))
 
+wrench_pub = rospy.Publisher('centauro_base_estimation/contacts/set_wrench', ContactWrenches, latch=False)
+
 while not rospy.is_shutdown():
+    # update BaseEstimation
+    wrench_msg = ContactWrenches()
+    wrench_msg.header.stamp = rospy.Time.now()
+    for frame in model.getForceMap():
+        wrench_msg.names.append(frame)
+        wrench_msg.wrenches.append(Wrench(force=Vector3(x=solution[f'f_{frame}'][0, 0],
+                                                        y=solution[f'f_{frame}'][1, 0],
+                                                        z=solution[f'f_{frame}'][2, 0]),
+                                          torque=Vector3(x=0., y=0., z=0.)))
+    wrench_pub.publish(wrench_msg)
 
     # set initial state and initial guess
     shift_num = -1
@@ -432,8 +454,8 @@ while not rospy.is_shutdown():
     prb.setInitialState(x0=xig[:, 0])
 
     # closed loop
-    if robot is not None:
-        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
+    # if robot is not None:
+    #     set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
     jc.run(solution)
@@ -450,6 +472,10 @@ while not rospy.is_shutdown():
     sol_msg.v = solution['v'][:, 0].tolist()
     sol_msg.a = solution['a'][:, 0].tolist()
 
+    model_xbot.setJointPosition(dict(zip(sol_msg.joint_names, sol_msg.q[7:])))
+    model_xbot.update()
+    rspub.publishTransforms('mpc')
+
     for frame in model.getForceMap():
         sol_msg.force_names.append(frame)
         sol_msg.f.append(
@@ -460,7 +486,7 @@ while not rospy.is_shutdown():
     # replay stuff
     if robot is None:
         repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-        repl.publish_joints(solution['q'][:, 0])
+        repl.publish_joints(solution['q'][:, 0], prefix='')
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
 
     rate.sleep()
