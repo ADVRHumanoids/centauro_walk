@@ -4,6 +4,7 @@ from phase_manager import pyphase, pymanager
 from sensor_msgs.msg import Joy
 import rospy
 import math
+from visualization_msgs.msg import Marker
 
 class GaitManager:
     def __init__(self, task_interface: TaskInterface, phase_manager: pymanager.PhaseManager, contact_map):
@@ -19,6 +20,7 @@ class GaitManager:
             self.contact_phases[contact_name] = self.phase_manager.getTimelines()[phase_name]
 
         # self.zmp_timeline = self.phase_manager.getTimelines()['zmp_timeline']
+
 
     def cycle_short(self, cycle_list):
         # how do I know that the stance phase is called stance_{c} or flight_{c}?
@@ -111,6 +113,8 @@ class JoyCommands:
         self.publisher = rospy.Publisher('smooth_joy', Joy, queue_size=1)
         rospy.wait_for_message('/joy', Joy, timeout=0.5)
 
+        self.__pub = rospy.Publisher('pos_ref', Marker, queue_size=1)
+
     def smooth(self):
         alpha = 0.1
         as_list = list(self.smooth_joy_msg.axes)
@@ -131,6 +135,20 @@ class JoyCommands:
         self.base_rot_weight = w
 
     def run(self, solution):
+        marker = Marker()
+        marker.header.frame_id = 'world'
+        marker.header.stamp = rospy.Time.now()
+        marker.id = 1
+        marker.action = Marker.ADD
+        marker.scale.x = 0.05
+        marker.scale.y = 0.05
+        marker.scale.z = 0.05
+        marker.color.r = 1
+        marker.color.g = 0
+        marker.color.b = 0
+        marker.color.a = 1
+        marker.type = Marker.SPHERE
+
         if self.smooth_joy_msg is not None:
             self.smooth()
 
@@ -143,7 +161,7 @@ class JoyCommands:
         elif self.joy_msg.buttons[5] == 1:
             # step
             if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
-                self.gait_manager.step('contact_1')
+                self.gait_manager.trot()
         else:
             # stand
             self.setBasePosWeight(1.)
@@ -165,6 +183,15 @@ class JoyCommands:
             # reference = np.array([[0., 0.]]).T
             self.final_base_xy.setRef(reference)
 
+        marker.pose.position.x = reference[0]
+        marker.pose.position.y = reference[1]
+        marker.pose.position.z = reference[2]
+        marker.pose.orientation.x = reference[3]
+        marker.pose.orientation.y = reference[4]
+        marker.pose.orientation.z = reference[5]
+        marker.pose.orientation.w = reference[6]
+        self.__pub.publish(marker)
+
         if np.abs(self.smooth_joy_msg.axes[3]) > 0.1 or np.abs(self.smooth_joy_msg.axes[4]) > 0.1:
             # position mode
             d_angle = np.pi / 2 * self.smooth_joy_msg.axes[3] * self.base_rot_weight
@@ -183,12 +210,12 @@ class JoyCommands:
 
         if self.joy_msg.buttons[0] == 1:
             # change com height
-            reference = np.array([[0., 0, solution['q'][2, 0] + 0.02, 0., 0., 0., 0.]]).T
+            reference = np.array([[0., 0, solution['q'][2, 0] + 0.05, 0., 0., 0., 0.]]).T
             self.com_height.setRef(reference)
 
         if self.joy_msg.buttons[2] == 1:
             # change com height
-            reference = np.array([[0., 0, solution['q'][2, 0] - 0.02, 0., 0., 0., 0.]]).T
+            reference = np.array([[0., 0, solution['q'][2, 0] - 0.05, 0., 0., 0., 0.]]).T
             self.com_height.setRef(reference)
 
     def _incremental_rotate(self, q_initial: np.quaternion, d_angle, axis) -> np.quaternion:

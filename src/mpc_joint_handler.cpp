@@ -222,7 +222,7 @@ bool MPCJointHandler::update()
 
     if (_flag_id)
     { 
-        _robot->setEffortReference(_tau);
+//        _robot->setEffortReference(_tau);
     }
     
     _robot->move();
