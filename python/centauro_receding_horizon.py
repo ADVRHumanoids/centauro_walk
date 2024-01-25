@@ -129,7 +129,7 @@ file_dir = rospkg.RosPack().get_path('kyon_controller')
 Initialize Horizon problem
 '''
 ns = 40
-T = 3.0
+T = 2.
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -146,9 +146,6 @@ cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
 
-model_xbot = xbot.ModelInterface(cfg)
-rspub = pyci.RobotStatePublisher(model_xbot)
-
 base_pose = None
 base_twist = None
 # est = None
@@ -164,7 +161,6 @@ try:
     while base_pose is None or base_twist is None:
         rospy.sleep(0.01)
     robot.sense()
-    model_xbot.syncFrom(robot)
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
@@ -221,7 +217,7 @@ ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
 ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
 
 arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
-arm_joints_map = dict(zip(arm_joints, [1.50, 0.1, 0.2, -2.2, 0., -1.3, 1.50, 0.1, -0.2, -2.2, 0.0, -1.3]))
+arm_joints_map = dict(zip(arm_joints, [0.75, 0.1, 0.2, -2.2, 0., -1.3, 0.75, 0.1, -0.2, -2.2, 0.0, -1.3]))
 
 torso_map = {'torso_yaw': 0.}
 
@@ -323,13 +319,13 @@ zmp_fun = zmp(model)(*input_zmp)
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
 short_stance_duration = 2
-stance_duration = 16
-flight_duration = 16
+stance_duration = 30
+flight_duration = 30
 c_i = 0
 
-for c in model.getContactMap():
-    c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
-    prb.createResidual(f'{c}_ori', c_ori.T - np.array([0, 0, 1]))
+# for c in model.getContactMap():
+#     c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
+#     prb.createResidual(f'{c}_ori', c_ori.T - np.array([0, 0, 1]))
 
 for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
@@ -358,6 +354,11 @@ for c in model.getContactMap():
 
     cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
+
+    c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
+    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])))
+    flight_phase.addCost(cost_ori)
+
     c_phases[c].registerPhase(flight_phase)
 
 for c in model.cmap.keys():
@@ -451,8 +452,8 @@ while not rospy.is_shutdown():
     prb.setInitialState(x0=xig[:, 0])
 
     # closed loop
-    if robot is not None:
-        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
+    # if robot is not None:
+    #     set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
     jc.run(solution)
@@ -468,10 +469,6 @@ while not rospy.is_shutdown():
     sol_msg.q = solution['q'][:, 0].tolist()
     sol_msg.v = solution['v'][:, 0].tolist()
     sol_msg.a = solution['a'][:, 0].tolist()
-
-    model_xbot.setJointPosition(dict(zip(sol_msg.joint_names, sol_msg.q[7:])))
-    model_xbot.update()
-    rspub.publishTransforms('mpc')
 
     for frame in model.getForceMap():
         sol_msg.force_names.append(frame)
