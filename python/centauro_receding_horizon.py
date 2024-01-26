@@ -311,16 +311,16 @@ for c_name, f_var in model.fmap.items():
 c_mean /= len(model.cmap.keys())
 
 # zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 2.5
+zmp_nominal_weight = 50.
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
 
 # zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
-# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
+zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-short_stance_duration = 2
-stance_duration = 30
-flight_duration = 30
+short_stance_duration = 5
+stance_duration = 10
+flight_duration = 10
 c_i = 0
 
 # for c in model.getContactMap():
