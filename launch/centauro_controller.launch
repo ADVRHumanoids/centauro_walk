@@ -1,4 +1,10 @@
 <launch>
+
+    <arg name="xbot" default="false" />
+
+    <remap if="$(arg xbot)" from="/xbotcore/robot_description" to="/robot_description"/>
+    <remap if="$(arg xbot)" from="/xbotcore/robot_description_semantic" to="/robot_description_semantic"/>
+
     <node pkg="kyon_controller" type="controller" name="centauro_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/centauro_controller_config.yaml"/>
         <param name="rate" value="700"/>
