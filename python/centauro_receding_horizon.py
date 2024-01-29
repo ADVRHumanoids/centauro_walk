@@ -304,23 +304,25 @@ for f_var in model.fmap.values():
     input_zmp.append(f_var)
 
 c_mean = cs.SX([0, 0, 0])
+f_tot = cs.SX([0., 0., 0.])
 for c_name, f_var in model.fmap.items():
     fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-    c_mean += fk_c_pos
+    c_mean += fk_c_pos * f_var[2]
+    f_tot += f_var[2]
 
-c_mean /= len(model.cmap.keys())
+c_mean /= f_tot
 
 # zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 50.
+zmp_nominal_weight = 100.
 # zmp_weight.assign(zmp_nominal_weight)
 zmp_fun = zmp(model)(*input_zmp)
 
-# zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
-zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
+zmp_residual = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
+# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-short_stance_duration = 5
-stance_duration = 10
-flight_duration = 10
+short_stance_duration = 10
+stance_duration = 15
+flight_duration = 15
 c_i = 0
 
 # for c in model.getContactMap():
@@ -427,6 +429,16 @@ qdot_robot = np.zeros(len(robot_joint_names))
 
 wrench_pub = rospy.Publisher('centauro_base_estimation/contacts/set_wrench', ContactWrenches, latch=False)
 
+
+from geometry_msgs.msg import PointStamped
+zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
+# zmp_f = ti.getTask('zmp')._zmp_fun()
+zmp_point = PointStamped()
+
+c_mean_pub = rospy.Publisher('c_mean_pub', PointStamped, queue_size=10)
+c_mean_point = PointStamped()
+
+
 while not rospy.is_shutdown():
     # update BaseEstimation
     wrench_msg = ContactWrenches()
@@ -478,9 +490,49 @@ while not rospy.is_shutdown():
     solution_publisher.publish(sol_msg)
 
     # replay stuff
-    if robot is None:
+
+    # =========================== publish zmp =================================================
+    # input_zmp = []
+    # input_zmp.append(solution['q'][:, 0])
+    # input_zmp.append(solution['v'][:, 0])
+    # input_zmp.append(solution['a'][:, 0])
+    #
+    # for f_var in model.fmap.keys():
+    #     input_zmp.append(solution[f"f_{f_var}"][:, 0])
+    #
+    # c_mean = np.zeros([3, 1])
+    # f_tot = np.zeros([3, 1])
+    # for c_name, f_var in model.fmap.items():
+    #     fk_c_pos = kin_dyn.fk(c_name)(q=solution['q'][:, 0])['ee_pos'].toarray()
+    #     c_mean += fk_c_pos * solution[f"f_{c_name}"][2, 0]
+    #     f_tot += solution[f"f_{c_name}"][2, 0]
+    #
+    # print(f_tot[2, 0])
+    # c_mean /= f_tot
+    #
+    # # zmp_val = zmp_f(*input_zmp)
+    # zmp_val = zmp(model)(*input_zmp)
+    #
+    # zmp_point.header.stamp = rospy.Time.now()
+    # zmp_point.header.frame_id = 'world'
+    # zmp_point.point.x = zmp_val[0]
+    # zmp_point.point.y = zmp_val[1]
+    # zmp_point.point.z = 0
+    #
+    # zmp_pub.publish(zmp_point)
+    #
+    # c_mean_point.header.stamp = rospy.Time.now()
+    # c_mean_point.header.frame_id = 'world'
+    # c_mean_point.point.x = c_mean[0]
+    # c_mean_point.point.y = c_mean[1]
+    # c_mean_point.point.z = 0
+    #
+    # c_mean_pub.publish(c_mean_point)
+    # ============================================================================
+
+    if True: #robot is None:
         repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-        repl.publish_joints(solution['q'][:, 0], prefix='')
+        repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
 
     rate.sleep()
