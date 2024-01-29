@@ -34,6 +34,7 @@ costs:
   - com_height
   - joint_regularization
   - joint_posture
+#  - zmp
 #  - joint_posture_ub
 
 .define:
@@ -46,6 +47,7 @@ costs:
     - &w_v 1.
     - &w_a 1e-2
     - &w_f 1e-3
+    - &w_zmp 100.
     - &w_ball_ori 20.
     - &w_ball_xy 10.
     - &w_postural_roll 1.
@@ -171,6 +173,10 @@ joint_posture_ub:
              29, 30
              ]
   nodes: all
+
+zmp:
+  type: Zmp
+  weight: *w_zmp
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 joint_regularization:
