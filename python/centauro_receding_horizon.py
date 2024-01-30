@@ -146,6 +146,11 @@ cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
 
+'''
+open/closed loop
+'''
+closed_loop = rospy.get_param(param_name='closed_loop', default=False)
+
 base_pose = None
 base_twist = None
 # est = None
@@ -153,22 +158,14 @@ robot = None
 
 try:
     robot = xbot.RobotInterface(cfg)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
-
-    while base_pose is None or base_twist is None:
-        rospy.sleep(0.01)
     robot.sense()
+
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
 except:
     print('RobotInterface not created')
 
-    # initial config
-    base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
     q_init = {
         # 'torso_yaw': 0.00,  # 0.00,
         # 'j_arm1_1': 1.50,  # 1.60,
@@ -209,6 +206,18 @@ except:
         'knee_pitch_4': -1.555,
         'ankle_pitch_4': -0.3,
     }
+
+if closed_loop:
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
+else:
+    base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
+    base_twist = np.zeros(6)
 
 wheels = [f'j_wheel_{i + 1}' for i in range(4)]
 wheels_map = dict(zip(wheels, 4 * [0.]))
@@ -320,7 +329,7 @@ zmp_fun = zmp(model)(*input_zmp)
 zmp_residual = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
 # zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
-short_stance_duration = 10
+short_stance_duration = 5
 stance_duration = 15
 flight_duration = 15
 c_i = 0
@@ -464,8 +473,8 @@ while not rospy.is_shutdown():
     prb.setInitialState(x0=xig[:, 0])
 
     # closed loop
-    # if robot is not None:
-    #     set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
+    if closed_loop:
+        set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
     jc.run(solution)
@@ -530,7 +539,7 @@ while not rospy.is_shutdown():
     # c_mean_pub.publish(c_mean_point)
     # ============================================================================
 
-    if True: #robot is None:
+    if robot is None:
         repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
         repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
