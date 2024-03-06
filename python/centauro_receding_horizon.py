@@ -4,7 +4,6 @@ from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
 from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, analyzer
 from horizon.ros import replay_trajectory
-from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
@@ -17,9 +16,9 @@ import cartesian_interface.pyci as pyci
 import cartesian_interface.affine3
 import horizon.utils.analyzer as analyzer
 
-from base_estimation import pybase_estimation
 from base_estimation.msg import ContactWrenches
 from geometry_msgs.msg import Wrench
+from sensor_msgs.msg import Imu
 
 from scipy.spatial.transform import Rotation
 
@@ -34,7 +33,6 @@ import rospy
 import rospkg
 import numpy as np
 import subprocess
-import yaml
 
 import horizon.utils as utils
 
@@ -52,6 +50,11 @@ def gt_twist_callback(msg):
     global base_twist
     base_twist = np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z,
                            msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
+
+def imu_callback(msg: Imu):
+    global base_pose
+    base_pose = np.zeros(7)
+    base_pose[3:] = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
 
 def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
     robot.sense()
@@ -220,7 +223,10 @@ if closed_loop:
     while base_pose is None or base_twist is None:
         rospy.sleep(0.01)
 else:
-    base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
+    rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+    while base_pose is None:
+        rospy.sleep(0.01)
+    base_pose[0:3] = [0.07, 0., 0.8]
     base_twist = np.zeros(6)
 
 wheels = [f'j_wheel_{i + 1}' for i in range(4)]
