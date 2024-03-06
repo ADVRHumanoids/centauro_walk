@@ -8,6 +8,10 @@ from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+
+from horizon.rhc.gait_manager import GaitManager
+from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
+
 import cartesian_interface.roscpp_utils as roscpp
 import cartesian_interface.pyci as pyci
 import cartesian_interface.affine3
@@ -416,11 +420,13 @@ time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from centauro_joy_commands import GaitManager, JoyCommands
+from centauro_joy_commands import JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands(gm)
+jc = JoyCommands()
+gait_manager_ros = GaitManagerROS(gm)
+
 
 def _quaternion_multiply(q1, q2):
     x1, y1, z1, w1 = q1
@@ -477,7 +483,10 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
-    jc.run(solution)
+
+    # jc.run()
+    gait_manager_ros.run()
+
     ti.rti()
     solution = ti.solution
 

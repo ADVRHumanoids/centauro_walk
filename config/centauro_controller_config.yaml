@@ -1,8 +1,12 @@
 control_mode:
-    j_wheel_1: 2
-    j_wheel_2: 2
-    j_wheel_3: 2
-    j_wheel_4: 2
+    j_wheel_1: 0 # 2
+    j_wheel_2: 0 # 2
+    j_wheel_3: 0 # 2
+    j_wheel_4: 0 # 2
+    ankle_yaw_1: 0
+    ankle_yaw_2: 0
+    ankle_yaw_3: 0
+    ankle_yaw_4: 0
 
 fixed_joints:
     j_wheel_1: 0.0
