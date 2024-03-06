@@ -154,7 +154,7 @@ class JoyCommands:
 
         if self.joy_msg.buttons[4] == 1:
             # step
-            self.setBasePosWeight(2.)
+            self.setBasePosWeight(1.)
             if self.gait_manager.contact_phases['contact_1'].getEmptyNodes() > 0:
                 # self.gait_manager.trot()
                 self.gait_manager.crawl()

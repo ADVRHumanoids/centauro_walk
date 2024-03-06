@@ -106,7 +106,7 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     model.v.setBounds(qdot, qdot, nodes=0)
 
 rospy.init_node('kyon_walk_srbd')
-roscpp.init('kyon_walk_srbd', [])
+# roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 
@@ -546,5 +546,5 @@ while not rospy.is_shutdown():
 
     rate.sleep()
 
-
+# roscpp.shutdown()
 print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
