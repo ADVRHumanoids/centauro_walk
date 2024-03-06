@@ -29,9 +29,9 @@ costs:
   - z_contact_2
   - z_contact_3
   - z_contact_4
-  - final_base_xy
+  - base_xy
+  - base_z
   - base_orientation
-  - com_height
   - joint_regularization
   - joint_posture
 #  - zmp
@@ -40,7 +40,7 @@ costs:
 .define:
     - &w_com 5.
     - &w_base_ori 10.
-    - &w_base_xy 1.
+    - &w_base_xy 5.
     - &w_contact_z 50.
     - &w_postural 0.5
     - &w_postural_ub 1.
@@ -52,15 +52,15 @@ costs:
     - &w_ball_xy 10.
     - &w_postural_roll 1.
 
-final_base_xy:
+base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-#  nodes: ${range(N-10, N)}
-  nodes: all
+  nodes: ${range(N-10, N)}
+#  nodes: all
   weight: *w_base_xy
 
-com_height:
+base_z:
   type: Cartesian
   distal_link: base_link
   indices: [2]
