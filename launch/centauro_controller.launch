@@ -16,6 +16,7 @@
     </node>
 
     <node pkg="kyon_controller" type="centauro_receding_horizon.py" name="mpc_node" output="screen">
+        <param name="xbot" value="$(arg xbot)"/>
         <rosparam param="closed_loop">False</rosparam>
     </node>
 </launch>
