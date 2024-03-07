@@ -48,8 +48,6 @@ _flag_id(true)
 
 void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryConstPtr msg)
 {
-    ColoredTextPrinter::print("MPC message received:", ColoredTextPrinter::TextColor::Green);
-
     _mpc_solution = *msg;
 
     if (!_is_callback_done)
@@ -222,7 +220,7 @@ bool MPCJointHandler::update()
 
     if (_flag_id)
     { 
-//        _robot->setEffortReference(_tau);
+       _robot->setEffortReference(_tau);
     }
     
     _robot->move();

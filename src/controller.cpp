@@ -89,14 +89,11 @@ void Controller::init_load_model()
     try
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
-//        _imu = _robot->getImu().begin()->second;
+
+        _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
         if (!_ctrl_map.empty())
         {
             _robot->setControlMode(_ctrl_map);
-        }
-        else
-        {
-            _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
         }
 
         if(_nhpr.hasParam("torque_offset"))
@@ -132,10 +129,8 @@ void Controller::set_stiffness_damping_torque(double duration)
 {
     // initialize with the current position of the robot
     _robot->sense();
-//    _model->syncFrom(*_robot);
-//    _model->update();
 
-    // prepare to set stiffness and damping to zero
+    // prepare to set stiffness and damping to zero (and only zero)
     XBot::JointNameMap K, D;
     _robot->getStiffness(K);
     _robot->getDamping(D);
@@ -176,6 +171,42 @@ void Controller::set_stiffness_damping_torque(double duration)
     }
 }
 
+void Controller::set_stiffness_damping(double duration)
+{
+    // initialize with the current position of the robot
+    _robot->sense();
+
+    XBot::JointNameMap K, D, K_start, D_start;
+    _robot->getStiffness(K_start);
+    _robot->getDamping(D_start);
+    K = K_start;
+    D = D_start;
+
+    double T = _time + duration;
+    double dt = 1./_rate;
+
+    while (_time < T)
+    {
+        for (auto stiff : _stiffness_map)
+        {
+            K[stiff.first] = (K_start[stiff.first] + (stiff.second - K_start[stiff.first]) * _time / T);
+        }
+
+        for (auto damp : _damping_map)
+        {
+            D[damp.first] = (D_start[damp.first] + (damp.second - D_start[damp.first]) * _time / T);
+        }
+
+        _robot->setStiffness(K);
+        _robot->setDamping(D);
+        _robot->move();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(int(dt * 1000)));
+        ros::spinOnce();
+        _time += dt;
+    }
+}
+
 void Controller::init_load_publishers_and_subscribers()
 {
     _joint_state_pub = _nh.advertise<xbot_msgs::JointState>("joint_state", 10);
@@ -199,7 +230,13 @@ void Controller::run()
     if (!_init)
     {
         _init = true;
-        set_stiffness_damping_torque(0.01);
+        // set_stiffness_damping_torque(0.01);
+
+        if (!_stiffness_map.empty() || !_damping_map.empty())
+        {
+            set_stiffness_damping(1.);
+        }
+
         _robot->setControlMode(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
         if (!_ctrl_map.empty())
         {
