@@ -158,19 +158,40 @@ open/closed loop
 '''
 closed_loop = rospy.get_param(param_name='closed_loop', default=False)
 
+'''
+xbot
+'''
+xbot_param = rospy.get_param(param_name="~xbot", default=False)
+
 base_pose = None
 base_twist = None
 # est = None
 robot = None
 
-try:
+if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
+
+    if not closed_loop:
+        rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+        while base_pose is None:
+            rospy.sleep(0.01)
+
+        base_pose[0:3] = [0.07, 0., 0.8]
+        base_twist = np.zeros(6)
+    else:
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+        rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+        rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+
+        while base_pose is None or base_twist is None:
+            rospy.sleep(0.01)
 
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
-except:
+else:
     print('RobotInterface not created')
 
     q_init = {
@@ -214,19 +235,7 @@ except:
         'ankle_pitch_4': -0.3,
     }
 
-if closed_loop:
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
-
-    while base_pose is None or base_twist is None:
-        rospy.sleep(0.01)
-else:
-    rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
-    while base_pose is None:
-        rospy.sleep(0.01)
-    base_pose[0:3] = [0.07, 0., 0.8]
+    base_pose = np.array([0.07, 0., 0.8, 0., 0., 0., 1.])
     base_twist = np.zeros(6)
 
 wheels = [f'j_wheel_{i + 1}' for i in range(4)]
@@ -490,7 +499,7 @@ while not rospy.is_shutdown():
 
     pm.shift()
 
-    # jc.run()
+    jc.run()
     gait_manager_ros.run()
 
     ti.rti()
