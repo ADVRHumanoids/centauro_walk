@@ -414,6 +414,9 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
+def dont_print(*args, **kwargs):
+    pass
+ti.solver_rti.set_iteration_callback(dont_print)
 
 ti.bootstrap()
 ti.load_initial_guess()
@@ -439,7 +442,7 @@ from centauro_joy_commands import JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands()
+# jc = JoyCommands()
 gait_manager_ros = GaitManagerROS(gm)
 
 
@@ -571,4 +574,4 @@ while not rospy.is_shutdown():
     rate.sleep()
 
 
-print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
+# print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')

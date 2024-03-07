@@ -267,7 +267,7 @@ void Resampler::resample(double dt_res)
 {
     if (_time > _max_time)
     {
-        ColoredTextPrinter::print("[Resampler]: time: " + std::to_string(_time) + " - max_time exceeded ( = " + std::to_string(_max_time) + ")", ColoredTextPrinter::TextColor::Yellow);
+        // ColoredTextPrinter::print("[Resampler]: time: " + std::to_string(_time) + " - max_time exceeded ( = " + std::to_string(_max_time) + ")", ColoredTextPrinter::TextColor::Yellow);
         return;
     }
 
