@@ -7,6 +7,7 @@ from horizon.ros import replay_trajectory
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+import phase_manager.pyrosserver as pyrosserver
 
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
@@ -25,6 +26,7 @@ from scipy.spatial.transform import Rotation
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
+from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from kyon_controller.msg import WBTrajectory
 
@@ -33,6 +35,7 @@ import rospy
 import rospkg
 import numpy as np
 import subprocess
+import time
 
 import horizon.utils as utils
 
@@ -116,6 +119,7 @@ rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
 
 rospy.sleep(1.)
 
@@ -414,6 +418,7 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
+rs = pyrosserver.RosServerClass(pm)
 def dont_print(*args, **kwargs):
     pass
 ti.solver_rti.set_iteration_callback(dont_print)
@@ -483,6 +488,7 @@ while not rospy.is_shutdown():
                                                         z=solution[f'f_{frame}'][2, 0]),
                                           torque=Vector3(x=0., y=0., z=0.)))
 
+    t0 = time.time()
     wrench_pub.publish(wrench_msg)
 
     # set initial state and initial guess
@@ -501,6 +507,7 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
+    rs.run()
 
     jc.run()
     gait_manager_ros.run()
@@ -571,6 +578,7 @@ while not rospy.is_shutdown():
         repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
 
+    solution_time_publisher.publish(Float64(data=time.time() - t0))
     rate.sleep()
 
 
