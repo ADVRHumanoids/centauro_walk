@@ -8,6 +8,7 @@ from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+import phase_manager.pyrosserver as pyrosserver
 
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
@@ -399,6 +400,10 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
+rs = pyrosserver.RosServerClass(pm)
+def dont_print(*args, **kwargs):
+    pass
+ti.solver_rti.set_iteration_callback(dont_print)
 
 ti.bootstrap()
 ti.load_initial_guess()
@@ -486,7 +491,9 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
-    jc.run(solution)
+
+    jc.run()
+
     ti.rti()
     solution = ti.solution
 
