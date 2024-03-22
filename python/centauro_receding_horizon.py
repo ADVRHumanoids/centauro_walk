@@ -420,7 +420,9 @@ from centauro_joy_commands import GaitManager, JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands(gm)
+jc = JoyCommands()
+gait_manager_ros = GaitManagerROS(gm)
+
 
 def _quaternion_multiply(q1, q2):
     x1, y1, z1, w1 = q1
@@ -447,6 +449,9 @@ zmp_point = PointStamped()
 c_mean_pub = rospy.Publisher('c_mean_pub', PointStamped, queue_size=10)
 c_mean_point = PointStamped()
 
+
+new_z_traj = np.zeros(shape=[7, flight_duration])
+new_z_traj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.3, [None, 0, None]))
 
 while not rospy.is_shutdown():
     # update BaseEstimation
@@ -497,6 +502,17 @@ while not rospy.is_shutdown():
             Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
 
     solution_publisher.publish(sol_msg)
+
+
+    if gait_manager_ros.get_z_flag():
+        for timeline_name, timeline_obj in pm.getTimelines().items():
+            for phase in timeline_obj.getPhases():
+                if "flight_" in phase.getName():
+                    phase.setItemReference(ti.getTask(f'z_contact_1').getName(), new_z_traj)
+                    # phase.setItemReference(ti.getTask(f'z_contact_2').getName(), new_z_traj)
+                    # phase.setItemReference(ti.getTask(f'z_contact_3').getName(), new_z_traj)
+                    phase.setItemReference(ti.getTask(f'z_contact_4').getName(), new_z_traj)
+
 
     # replay stuff
 

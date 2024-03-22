@@ -2,14 +2,14 @@ solver:
   type: ilqr
   ipopt.linear_solver: ma57
   ipopt.tol: 0.1
-#  ilqr.merit_der_threshold: 1e-3
-#  ilqr.defect_norm_threshold: 1e-3
   ipopt.constr_viol_tol: 0.01
-  ilqr.constraint_violation_threshold: 1e-2
-#  ipopt.hessian_approximation: exact
   ipopt.print_level: 5
   ipopt.suppress_all_output: 'yes'
   ipopt.sb: 'yes'
+#  ipopt.hessian_approximation: exact
+#  ilqr.merit_der_threshold: 1e-3
+#  ilqr.defect_norm_threshold: 1e-3
+  ilqr.constraint_violation_threshold: 1e-2
   ilqr.suppress_all_output: 'yes'
   ilqr.codegen_enabled: true
   ilqr.codegen_workdir: /tmp/tyhio
