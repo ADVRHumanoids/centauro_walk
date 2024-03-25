@@ -18,6 +18,9 @@ import horizon.utils.analyzer as analyzer
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
+from sensor_msgs.msg import Imu
+from std_msgs.msg import Float64
+
 from scipy.spatial.transform import Rotation
 import colorama
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
@@ -30,8 +33,6 @@ import numpy as np
 import subprocess
 import os
 import time
-
-import horizon.utils as utils
 
 global base_pose
 global base_twist
@@ -48,6 +49,11 @@ def gt_twist_callback(msg):
     global base_twist
     base_twist = np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z,
                            msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
+
+def imu_callback(msg: Imu):
+    global base_pose
+    base_pose = np.zeros(7)
+    base_pose[3:] = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
 
 
 def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
@@ -72,7 +78,7 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
 
     # normalize the quaternion
     state_quat_conjugate = state_quat_conjugate / np.linalg.norm(x_opt[3:7, 0])
-    diff_quat = _quaternion_multiply(base_pose[3:], state_quat_conjugate)
+    diff_quat = utils.quaternion_multiply(base_pose[3:], state_quat_conjugate)
 
     if diff_quat[3] < 0:
         base_pose[3:] = -base_pose[3:]
@@ -113,6 +119,7 @@ rospy.init_node('kyon_walk_srbd')
 roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
 
 rospy.sleep(1.)
 
@@ -127,7 +134,7 @@ srdf = rospy.get_param(param_name='/robot_description_semantic', default='')
 if srdf == '':
     raise print('srdf not set')
 
-file_dir = os.getcwd()
+file_dir = rospkg.RosPack().get_path('kyon_controller')
 
 '''
 Initialize Horizon problem
@@ -152,23 +159,42 @@ cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
 
+'''
+open/closed loop
+'''
+closed_loop = rospy.get_param(param_name='closed_loop', default=False)
+
+'''
+xbot
+'''
+xbot_param = rospy.get_param(param_name="~xbot", default=False)
+
 base_pose = None
 base_twist = None
 robot = None
 
-try:
+if xbot_param:
     robot = xbot.RobotInterface(cfg)
-    rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-    while base_pose is None or base_twist is None:
-        rospy.sleep(0.01)
     robot.sense()
+
+    if not closed_loop:
+        # rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+        # while base_pose is None:
+        #     rospy.sleep(0.01)
+        base_pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        base_twist = np.zeros(6)
+    else:
+        rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+        rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+        while base_pose is None or base_twist is None:
+            rospy.sleep(0.01)
     # q_init = robot.getPositionReference()
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
-except:
+else:
     print('RobotInterface not created')
+
     q_init = {'hip_roll_1': 0.0,
               'hip_pitch_1': 0.7,
               'knee_pitch_1': -1.4,
@@ -221,9 +247,6 @@ if 'wheel_joint_1' in model.kd.joint_names():
 else:
     ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/kyon_feet_config.yaml')
 
-com_height = ti.getTask('com_height')
-com_height.setRef(np.atleast_2d(base_init).T)
-
 tg = trajectoryGenerator.TrajectoryGenerator()
 
 pm = pymanager.PhaseManager(ns)
@@ -256,65 +279,6 @@ if white_list:
 # if black_list:
 #     prb.createResidual('velocity_regularization', 0.1 * model.v[postural_joints])
 
-def zmp(model):
-    # formulation in forces
-    num = cs.SX([0, 0])
-    den = cs.SX([0])
-    pos_contact = dict()
-    force_val = dict()
-
-    q = cs.SX.sym('q', model.nq)
-    v = cs.SX.sym('v', model.nv)
-    a = cs.SX.sym('a', model.nv)
-
-    com = model.kd.centerOfMass()(q=q, v=v, a=a)['com']
-
-    n = cs.SX([0, 0, 1])
-    for c in model.fmap.keys():
-        pos_contact[c] = model.kd.fk(c)(q=q)['ee_pos']
-        force_val[c] = cs.SX.sym('force_val', 3)
-        num += (pos_contact[c][0:2] - com[0:2]) * cs.dot(force_val[c], n)
-        den += cs.dot(force_val[c], n)
-
-    zmp = com[0:2] + (num / den)
-    input_list = []
-    input_list.append(q)
-    input_list.append(v)
-    input_list.append(a)
-
-    for elem in force_val.values():
-        input_list.append(elem)
-
-    f = cs.Function('zmp', input_list, [zmp])
-
-    return f
-
-input_zmp = []
-# for c_name in model.fmap.keys():
-#     input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
-
-input_zmp.append(model.q)
-input_zmp.append(model.v)
-input_zmp.append(model.a)
-
-for f_var in model.fmap.values():
-    input_zmp.append(f_var)
-
-c_mean = cs.SX([0, 0, 0])
-for c_name, f_var in model.fmap.items():
-    fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-    c_mean += fk_c_pos
-
-c_mean /= len(model.cmap.keys())
-
-# zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 2.5
-# zmp_weight.assign(zmp_nominal_weight)
-zmp_fun = zmp(model)(*input_zmp)
-
-# if 'wheel_joint_1' in model.kd.joint_names():
-#     zmp = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
-# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
 
 short_stance_duration = 1
 stance_duration = 8
@@ -346,23 +310,15 @@ for c in model.cmap.keys():
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
     c_phases[c].registerPhase(flight_phase)
 
-# register zmp phase
-# zmp_phase = pyphase.Phase(stance_duration, 'zmp_phase')
-# zmp_phase.addCost(zmp)
-# zmp_empty_phase = pyphase.Phase(flight_duration, 'zmp_empty_phase')
-# zmp_empty_phase.addCost(zmp_empty)
-# zmp_timeline.registerPhase(zmp_phase)
-# zmp_timeline.registerPhase(zmp_empty_phase)
-
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
-# base_ori = horizon.utils.utils.toRot(model.kd.fk('base_link')(q=model.q0)['ee_rot'])
+# base_ori = horizon.utils.toRot(model.kd.fk('base_link')(q=model.q0)['ee_rot'])
 # rel_dist = base_ori.T @ (pos_lf - pos_rf)
 
-# prb.createResidual('relative_distance_lower_x', horizon.utils.utils.barrier(rel_dist[0] + 0.3))
-# prb.createResidual('relative_distance_upper_x', horizon.utils.utils.barrier1(rel_dist[0] - 0.4))
-# prb.createResidual('relative_distance_lower_y', 10 * horizon.utils.utils.barrier(rel_dist[1] - 0.2))
-# prb.createResidual('relative_distance_upper_y', horizon.utils.utils.barrier1(rel_dist[1] + 1.))
+# prb.createResidual('relative_distance_lower_x', horizon.utils.barrier(rel_dist[0] + 0.3))
+# prb.createResidual('relative_distance_upper_x', horizon.utils.barrier1(rel_dist[0] - 0.4))
+# prb.createResidual('relative_distance_lower_y', 10 * horizon.utils.barrier(rel_dist[1] - 0.2))
+# prb.createResidual('relative_distance_upper_y', horizon.utils.barrier1(rel_dist[1] + 1.))
 
 # for f_name, f in model.fmap.items():
 #     f_prev = f.getVarOffset(-1)
@@ -398,8 +354,8 @@ for cname, cforces in ti.model.cmap.items():
         c.setInitialGuess(f0)
 
 vel_lims = model.kd.velocityLimits()
-prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
-prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
+prb.createResidual('max_vel', 1e1 * utils.barrier(vel_lims[7:] - model.v[7:]))
+prb.createResidual('min_vel', 1e1 * utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
@@ -446,15 +402,6 @@ else:
 # fig, ax = plt.subplots()
 # line, = ax.plot(range(prb.getNNodes() - 1), ti.solver_bs.getConstraintsValues()['dynamics'][0, :])  # Plot initial data
 # ax.set_ylim(-2., 2.)  # Set your desired limits here
-
-def _quaternion_multiply(q1, q2):
-    x1, y1, z1, w1 = q1
-    x2, y2, z2, w2 = q2
-    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
-    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
-    y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
-    z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
-    return np.array([x, y, z, w])
 
 robot_joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
 
@@ -544,8 +491,6 @@ while not rospy.is_shutdown():
     time_elapsed_all_list.append(time_elapsed_all)
 
     rate.sleep()
-
-
 
     # print(f"{colorama.Style.RED}MPC loop elapsed time: {time.time() - tic}{colorama.Style.RESET}")
 
