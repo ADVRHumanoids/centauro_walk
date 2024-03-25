@@ -1,8 +1,14 @@
 control_mode:
-    j_wheel_1: 2
-    j_wheel_2: 2
-    j_wheel_3: 2
-    j_wheel_4: 2
+    j_wheel_1: 0 
+    j_wheel_2: 0 
+    j_wheel_3: 0 
+    j_wheel_4: 0 
+    ankle_yaw_1: 0
+    ankle_yaw_2: 0
+    ankle_yaw_3: 0
+    ankle_yaw_4: 0
+    d435_head_joint: 0
+    velodyne_joint: 0
 
 fixed_joints:
     j_wheel_1: 0.0
@@ -32,79 +38,79 @@ fixed_joints:
 define:
     - &low_stiff 200.
     - &low_damp 10.
-    - &high_stiff 1000.
-    - &high_damp 20.
+    - &high_stiff 2000.
+    - &high_damp 100.
 
-#stiffness:
-#    ankle_pitch_1: *low_stiff
-#    ankle_pitch_2: *low_stiff
-#    ankle_pitch_3: *low_stiff
-#    ankle_pitch_4: *low_stiff
-#    ankle_yaw_1: *low_stiff
-#    ankle_yaw_2: *low_stiff
-#    ankle_yaw_3: *low_stiff
-#    ankle_yaw_4: *low_stiff
-##    d435_head_joint: *low_stiff
-#    hip_pitch_1: *low_stiff
-#    hip_pitch_2: *low_stiff
-#    hip_pitch_3: *low_stiff
-#    hip_pitch_4: *low_stiff
-#    hip_yaw_1: *high_stiff
-#    hip_yaw_2: *high_stiff
-#    hip_yaw_3: *high_stiff
-#    hip_yaw_4: *high_stiff
-##    j_arm1_1: *low_stiff
-##    j_arm1_2: *low_stiff
-##    j_arm1_3: *low_stiff
-##    j_arm1_4: *low_stiff
-##    j_arm1_5: *low_stiff
-##    j_arm1_6: *low_stiff
-##    j_arm2_1: *low_stiff
-##    j_arm2_2: *low_stiff
-##    j_arm2_3: *low_stiff
-##    j_arm2_4: *low_stiff
-##    j_arm2_5: *low_stiff
-##    j_arm2_6: *low_stiff
-#    knee_pitch_1: *low_stiff
-#    knee_pitch_2: *low_stiff
-#    knee_pitch_3: *low_stiff
-#    knee_pitch_4: *low_stiff
-##    torso_yaw: *low_stiff
+stiffness:
+   ankle_pitch_1: *high_stiff
+   ankle_pitch_2: *high_stiff
+   ankle_pitch_3: *high_stiff
+   ankle_pitch_4: *high_stiff
+#    ankle_yaw_1: *high_stiff
+#    ankle_yaw_2: *high_stiff
+#    ankle_yaw_3: *high_stiff
+#    ankle_yaw_4: *high_stiff
+#    d435_head_joint: *low_stiff
+   hip_pitch_1: *high_stiff
+   hip_pitch_2: *high_stiff
+   hip_pitch_3: *high_stiff
+   hip_pitch_4: *high_stiff
+   hip_yaw_1: *high_stiff
+   hip_yaw_2: *high_stiff
+   hip_yaw_3: *high_stiff
+   hip_yaw_4: *high_stiff
+#    j_arm1_1: *low_stiff
+#    j_arm1_2: *low_stiff
+#    j_arm1_3: *low_stiff
+#    j_arm1_4: *low_stiff
+#    j_arm1_5: *low_stiff
+#    j_arm1_6: *low_stiff
+#    j_arm2_1: *low_stiff
+#    j_arm2_2: *low_stiff
+#    j_arm2_3: *low_stiff
+#    j_arm2_4: *low_stiff
+#    j_arm2_5: *low_stiff
+#    j_arm2_6: *low_stiff
+   knee_pitch_1: *high_stiff
+   knee_pitch_2: *high_stiff
+   knee_pitch_3: *high_stiff
+   knee_pitch_4: *high_stiff
+#    torso_yaw: *low_stiff
 
 
-#damping:
-#    ankle_pitch_1: *low_damp
-#    ankle_pitch_2: *low_damp
-#    ankle_pitch_3: *low_damp
-#    ankle_pitch_4: *low_damp
-#    ankle_yaw_2: *low_damp
-#    ankle_yaw_3: *low_damp
-#    ankle_yaw_4: *low_damp
-#    ankle_yaw_1: *low_damp
-##    d435_head_joint: *low_damp
-#    hip_pitch_1: *low_damp
-#    hip_pitch_2: *low_damp
-#    hip_pitch_3: *low_damp
-#    hip_pitch_4: *low_damp
-#    hip_yaw_1: *high_damp
-#    hip_yaw_2: *high_damp
-#    hip_yaw_3: *high_damp
-#    hip_yaw_4: *high_damp
-##    j_arm1_1: *low_damp
-##    j_arm1_2: *low_damp
-##    j_arm1_3: *low_damp
-##    j_arm1_4: *low_damp
-##    j_arm1_5: *low_damp
-##    j_arm1_6: *low_damp
-##    j_arm2_1: *low_damp
-##    j_arm2_2: *low_damp
-##    j_arm2_3: *low_damp
-##    j_arm2_4: *low_damp
-##    j_arm2_5: *low_damp
-##    j_arm2_6: *low_damp
-#    knee_pitch_1: *low_damp
-#    knee_pitch_2: *low_damp
-#    knee_pitch_3: *low_damp
-#    knee_pitch_4: *low_damp
-##    torso_yaw: *low_damp
+damping:
+   ankle_pitch_1: *high_damp
+   ankle_pitch_2: *high_damp
+   ankle_pitch_3: *high_damp
+   ankle_pitch_4: *high_damp
+#    ankle_yaw_2: *high_damp
+#    ankle_yaw_3: *high_damp
+#    ankle_yaw_4: *high_damp
+#    ankle_yaw_1: *high_damp
+#    d435_head_joint: *low_damp
+   hip_pitch_1: *high_damp
+   hip_pitch_2: *high_damp
+   hip_pitch_3: *high_damp
+   hip_pitch_4: *high_damp
+   hip_yaw_1: *high_damp
+   hip_yaw_2: *high_damp
+   hip_yaw_3: *high_damp
+   hip_yaw_4: *high_damp
+#    j_arm1_1: *low_damp
+#    j_arm1_2: *low_damp
+#    j_arm1_3: *low_damp
+#    j_arm1_4: *low_damp
+#    j_arm1_5: *low_damp
+#    j_arm1_6: *low_damp
+#    j_arm2_1: *low_damp
+#    j_arm2_2: *low_damp
+#    j_arm2_3: *low_damp
+#    j_arm2_4: *low_damp
+#    j_arm2_5: *low_damp
+#    j_arm2_6: *low_damp
+   knee_pitch_1: *high_damp
+   knee_pitch_2: *high_damp
+   knee_pitch_3: *high_damp
+   knee_pitch_4: *high_damp
+#    torso_yaw: *low_damp
 

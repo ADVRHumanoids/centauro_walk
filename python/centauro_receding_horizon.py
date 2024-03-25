@@ -4,7 +4,6 @@ from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
 from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, analyzer
 from horizon.ros import replay_trajectory
-from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
@@ -18,15 +17,16 @@ import cartesian_interface.pyci as pyci
 import cartesian_interface.affine3
 import horizon.utils.analyzer as analyzer
 
-from base_estimation import pybase_estimation
 from base_estimation.msg import ContactWrenches
 from geometry_msgs.msg import Wrench
+from sensor_msgs.msg import Imu
 
 from scipy.spatial.transform import Rotation
 
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
+from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from kyon_controller.msg import WBTrajectory
 
@@ -35,7 +35,7 @@ import rospy
 import rospkg
 import numpy as np
 import subprocess
-import yaml
+import time
 
 import horizon.utils as utils
 
@@ -53,6 +53,11 @@ def gt_twist_callback(msg):
     global base_twist
     base_twist = np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z,
                            msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z])
+
+def imu_callback(msg: Imu):
+    global base_pose
+    base_pose = np.zeros(7)
+    base_pose[3:] = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
 
 def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
     robot.sense()
@@ -114,6 +119,7 @@ rospy.init_node('kyon_walk_srbd')
 # roscpp.init('kyon_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
 
 rospy.sleep(1.)
 
@@ -156,19 +162,40 @@ open/closed loop
 '''
 closed_loop = rospy.get_param(param_name='closed_loop', default=False)
 
+'''
+xbot
+'''
+xbot_param = rospy.get_param(param_name="~xbot", default=False)
+
 base_pose = None
 base_twist = None
 # est = None
 robot = None
 
-try:
+if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
+
+    if not closed_loop:
+        rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+        while base_pose is None:
+            rospy.sleep(0.01)
+
+        base_pose[0:3] = [0.07, 0., 0.8]
+        base_twist = np.zeros(6)
+    else:
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+        rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+        rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+
+        while base_pose is None or base_twist is None:
+            rospy.sleep(0.01)
 
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
 
-except:
+else:
     print('RobotInterface not created')
 
     q_init = {
@@ -212,16 +239,7 @@ except:
         'ankle_pitch_4': -0.3,
     }
 
-if closed_loop:
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
-
-    while base_pose is None or base_twist is None:
-        rospy.sleep(0.01)
-else:
-    base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
+    base_pose = np.array([0.07, 0., 0.8, 0., 0., 0., 1.])
     base_twist = np.zeros(6)
 
 wheels = [f'j_wheel_{i + 1}' for i in range(4)]
@@ -425,7 +443,7 @@ time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from centauro_joy_commands import GaitManager, JoyCommands
+from centauro_joy_commands import JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
@@ -473,6 +491,7 @@ while not rospy.is_shutdown():
                                                         z=solution[f'f_{frame}'][2, 0]),
                                           torque=Vector3(x=0., y=0., z=0.)))
 
+    t0 = time.time()
     wrench_pub.publish(wrench_msg)
 
     # set initial state and initial guess
@@ -492,7 +511,10 @@ while not rospy.is_shutdown():
 
     pm.shift()
 
+
+    rs.run()
     jc.run()
+    gait_manager_ros.run()
 
     ti.rti()
     solution = ti.solution
@@ -571,7 +593,10 @@ while not rospy.is_shutdown():
         repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
 
+    solution_time_publisher.publish(Float64(data=time.time() - t0))
     rate.sleep()
 
+
 # roscpp.shutdown()
-print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
+# print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
+

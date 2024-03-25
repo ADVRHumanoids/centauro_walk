@@ -54,7 +54,6 @@ roscpp.init('kyon_walk_srbd', [])
 Load urdf and srdf
 '''
 
-
 urdf_urdf_folder = rospkg.RosPack().get_path('kyon_urdf')
 srdf_srdf_folder = rospkg.RosPack().get_path('kyon_srdf')
 urdf = open(urdf_urdf_folder + '/urdf/kyon.urdf', 'r').read()

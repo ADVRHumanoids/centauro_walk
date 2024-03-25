@@ -24,6 +24,7 @@ private:
     void init_load_model();
     void init_load_publishers_and_subscribers();
 
+    void set_stiffness_damping(double duration);
     void set_stiffness_damping_torque(double duration);
 
     // Callbacks
