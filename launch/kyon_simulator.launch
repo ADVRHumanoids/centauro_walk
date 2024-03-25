@@ -9,5 +9,5 @@
     <include file="$(find kyon_gazebo)/launch/kyon_world.launch" pass_all_args="true"/>
 
     <node pkg="kyon_controller" type="xbot2_core" name="xbot2" output="screen"
-        args="--hw sim --simtime --config $(arg xbot2_config)"/>
+        args="--hw sim --simtime --config $(arg xbot2_config) --"/>
 </launch>
