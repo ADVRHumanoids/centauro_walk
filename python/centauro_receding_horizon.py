@@ -447,7 +447,7 @@ from centauro_joy_commands import JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-# jc = JoyCommands()
+jc = JoyCommands()
 gait_manager_ros = GaitManagerROS(gm)
 
 

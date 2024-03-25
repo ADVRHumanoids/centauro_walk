@@ -9,7 +9,8 @@ MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
                                  int rate,
                                  YAML::Node config,
-                                 XBot::RobotInterface::Ptr robot):
+                                 XBot::RobotInterface::Ptr robot,
+                                 std::map<std::string, double> fixed_joints_map):
 MPCHandler(nh),
 _model(model),
 _robot(robot),
@@ -17,6 +18,8 @@ _rate(rate),
 _flag_id(true)
 {
     init_publishers_and_subscribers();
+
+    _fixed_joints_map = fixed_joints_map;
 
     _model->getJointPosition(_q);
     _model->getJointVelocity(_qdot);
@@ -157,8 +160,8 @@ bool MPCJointHandler::update()
     // create variables:
     // reduced to account for fixed joints,
     // smooth and current_robot to filter the MPC reference
-    Eigen::VectorXd q_reduced(_robot->getJointNum() - _fixed_joints.size()), qdot_reduced(_robot->getJointNum() - _fixed_joints.size());
-    Eigen::VectorXd q_smooth(_robot->getJointNum() - _fixed_joints.size()), qdot_smooth(_robot->getJointNum() - _fixed_joints.size());
+    Eigen::VectorXd q_reduced(_robot->getJointNum() - _fixed_joints_map.size()), qdot_reduced(_robot->getJointNum() - _fixed_joints_map.size());
+    Eigen::VectorXd q_smooth(_robot->getJointNum() - _fixed_joints_map.size()), qdot_smooth(_robot->getJointNum() - _fixed_joints_map.size());
     XBot::JointNameMap q_current_robot, qdot_current_robot;
 
     // get current state from robot for smoothing
@@ -166,15 +169,15 @@ bool MPCJointHandler::update()
     _robot->getVelocityReference(qdot_current_robot);
 
     // if fixed joints, remove them from the state
-    for (auto name : _fixed_joints)
+    for (auto pair : _fixed_joints_map)
     {
-        auto q_it = q_current_robot.find(name);
+        auto q_it = q_current_robot.find(pair.first);
         if (q_it != q_current_robot.end())
         {
             q_current_robot.erase(q_it);
         }
 
-        auto qdot_it = qdot_current_robot.find(name);
+        auto qdot_it = qdot_current_robot.find(pair.first);
         if (qdot_it != qdot_current_robot.end())
         {
             qdot_current_robot.erase(qdot_it);

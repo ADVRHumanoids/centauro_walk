@@ -1,16 +1,5 @@
 horizon_duration: 2.
 n_nodes: 40
-control_mode:
-    j_wheel_1: 0 
-    j_wheel_2: 0 
-    j_wheel_3: 0 
-    j_wheel_4: 0 
-    ankle_yaw_1: 0
-    ankle_yaw_2: 0
-    ankle_yaw_3: 0
-    ankle_yaw_4: 0
-    d435_head_joint: 0
-    velodyne_joint: 0
 
 fixed_joints:
     j_wheel_1: 0.0
