@@ -20,13 +20,13 @@ import horizon.utils.analyzer as analyzer
 from base_estimation.msg import ContactWrenches
 from geometry_msgs.msg import Wrench
 from sensor_msgs.msg import Imu
+from std_msgs.msg import Float64
 
 from scipy.spatial.transform import Rotation
 
 from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
-from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from kyon_controller.msg import WBTrajectory
 
@@ -36,8 +36,6 @@ import rospkg
 import numpy as np
 import subprocess
 import time
-
-import horizon.utils as utils
 
 global base_pose
 global base_twist
@@ -81,7 +79,7 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
 
     # normalize the quaternion
     state_quat_conjugate = state_quat_conjugate / np.linalg.norm(x_opt[3:7, 0])
-    diff_quat = _quaternion_multiply(base_pose[3:], state_quat_conjugate)
+    diff_quat = utils.quaternion_multiply(base_pose[3:], state_quat_conjugate)
 
     if diff_quat[3] < 0:
         base_pose[3:] = -base_pose[3:]
@@ -115,8 +113,8 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     qdot = np.hstack([ee_rel, qdot_robot])
     model.v.setBounds(qdot, qdot, nodes=0)
 
-rospy.init_node('kyon_walk_srbd')
-roscpp.init('kyon_walk_srbd', [])
+rospy.init_node('centauro_walk_srbd')
+roscpp.init('centauro_walk_srbd', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
@@ -291,67 +289,6 @@ for c in model.cmap.keys():
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
 
-def zmp(model):
-    # formulation in forces
-    num = cs.SX([0, 0])
-    den = cs.SX([0])
-    pos_contact = dict()
-    force_val = dict()
-
-    q = cs.SX.sym('q', model.nq)
-    v = cs.SX.sym('v', model.nv)
-    a = cs.SX.sym('a', model.nv)
-
-    com = model.kd.centerOfMass()(q=q, v=v, a=a)['com']
-
-    n = cs.SX([0, 0, 1])
-    for c in model.fmap.keys():
-        pos_contact[c] = model.kd.fk(c)(q=q)['ee_pos']
-        force_val[c] = cs.SX.sym('force_val', 3)
-        num += (pos_contact[c][0:2] - com[0:2]) * cs.dot(force_val[c], n)
-        den += cs.dot(force_val[c], n)
-
-    zmp = com[0:2] + (num / den)
-    input_list = []
-    input_list.append(q)
-    input_list.append(v)
-    input_list.append(a)
-
-    for elem in force_val.values():
-        input_list.append(elem)
-
-    f = cs.Function('zmp', input_list, [zmp])
-
-    return f
-
-input_zmp = []
-# for c_name in model.fmap.keys():
-#     input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
-
-input_zmp.append(model.q)
-input_zmp.append(model.v)
-input_zmp.append(model.a)
-
-for f_var in model.fmap.values():
-    input_zmp.append(f_var)
-
-c_mean = cs.SX([0, 0, 0])
-f_tot = cs.SX([0., 0., 0.])
-for c_name, f_var in model.fmap.items():
-    fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-    c_mean += fk_c_pos * f_var[2]
-    f_tot += f_var[2]
-
-c_mean /= f_tot
-
-# zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 100.
-# zmp_weight.assign(zmp_nominal_weight)
-zmp_fun = zmp(model)(*input_zmp)
-
-zmp_residual = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
-# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
-
 short_stance_duration = 5
 stance_duration = 15
 flight_duration = 15
@@ -412,8 +349,8 @@ for cname, cforces in ti.model.cmap.items():
         c.setInitialGuess(f0)
 
 vel_lims = model.kd.velocityLimits()
-prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
-prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
+prb.createResidual('max_vel', 1e1 * utils.barrier(vel_lims[7:] - model.v[7:]))
+prb.createResidual('min_vel', 1e1 * utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
@@ -449,16 +386,6 @@ gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands()
 gait_manager_ros = GaitManagerROS(gm)
-
-
-def _quaternion_multiply(q1, q2):
-    x1, y1, z1, w1 = q1
-    x2, y2, z2, w2 = q2
-    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
-    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
-    y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
-    z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
-    return np.array([x, y, z, w])
 
 robot_joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
 

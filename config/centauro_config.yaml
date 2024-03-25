@@ -34,7 +34,7 @@ costs:
   - base_orientation
   - joint_regularization
   - joint_posture
-#  - zmp
+  - zmp
 #  - joint_posture_ub
 
 .define:
