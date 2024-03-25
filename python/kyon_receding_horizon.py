@@ -162,7 +162,7 @@ cfg.set_bool_parameter('is_model_floating_base', True)
 '''
 open/closed loop
 '''
-closed_loop = rospy.get_param(param_name='closed_loop', default=False)
+closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
 
 '''
 xbot
@@ -177,7 +177,11 @@ if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
 
-    # if not closed_loop:
+    if closed_loop:
+        print('controller running in CLOSED LOOP')
+    else:
+        print('controller running in OPEN LOOP')
+
         # rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
         # while base_pose is None:
         #     rospy.sleep(0.01)
@@ -424,7 +428,7 @@ while not rospy.is_shutdown():
     prb.setInitialState(x0=xig[:, 0])
 
     # closed loop
-    if robot is not None:
+    if closed_loop:
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
         # print("base_pose: ", base_pose)

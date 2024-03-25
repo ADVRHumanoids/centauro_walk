@@ -13,6 +13,6 @@
 
     <node pkg="kyon_controller" type="kyon_receding_horizon.py" name="mpc_node" output="screen">
         <param name="xbot" value="$(arg xbot)"/>
-        <rosparam param="closed_loop">False</rosparam>
+        <rosparam param="closed_loop">True</rosparam>
     </node>
 </launch>

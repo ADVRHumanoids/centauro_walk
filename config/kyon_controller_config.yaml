@@ -12,22 +12,26 @@ define:
 #    - &low_damp 0.
     - &low_stiff 50.
     - &low_damp 5.
+    - &medium_stiff 1000.
+    - &medium_damp 50.
     - &high_stiff 2000.
     - &high_damp 100.
+    - &stiff 50.
+    - &damp 5.
 
 stiffness:
-    hip_roll_1: *low_stiff
-    hip_pitch_1: *low_stiff
-    knee_pitch_1: *low_stiff
-    hip_roll_2: *low_stiff
-    hip_pitch_2: *low_stiff
-    knee_pitch_2: *low_stiff
-    hip_roll_3: *low_stiff
-    hip_pitch_3: *low_stiff
-    knee_pitch_3: *low_stiff
-    hip_roll_4: *low_stiff
-    hip_pitch_4: *low_stiff
-    knee_pitch_4: *low_stiff
+    hip_roll_1: *stiff
+    hip_pitch_1: *stiff
+    knee_pitch_1: *stiff
+    hip_roll_2: *stiff
+    hip_pitch_2: *stiff
+    knee_pitch_2: *stiff
+    hip_roll_3: *stiff
+    hip_pitch_3: *stiff
+    knee_pitch_3: *stiff
+    hip_roll_4: *stiff
+    hip_pitch_4: *stiff
+    knee_pitch_4: *stiff
 #    shoulder_yaw_1: 100
 #    shoulder_pitch_1: 100
 #    elbow_pitch_1: 100
@@ -72,18 +76,18 @@ stiffness:
 #    wheel_joint_4: 0
 
 damping:
-    hip_roll_1: *low_damp
-    hip_pitch_1: *low_damp
-    knee_pitch_1: *low_damp
-    hip_roll_2: *low_damp
-    hip_pitch_2: *low_damp
-    knee_pitch_2: *low_damp
-    hip_roll_3: *low_damp
-    hip_pitch_3: *low_damp
-    knee_pitch_3: *low_damp
-    hip_roll_4: *low_damp
-    hip_pitch_4: *low_damp
-    knee_pitch_4: *low_damp
+    hip_roll_1: *damp
+    hip_pitch_1: *damp
+    knee_pitch_1: *damp
+    hip_roll_2: *damp
+    hip_pitch_2: *damp
+    knee_pitch_2: *damp
+    hip_roll_3: *damp
+    hip_pitch_3: *damp
+    knee_pitch_3: *damp
+    hip_roll_4: *damp
+    hip_pitch_4: *damp
+    knee_pitch_4: *damp
 #    shoulder_yaw_1: 5
 #    shoulder_pitch: 5
 #    elbow_pitch_1: 5
