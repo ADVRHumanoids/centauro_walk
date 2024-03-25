@@ -26,23 +26,26 @@ _flag_id(true)
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
 
 
-    if (config["fixed_joints"])
+    // get horizon duration and n_nodes from YAML file for the Resampler
+    if (config["horizon_duration"])
     {
-        _fixed_joints_map  = config["fixed_joints"].as<std::map<std::string, double>>();
-
-        for (auto pair : _fixed_joints_map) {
-            _fixed_joints.push_back(pair.first);
-        }
-
-        ColoredTextPrinter::print("Fixing joints: ", ColoredTextPrinter::TextColor::Green);
-        for (auto elem : _fixed_joints_map)
-        {
-            ColoredTextPrinter::print(elem.first + ": " + std::to_string(elem.second), ColoredTextPrinter::TextColor::Green);
-        }
+        _horizon_duration = config["horizon_duration"].as<double>();
+    }
+    else
+    {
+        throw std::runtime_error("Missing required parameter 'horizon_duration'!");
     }
 
-    _resampler = std::make_unique<Resampler>(urdf_model, _fixed_joints_map);
+    if (config["n_nodes"])
+    {
+        _n_nodes = config["n_nodes"].as<int>();
+    }
+    else
+    {
+        throw std::runtime_error("Missing required parameter 'n_nodes'!");
+    }
 
+    _resampler = std::make_unique<Resampler>(_horizon_duration, _n_nodes, urdf_model, _fixed_joints_map);
     _resampler_pub = _nh.advertise<sensor_msgs::JointState>("/resampler_solution_position", 1, true);
 }
 

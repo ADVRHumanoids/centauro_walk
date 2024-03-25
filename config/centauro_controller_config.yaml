@@ -1,3 +1,5 @@
+horizon_duration: 2.
+n_nodes: 40
 control_mode:
     j_wheel_1: 0 
     j_wheel_2: 0 

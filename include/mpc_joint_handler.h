@@ -48,6 +48,9 @@ private:
         }
     }
 
+    double _horizon_duration;
+    int _n_nodes;
+
     ros::Publisher _resampler_pub;
     sensor_msgs::JointState msg_pub;
 

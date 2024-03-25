@@ -31,6 +31,8 @@ private:
 //    void gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg);
 //    void gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg);
 
+    double _horizon_duration;
+    int _n_nodes;
     ros::NodeHandle _nh, _nhpr;
 //    ros::Subscriber _gt_pose_sub, _gt_twist_sub;
     ros::Publisher _joint_state_pub;

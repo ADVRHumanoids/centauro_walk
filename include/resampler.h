@@ -16,7 +16,9 @@ class Resampler {
 public:
     typedef std::unique_ptr<Resampler> UniquePtr;
 
-    Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
+    Resampler(double horizon_duration,
+              int n_nodes,
+              urdf::ModelInterfaceSharedPtr urdf_model,
               std::map<std::string, double> fixed_joints,
               std::vector<std::string> frames = {},
               int sys_order = 2);
@@ -53,6 +55,9 @@ private:
     void id();
 
     void guard_function();
+
+    double _horizon_duration;
+    int _n_nodes;
 
     int _sys_order;
 

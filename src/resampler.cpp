@@ -3,11 +3,15 @@
 #include <chrono>
 #include <thread>
 
-Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
+Resampler::Resampler(double horizon_duration,
+                     int n_nodes,
+                     urdf::ModelInterfaceSharedPtr urdf_model,
                      std::map<std::string, double> fixed_joints,
                      std::vector<std::string> frames,
                      int sys_order
                      ):
+_horizon_duration(horizon_duration),
+_n_nodes(n_nodes),
 _urdf(urdf_model),
 _frames(frames),
 _sys_order(sys_order),
@@ -65,7 +69,7 @@ _warning_printed(false)
         resize();
     }
 
-    _max_time = 2. / 40.;
+    _max_time = _horizon_duration / _n_nodes;
 }
 
 void Resampler::resize()
