@@ -177,17 +177,18 @@ if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
 
-    if not closed_loop:
+    # if not closed_loop:
         # rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
         # while base_pose is None:
         #     rospy.sleep(0.01)
-        base_pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-        base_twist = np.zeros(6)
-    else:
-        rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-        rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-        while base_pose is None or base_twist is None:
-            rospy.sleep(0.01)
+        # base_pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        # base_twist = np.zeros(6)
+    # else:
+    rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+    
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
     # q_init = robot.getPositionReference()
     q_init = robot.getJointPosition()
     q_init = robot.eigenToMap(q_init)
