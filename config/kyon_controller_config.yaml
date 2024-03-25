@@ -1,3 +1,6 @@
+horizon_duration: 1.5
+n_nodes: 30
+
 control_mode:
     wheel_joint_1: 26
     wheel_joint_2: 26

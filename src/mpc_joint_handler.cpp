@@ -33,6 +33,7 @@ _flag_id(true)
     if (config["horizon_duration"])
     {
         _horizon_duration = config["horizon_duration"].as<double>();
+        ColoredTextPrinter::print("Setting horizon duration to controller: " + std::to_string(_horizon_duration), ColoredTextPrinter::TextColor::Green);
     }
     else
     {
@@ -42,6 +43,7 @@ _flag_id(true)
     if (config["n_nodes"])
     {
         _n_nodes = config["n_nodes"].as<int>();
+        ColoredTextPrinter::print("Setting number of nodes to controller: " + std::to_string(_n_nodes), ColoredTextPrinter::TextColor::Green);
     }
     else
     {

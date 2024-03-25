@@ -110,56 +110,14 @@ void Controller::init_load_model()
         _robot->sense();
 
         // set all joint modes to pos impedance + effort
-        for (auto elem : _robot->getEnabledJointNames())
-        {
-            _init_ctrl_map[elem] = XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort();
-        }
-
-        if (!_ctrl_map.empty())
-        {
-            // overwrite with entries in _ctrl_map (custom from the user)
-            for (const auto& pair : _ctrl_map)
-            {
-                    _init_ctrl_map[pair.first] = pair.second;
-            }
-        }
-
-        if (!_zero_ctrl_map.empty())
-        {
-            // overwrite with entries in _ctrl_map (custom from the user)
-            for (const auto& pair : _zero_ctrl_map)
-            {
-                    _init_ctrl_map[pair.first] = pair.second;
-            }
-        }
+        set_control_mode_map(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
 
         // set initial control mode
         _robot->setControlMode(_init_ctrl_map);
 
-
         // prepare control map as pos + vel + effort
-        for (auto [name, _] : _init_ctrl_map)
-        {
-            _init_ctrl_map[name] = XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort();
-        }
+        set_control_mode_map(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
 
-        if (!_ctrl_map.empty())
-        {
-            // overwrite with entries in _ctrl_map (custom from the user)
-            for (const auto& pair : _ctrl_map)
-            {
-                    _init_ctrl_map[pair.first] = pair.second;
-            }
-        }
-
-        if (!_zero_ctrl_map.empty())
-        {
-            // overwrite with entries in _ctrl_map (custom from the user)
-            for (const auto& pair : _zero_ctrl_map)
-            {
-                    _init_ctrl_map[pair.first] = pair.second;
-            }
-        }
 
         if(_nhpr.hasParam("torque_offset"))
         {
@@ -234,6 +192,34 @@ void Controller::set_stiffness_damping_torque(double duration)
         ros::spinOnce();
         _time += dt;
     }
+}
+
+void Controller::set_control_mode_map(XBot::ControlMode cm)
+{
+
+    for (auto elem : _robot->getEnabledJointNames())
+    {
+        _init_ctrl_map[elem] = cm;
+    }
+
+    if (!_ctrl_map.empty())
+    {
+        // overwrite with entries in _ctrl_map (custom from the user)
+        for (const auto& pair : _ctrl_map)
+        {
+                _init_ctrl_map[pair.first] = pair.second;
+        }
+    }
+
+    if (!_zero_ctrl_map.empty())
+    {
+        // overwrite with entries in _ctrl_map (custom from the user)
+        for (const auto& pair : _zero_ctrl_map)
+        {
+                _init_ctrl_map[pair.first] = pair.second;
+        }
+    }
+
 }
 
 void Controller::set_stiffness_damping(double duration)

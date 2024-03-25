@@ -27,6 +27,8 @@ private:
     void set_stiffness_damping(double duration);
     void set_stiffness_damping_torque(double duration);
 
+    void set_control_mode_map(XBot::ControlMode mode);
+
     // Callbacks
 //    void gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg);
 //    void gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg);
