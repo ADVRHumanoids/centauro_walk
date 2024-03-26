@@ -158,9 +158,14 @@ cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
 
 '''
+joystick interface
+'''
+joystick_flag = rospy.get_param(param_name='~joy', default=False)
+
+'''
 open/closed loop
 '''
-closed_loop = rospy.get_param(param_name='closed_loop', default=False)
+closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
 
 '''
 xbot
@@ -383,7 +388,10 @@ time_elapsed_all_list = list()
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands()
+if joystick_flag:
+    from joy_commands import JoyCommands
+    jc = JoyCommands()
+
 gait_manager_ros = GaitManagerROS(gm)
 
 robot_joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
@@ -437,8 +445,10 @@ while not rospy.is_shutdown():
     # publishes to ros phase manager info
     rs.run()
 
-    # receive msgs from joystick and publishes to ROS topic
-    jc.run()
+    if joystick_flag:
+        # receive msgs from joystick and publishes to ROS topic
+        jc.run()
+
     # receive msgs from ros topic and send commands to robot
     gait_manager_ros.run()
 

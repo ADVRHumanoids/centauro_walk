@@ -1,6 +1,7 @@
 <launch>
 
     <arg name="xbot" default="false" />
+    <arg name="joy" default="false" />
 
     <remap if="$(arg xbot)" from="/robot_description" to="/xbotcore/robot_description"/>
     <remap if="$(arg xbot)" from="/robot_description_semantic" to="/xbotcore/robot_description_semantic"/>
@@ -10,12 +11,13 @@
         <param name="rate" value="700"/>
     </node>
 
-    <node pkg="joy" type="joy_node" name="joy_node">
+    <node pkg="joy" type="joy_node" name="joy_node" if="$(arg joy)">
         <param name="autorepeat_rate" value="20"/>
     </node>
 
     <node pkg="kyon_controller" type="centauro_receding_horizon.py" name="mpc_node" output="screen">
         <param name="xbot" value="$(arg xbot)"/>
+        <param name="joy" value="$(arg joy)"/>
         <rosparam param="closed_loop">False</rosparam>
     </node>
 </launch>

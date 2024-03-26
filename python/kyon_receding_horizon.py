@@ -16,8 +16,6 @@ import phase_manager.pyrosserver as pyrosserver
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
 
-from joy_commands import JoyCommands
-
 import cartesian_interface.roscpp_utils as roscpp
 import horizon.utils.analyzer as analyzer
 
@@ -164,6 +162,11 @@ cfg.generate_jidmap()
 cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
+
+'''
+joystick interface
+'''
+joystick_flag = rospy.get_param(param_name='~joy', default=False)
 
 '''
 open/closed loop
@@ -392,7 +395,9 @@ time_elapsed_all_list = list()
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands()
+if joystick_flag:
+    from joy_commands import JoyCommands
+    jc = JoyCommands()
 
 # remap names from kyon_feet_config to standard names for gait manager
 gm_opts = dict()
@@ -441,8 +446,10 @@ while not rospy.is_shutdown():
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
-    # receive msgs from joystick and publishes to ROS topic
-    jc.run()
+    if joystick_flag:
+        # receive msgs from joystick and publishes to ROS topic
+        jc.run()
+
     # receive msgs from ros topic and send commands to robot
     gait_manager_ros.run()
 
