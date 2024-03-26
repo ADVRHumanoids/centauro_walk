@@ -11,7 +11,13 @@ import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 from matlogger2 import matlogger
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
-from sensor_msgs.msg import Joy
+import phase_manager.pyrosserver as pyrosserver
+
+from horizon.rhc.gait_manager import GaitManager
+from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
+
+from joy_commands import JoyCommands
+
 import cartesian_interface.roscpp_utils as roscpp
 import horizon.utils.analyzer as analyzer
 
@@ -378,23 +384,20 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            trajectory_markers=contact_list_repl)
                                            # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
 
-global joy_msg
-
 xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from kyon_joy_commands import GaitManager, JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-jc = JoyCommands(gm)
+jc = JoyCommands()
 
-if 'wheel_joint_1' in model.kd.joint_names():
-    jc.setBaseOriWeight(0.1)
-else:
-    jc.setBasePosWeight(0.5)
+# remap names from kyon_feet_config to standard names for gait manager
+gm_opts = dict()
+gm_opts['task_name'] = dict(base_pose_xy='final_base_xy', base_pose_z='com_height')
+gait_manager_ros = GaitManagerROS(gm, gm_opts)
 
 # if 'wheel_joint_1' in model.kd.joint_names():
 #     from geometry_msgs.msg import PointStamped
@@ -438,7 +441,10 @@ while not rospy.is_shutdown():
     time_elapsed_shifting = time.time() - tic
     time_elapsed_shifting_list.append(time_elapsed_shifting)
 
-    jc.run(solution)
+    # receive msgs from joystick and publishes to ROS topic
+    jc.run()
+    # receive msgs from ros topic and send commands to robot
+    gait_manager_ros.run()
 
     tic = time.time()
     ti.rti()
