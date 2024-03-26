@@ -35,7 +35,6 @@ class JoyCommands:
         self.__crawl_cli = rospy.ServiceProxy('/horizon/walk/switch', SetBool)
         self.__trot_cli = rospy.ServiceProxy('/horizon/trot/switch', SetBool)
 
-
     def smooth(self):
         alpha = 0.1
         as_list = list(self.smooth_joy_msg.axes)
