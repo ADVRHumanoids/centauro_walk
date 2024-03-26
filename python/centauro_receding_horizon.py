@@ -12,6 +12,8 @@ import phase_manager.pyrosserver as pyrosserver
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
 
+from joy_commands import JoyCommands
+
 import cartesian_interface.roscpp_utils as roscpp
 import cartesian_interface.pyci as pyci
 import cartesian_interface.affine3
@@ -373,14 +375,11 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            trajectory_markers=contact_list_repl,
                                            fixed_joint_map=fixed_joint_map)
 
-global joy_msg
-
 xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
 time_elapsed_solving_list = list()
 time_elapsed_all_list = list()
 
-from centauro_joy_commands import JoyCommands
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
@@ -434,9 +433,13 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     pm.shift()
+
+    # publishes to ros phase manager info
     rs.run()
 
+    # receive msgs from joystick and publishes to ROS topic
     jc.run()
+    # receive msgs from ros topic and send commands to robot
     gait_manager_ros.run()
 
     ti.rti()
