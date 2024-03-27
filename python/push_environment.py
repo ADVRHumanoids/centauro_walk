@@ -24,33 +24,48 @@ class TestEnvironment:
 
         self.__init_xbot_robot()
 
-
     def respawn_robot(self):
 
         reset_world = rospy.ServiceProxy('/gazebo/reset_world', Empty)
         homing_state = rospy.ServiceProxy('/xbotcore/homing/state', PluginStatus)
         ros_control_state = rospy.ServiceProxy('/xbotcore/ros_control/state', PluginStatus)
 
+        '''
+        disable ros_control
+        '''
         ros_control_res = ros_control_state.call()
 
-        while ros_control_res == "Running":
+        while ros_control_res.status == "Running":
             self.__bool_request('/xbotcore/ros_control/switch', False)
             ros_control_res = ros_control_state.call()
 
+        '''
+        homing robot
+        '''
         self.__bool_request('/xbotcore/homing/switch')
         res = homing_state.call()
         while res.status == 'Running':
             res = homing_state.call()
 
-        while ros_control_res == "Stopped":
-            self.__bool_request('/xbotcore/ros_control/switch')
+        '''
+        enable ros control
+        '''
+        ros_control_res = ros_control_state.call()
+
+        while ros_control_res.status != "Running":
+            if ros_control_res.status != "Starting":
+                self.__bool_request('/xbotcore/ros_control/switch')
             ros_control_res = ros_control_state.call()
 
+        '''
+        set stiffness and damping
+        '''
         self.__init_stiffness_damping(self.__ramp_duration, self.__dt)
-        
+
+        '''
+        reset world
+        '''
         reset_world.call()
-
-
 
     def __ramp_setter(self, current_value_dict, target_value_dict, progress, setter):
 
@@ -177,5 +192,5 @@ if __name__ == '__main__':
 
     te.respawn_robot()
     exit()
-    wrench = [0.0, 150.0, 0.0, 0.0, 0.0, 0.0]
+    wrench = [0.0, 50.0, 0.0, 0.0, 0.0, 0.0]
     te.apply_impulsive_force(wrench)
