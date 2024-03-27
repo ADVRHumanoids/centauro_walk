@@ -1,7 +1,7 @@
 import rospy
 from gazebo_msgs.srv import ApplyBodyWrench, ApplyBodyWrenchRequest
 from geometry_msgs.msg import Wrench, Vector3
-from std_srvs.srv import SetBool, Empty
+from std_srvs.srv import SetBool, SetBoolRequest, Empty, EmptyResponse
 from xbot_msgs.srv import PluginStatus, PluginStatusResponse, PluginStatusRequest
 from gazebo_msgs.srv import SetModelConfiguration
 
@@ -23,7 +23,42 @@ class TestEnvironment:
         self.__dt = 0.01
 
         self.__init_xbot_robot()
+        self.__init_services()
 
+    def run(self):
+        # rospy.spin()
+        pass
+    def __init_services(self):
+
+        # open services
+        self.__switch_walk_srv = rospy.Service('/env/respawn/', Empty, self.__respawn_cb)
+        self.__switch_trot_srv = rospy.Service('/env/push/', Empty, self.__push_cb)
+
+    def __respawn_cb(self, request):
+
+        self.respawn_robot()
+
+        return EmptyResponse()
+
+    def __push_cb(self, request):
+
+        wrench = [0.0, 200.0, 0.0, 0.0, 0.0, 0.0]
+        te.apply_impulsive_force(wrench, 0.1)
+
+        return EmptyResponse()
+
+    def __bool_request(self, service_name, value=True):
+
+        rospy.wait_for_service(service_name, timeout=1.)
+        print(f'Service found: {service_name}')
+
+        service = rospy.ServiceProxy(service_name, SetBool)
+        response = service(value)
+
+        if response.success:
+            rospy.loginfo(f"Service '{service_name}' call successful.")
+        else:
+            rospy.logerr("Service call failed.")
     def respawn_robot(self):
 
         reset_world = rospy.ServiceProxy('/gazebo/reset_world', Empty)
@@ -68,7 +103,6 @@ class TestEnvironment:
         reset_world.call()
 
     def __ramp_setter(self, current_value_dict, target_value_dict, progress, setter):
-
 
         for key in current_value_dict.keys():
             current_value = current_value_dict[key]
@@ -135,20 +169,6 @@ class TestEnvironment:
             time.sleep(dt)  # Adjust as needed for smoother or faster ramp
 
 
-    def __bool_request(self, service_name, value=True):
-
-        rospy.wait_for_service(service_name, timeout=1.)
-        print(f'Service found: {service_name}')
-
-        service = rospy.ServiceProxy(service_name, SetBool)
-        response = service(value)
-
-        if response.success:
-            rospy.loginfo(f"Service '{service_name}' call successful.")
-        else:
-            rospy.logerr("Service call failed.")
-
-
     def __start_trotting(self):
         self.__bool_request('/horizon/trot/switch')
     def __homing(self):
@@ -156,7 +176,7 @@ class TestEnvironment:
 
 
 
-    def apply_impulsive_force(self, wrench):
+    def apply_impulsive_force(self, wrench, duration):
 
         body_wrench_service = '/gazebo/apply_body_wrench'
         rospy.wait_for_service(body_wrench_service, timeout=1.)
@@ -176,7 +196,7 @@ class TestEnvironment:
         req.reference_point = Vector3(x=0, y=0, z=0)  # Center of the link
         req.wrench = wrench_msg
         req.start_time = rospy.Time(0)
-        req.duration = rospy.Duration.from_sec(1)  # Duration for which the force should be applied
+        req.duration = rospy.Duration(duration)  # Duration for which the force should be applied
 
         try:
             # Call the service
@@ -190,7 +210,9 @@ if __name__ == '__main__':
 
     te = TestEnvironment()
 
-    te.respawn_robot()
-    exit()
-    wrench = [0.0, 50.0, 0.0, 0.0, 0.0, 0.0]
-    te.apply_impulsive_force(wrench)
+    while not rospy.is_shutdown():
+        te.run()
+    # te.respawn_robot()
+    # exit()
+    # wrench = [0.0, 200.0, 0.0, 0.0, 0.0, 0.0]
+    # te.apply_impulsive_force(wrench, 0.1)
