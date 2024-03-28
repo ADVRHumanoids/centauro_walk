@@ -1,6 +1,6 @@
 <launch>
     <node pkg="tf" type="static_transform_publisher" name="static_transform_publisher"
-        args="2 0 0 0 0 0 base_link odom_offset 30" output="screen"/>
+        args="1 0 0 0 0 0 base_link odom_offset 30" output="screen"/>
 
     <include file="$(find elevation_mapping_cupy)/launch/elevation_mapping_cupy.launch"/>
     <include file="$(find convex_plane_decomposition_ros)/launch/convex_plane_decomposition.launch"/>

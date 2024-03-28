@@ -5,26 +5,12 @@ from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
 from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, analyzer
 from horizon.ros import replay_trajectory
-from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
-import cartesian_interface.roscpp_utils as roscpp
-import cartesian_interface.pyci as pyci
-import cartesian_interface.affine3
+
 import horizon.utils.analyzer as analyzer
-
-from base_estimation import pybase_estimation
-from base_estimation.msg import ContactWrenches
-from geometry_msgs.msg import Wrench
-
-from scipy.spatial.transform import Rotation
-
-from xbot_interface import config_options as co
-from xbot_interface import xbot_interface as xbot
-
-from geometry_msgs.msg import PointStamped, TwistStamped, Vector3
-from kyon_controller.msg import WBTrajectory
+from geometry_msgs.msg import PointStamped
 
 from centauro_joy_commands import GaitManager
 
@@ -33,6 +19,7 @@ import rospy
 import rospkg
 import numpy as np
 import subprocess
+import tf
 
 import horizon.utils as utils
 
@@ -57,10 +44,26 @@ if srdf == '':
 file_dir = rospkg.RosPack().get_path('kyon_controller')
 
 '''
+Find tf from odom to odom_offset
+'''
+listener = tf.TransformListener()
+
+print('wait for transform')
+
+try:
+    listener.waitForTransform('odom', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(0.1))
+except:
+    pass
+
+print('transform found!')
+(trans, rot) = listener.lookupTransform('odom', 'odom_offset', rospy.Time(0))
+
+
+'''
 Initialize Horizon problem
 '''
-ns = 110
-T = 6.
+ns = 280
+T = 12.
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -86,7 +89,7 @@ q_init = {'hip_yaw_1': -0.746,
           'knee_pitch_4': -1.555,
           'ankle_pitch_4': -0.3}
 
-base_pose = [0.07, 0., 0.8, 0., 0., 0., 1]
+base_pose = [0., 0., 0., 0., 0., 0., 1]
 base_twist = np.zeros(6)
 
 wheels = [f'j_wheel_{i + 1}' for i in range(4)]
@@ -109,8 +112,10 @@ fixed_joint_map.update(arm_joints_map)
 fixed_joint_map.update(torso_map)
 fixed_joint_map.update(head_map)
 
-# query_pub = rospy.Publisher('~query_point', PointStamped, queue_size=1)
-# projected_pub = rospy.Publisher('~projected_point', PointStamped, queue_size=1)
+query_pub_init = rospy.Publisher('~query_point_init', PointStamped, queue_size=1)
+query_pub_fin = rospy.Publisher('~query_point_fin', PointStamped, queue_size=1)
+projected_pub_init = rospy.Publisher('~projected_point_init', PointStamped, queue_size=1)
+projected_pub_fin = rospy.Publisher('~projected_point_fin', PointStamped, queue_size=1)
 #
 # query_point = PointStamped()
 # query_point.header.frame_id = 'odom_offset'
@@ -145,7 +150,7 @@ model = FullModelInverseDynamics(problem=prb,
                                  fixed_joint_map=fixed_joint_map
                                  )
 
-bashCommand = 'rosrun robot_state_publisher robot_state_publisher'
+bashCommand = 'rosrun robot_state_publisher robot_state_publisher _tf_prefix:=to'
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
@@ -184,11 +189,9 @@ for c in model.getContactMap():
     # flight phase normal
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
-    ground[c] = prb.createParameter(f'ground_{c}', 1)
-    ground[c].assign(init_z_foot)
 
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.casadi_trajectory(flight_duration, ground[c], ground[c], 0.1, [1000, 0, 1000]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.1, [None, 0, None]))
     if ti.getTask(f'z_contact_{c_i}') is not None:
         flight_phase.addItemReference(ti.getTask(f'z_contact_{c_i}'), ref_trj)
     else:
@@ -199,8 +202,11 @@ for c in model.getContactMap():
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
 
     c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
-    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])))
+    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[flight_duration-1])
     flight_phase.addCost(cost_ori)
+
+    ref_trj_xy = np.zeros(shape=[7, 1])
+    flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])
 
     c_phases[c].registerPhase(flight_phase)
 
@@ -209,10 +215,12 @@ gm = GaitManager(ti, pm, contact_phase_map)
 
 gm.stand()
 gm.crawl()
+gm.crawl()
+gm.crawl()
 gm.stand()
 
 q_final = ti.model.q0.copy()
-q_final[0] += 0.3
+q_final[0] += 0.9
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 ti.model.q[0:7].setBounds(q_final[0:7], q_final[0:7], nodes=ns)
 ti.model.v.setBounds(np.zeros(model.nv), np.zeros(model.nv), nodes=0)
@@ -234,21 +242,87 @@ ti.bootstrap()
 
 solution = ti.solution
 
+# contact_list_repl = list(model.cmap.keys())
+# repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution['q'],
+#                                            {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()},
+#                                            model.kd_frame, model.kd,
+#                                            # trajectory_markers=contact_list_repl,
+#                                            fixed_joint_map=fixed_joint_map)
+#
+# repl.replay(is_floating_base=True)
+
 # second solve to project contact onto the extracted polygons
 
-for c, timeline in c_phases.items() :
+
+
+for c in model.getContactMap():
+    if ti.getTask(f'xy_{c}') is None:
+        raise Exception(f'xy_{c} task not defined!')
+    ti.getTask(f'xy_{c}').setWeight(100.)
+
+for c, timeline in c_phases.items():
     for phase in timeline.getActivePhases():
         if phase.getName() == f'flight_{c}':
             final_node = phase.getPosition() + phase.getNNodes()
             initial_pose = model.kd.fk(c)(q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
+            initial_pose[0] -= trans[0]
+            projected_initial_pose = projector.project(initial_pose)
             landing_pose = model.kd.fk(c)(q=solution['q'][:, final_node])['ee_pos'].elements()
-            projected_pose = projector.project(landing_pose)
-            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, initial_pose[2], projected_pose[2], 0.1, [None, 0, None]))
-            phase.addItemReference(ti.getTask(f'z_contact_{c_i}'), ref_trj)
+            landing_pose[0] -= trans[0]
+            projected_final_pose = projector.project(landing_pose)
 
-ti.finalize()
+            # query_point_init = PointStamped()
+            # query_point_init.header.frame_id = 'odom_offset'
+            # query_point_init.header.stamp = rospy.Time.now()
+            # query_point_init.point.x = initial_pose[0]
+            # query_point_init.point.y = initial_pose[1]
+            # query_point_init.point.z = initial_pose[2]
+            # query_point_fin = PointStamped()
+            # query_point_fin.header.frame_id = 'odom_offset'
+            # query_point_fin.header.stamp = rospy.Time.now()
+            # query_point_fin.point.x = landing_pose[0]
+            # query_point_fin.point.y = landing_pose[1]
+            # query_point_fin.point.z = landing_pose[2]
+            #
+            # projected_point_init = PointStamped()
+            # projected_point_init.header = query_point_init.header
+            # projected_point_init.point.x = projected_initial_pose[0]
+            # projected_point_init.point.y = projected_initial_pose[1]
+            # projected_point_init.point.z = projected_initial_pose[2]
+            # projected_point_fin = PointStamped()
+            # projected_point_fin.header = query_point_init.header
+            # projected_point_fin.point.x = projected_final_pose[0]
+            # projected_point_fin.point.y = projected_final_pose[1]
+            # projected_point_fin.point.z = projected_final_pose[2]
+            #
+            # query_pub_init.publish(query_point_init)
+            # query_pub_fin.publish(query_point_fin)
+            # projected_pub_init.publish(projected_point_init)
+            # projected_pub_fin.publish(projected_point_fin)
+
+
+            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, projected_initial_pose[2], projected_final_pose[2], 0.1, [None, 0, None]))
+            phase.setItemReference(f'z_{c}', ref_trj)
+
+            ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]) + np.array(trans[0:2]))
+            print(f'pose: {np.array(initial_pose) + np.array(trans)} ----> {np.array(projected_initial_pose) + np.array(trans)}')
+            print(f'pose: {np.array(landing_pose) + np.array(trans)} ----> {np.array(projected_final_pose) + np.array(trans)}')
+            # input('click')
+
+            phase.setItemReference(f'xy_{c}', ref_trj_xy)
+
+# ti.finalize()
+
+prb.getState().setInitialGuess(solution['x_opt'])
+
+anal = analyzer.ProblemAnalyzer(ti.prb)
+
+anal.printParameters()
+# exit()
 
 ti.bootstrap()
+
+solution = ti.solution
 
 contact_list_repl = list(model.cmap.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution['q'],
