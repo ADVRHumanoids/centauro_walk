@@ -1,13 +1,13 @@
 import rospy
 from gazebo_msgs.srv import ApplyBodyWrench, ApplyBodyWrenchRequest
 from geometry_msgs.msg import Wrench, Vector3
-from std_srvs.srv import SetBool, SetBoolRequest, Empty, EmptyResponse
-from xbot_msgs.srv import PluginStatus, PluginStatusResponse, PluginStatusRequest
-from gazebo_msgs.srv import SetModelConfiguration
+from std_srvs.srv import SetBool, Empty, EmptyResponse
+from xbot_msgs.srv import PluginStatus
 
 import xbot_interface.config_options as xbot_opt
 from xbot_interface import xbot_interface as xbot
 
+import numpy as np
 import time
 
 
@@ -22,17 +22,33 @@ class TestEnvironment:
         self.__ramp_duration = 0.5
         self.__dt = 0.01
 
+        self.__push_wrench = np.zeros(6)
+
         self.__init_xbot_robot()
         self.__init_services()
+        self.__init_topics()
 
     def run(self):
         # rospy.spin()
         pass
+
+    def __init_topics(self):
+
+        self.__set_push_wrench = rospy.Subscriber('/env/wrench_push/', Wrench, self.__wrench_push_cb)
     def __init_services(self):
 
         # open services
         self.__switch_walk_srv = rospy.Service('/env/respawn/', Empty, self.__respawn_cb)
         self.__switch_trot_srv = rospy.Service('/env/push/', Empty, self.__push_cb)
+
+    def __wrench_push_cb(self, msg : Wrench):
+
+        self.__push_wrench[0] = msg.force.x
+        self.__push_wrench[1] = msg.force.y
+        self.__push_wrench[2] = msg.force.z
+        self.__push_wrench[3] = msg.torque.x
+        self.__push_wrench[4] = msg.torque.y
+        self.__push_wrench[5] = msg.torque.z
 
     def __respawn_cb(self, request):
 
@@ -42,8 +58,8 @@ class TestEnvironment:
 
     def __push_cb(self, request):
 
-        wrench = [0.0, 200.0, 0.0, 0.0, 0.0, 0.0]
-        te.apply_impulsive_force(wrench, 0.1)
+        print(f"Applying wrench: {self.__push_wrench}")
+        te.apply_impulsive_force(self.__push_wrench, 0.1)
 
         return EmptyResponse()
 
@@ -173,8 +189,6 @@ class TestEnvironment:
         self.__bool_request('/horizon/trot/switch')
     def __homing(self):
         self.__bool_request('/xbotcore/homing/switch')
-
-
 
     def apply_impulsive_force(self, wrench, duration):
 
