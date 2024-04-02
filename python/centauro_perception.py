@@ -23,7 +23,7 @@ import tf
 
 import horizon.utils as utils
 
-import convex_plane_decomposition.pysegmented_plane_projection as projector
+import convex_plane_decomposition_ros.pysegmented_plane_projection as projector
 
 
 rospy.init_node('centauro_perception')
@@ -51,12 +51,12 @@ listener = tf.TransformListener()
 print('wait for transform')
 
 try:
-    listener.waitForTransform('odom', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(0.1))
+    listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(0.1))
 except:
     pass
 
 print('transform found!')
-(trans, rot) = listener.lookupTransform('odom', 'odom_offset', rospy.Time(0))
+(trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
 
 
 '''
@@ -202,8 +202,8 @@ for c in model.getContactMap():
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
 
     c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
-    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[flight_duration-1])
-    flight_phase.addCost(cost_ori)
+    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[])
+    flight_phase.addCost(cost_ori, nodes=[flight_duration-1])
 
     ref_trj_xy = np.zeros(shape=[7, 1])
     flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])

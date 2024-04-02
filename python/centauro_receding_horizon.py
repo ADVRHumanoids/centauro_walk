@@ -12,10 +12,7 @@ import phase_manager.pyrosserver as pyrosserver
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
 
-import cartesian_interface.roscpp_utils as roscpp
-import cartesian_interface.pyci as pyci
-import cartesian_interface.affine3
-import horizon.utils.analyzer as analyzer
+import convex_plane_decomposition_ros.pysegmented_plane_projection as projector
 
 from base_estimation.msg import ContactWrenches
 from geometry_msgs.msg import Wrench
@@ -36,6 +33,7 @@ import rospkg
 import numpy as np
 import subprocess
 import time
+import tf
 
 import horizon.utils as utils
 
@@ -115,8 +113,8 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     qdot = np.hstack([ee_rel, qdot_robot])
     model.v.setBounds(qdot, qdot, nodes=0)
 
-rospy.init_node('kyon_walk_srbd')
-# roscpp.init('kyon_walk_srbd', [])
+rospy.init_node('centauro_walk')
+projector.init('centauro_walk', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
@@ -135,6 +133,15 @@ if srdf == '':
     raise print('srdf not set')
 
 file_dir = rospkg.RosPack().get_path('kyon_controller')
+
+'''
+Find tf from odom to odom_offset
+'''
+listener = tf.TransformListener()
+
+print('wait for transform')
+listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(2.))
+(trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
 
 '''
 Initialize Horizon problem
@@ -160,7 +167,7 @@ cfg.set_bool_parameter('is_model_floating_base', True)
 '''
 open/closed loop
 '''
-closed_loop = rospy.get_param(param_name='closed_loop', default=False)
+closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
 
 '''
 xbot
@@ -176,48 +183,39 @@ if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
 
-    if not closed_loop:
-        rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
-        while base_pose is None:
-            rospy.sleep(0.01)
+# if not closed_loop:
+    rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+    while base_pose is None:
+        rospy.sleep(0.01)
 
-        base_pose[0:3] = [0.07, 0., 0.8]
-        base_twist = np.zeros(6)
-    else:
-        # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-        # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
-        rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
-        rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+    base_pose[0:3] = [0.07, 0., 0.8]
+    base_twist = np.zeros(6)
+# else:
+    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
 
-        while base_pose is None or base_twist is None:
-            rospy.sleep(0.01)
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
 
-    q_init = robot.getJointPosition()
-    q_init = robot.eigenToMap(q_init)
+    q_init = robot.getJointPositionMap()
+
+    wheels_map = {f'j_wheel_{i + 1}': q_init[f'j_wheel_{i + 1}'] for i in range(4)}
+
+    ankle_yaws_map = {f'ankle_yaw_{i + 1}': q_init[f'ankle_yaw_{i + 1}'] for i in range(4)}
+
+    arm_joints_map = {f'j_arm1_{i + 1}': q_init[f'j_arm1_{i + 1}'] for i in range(6)}
+    arm_joints_map.update({f'j_arm2_{i + 1}': q_init[f'j_arm2_{i + 1}'] for i in range(6)})
+
+    torso_map = {'torso_yaw': 0.}
+
+    head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
 
 else:
     print('RobotInterface not created')
 
     q_init = {
-        # 'torso_yaw': 0.00,  # 0.00,
-        # 'j_arm1_1': 1.50,  # 1.60,
-        # 'j_arm1_2': 0.1,  # 0.,
-        # 'j_arm1_3': 0.2,  # 1.5,
-        # 'j_arm1_4': -2.2,  # 0.3,
-        # 'j_arm1_5': 0.00,  # 0.00,
-        # 'j_arm1_6': -1.3,  # 0.,
-        # 'j_arm1_7': 0.0,    # 0.0,
-
-        # 'j_arm2_1': 1.50,  # 1.60,
-        # 'j_arm2_2': 0.1,  # 0.,
-        # 'j_arm2_3': -0.2,  # 1.5,
-        # 'j_arm2_4': -2.2,  # -0.3,
-        # 'j_arm2_5': 0.0,  # 0.0,
-        # 'j_arm2_6': -1.3,  # 0.,
-        # 'j_arm2_7': 0.0,    # 0.0,
-
-        # 'd435_head_joint': 0.0,
-        # 'velodyne_joint': 0.0,
         'hip_yaw_1': -0.746,
         'hip_pitch_1': -1.254,
         'knee_pitch_1': -1.555,
@@ -242,18 +240,18 @@ else:
     base_pose = np.array([0.07, 0., 0.8, 0., 0., 0., 1.])
     base_twist = np.zeros(6)
 
-wheels = [f'j_wheel_{i + 1}' for i in range(4)]
-wheels_map = dict(zip(wheels, 4 * [0.]))
+    wheels = [f'j_wheel_{i + 1}' for i in range(4)]
+    wheels_map = dict(zip(wheels, 4 * [0.]))
 
-ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
-ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
+    ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
+    ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
 
-arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
-arm_joints_map = dict(zip(arm_joints, [0.75, 0.1, 0.2, -2.2, 0., -1.3, 0.75, 0.1, -0.2, -2.2, 0.0, -1.3]))
+    arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
+    arm_joints_map = dict(zip(arm_joints, [0.75, 0.1, 0.2, -2.2, 0., -1.3, 0.75, 0.1, -0.2, -2.2, 0.0, -1.3]))
 
-torso_map = {'torso_yaw': 0.}
+    torso_map = {'torso_yaw': 0.}
 
-head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
+    head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
 
 fixed_joint_map = dict()
 fixed_joint_map.update(wheels_map)
@@ -291,75 +289,16 @@ for c in model.cmap.keys():
     c_phases[c] = pm.addTimeline(f'{c}_timeline')
 
 
-def zmp(model):
-    # formulation in forces
-    num = cs.SX([0, 0])
-    den = cs.SX([0])
-    pos_contact = dict()
-    force_val = dict()
-
-    q = cs.SX.sym('q', model.nq)
-    v = cs.SX.sym('v', model.nv)
-    a = cs.SX.sym('a', model.nv)
-
-    com = model.kd.centerOfMass()(q=q, v=v, a=a)['com']
-
-    n = cs.SX([0, 0, 1])
-    for c in model.fmap.keys():
-        pos_contact[c] = model.kd.fk(c)(q=q)['ee_pos']
-        force_val[c] = cs.SX.sym('force_val', 3)
-        num += (pos_contact[c][0:2] - com[0:2]) * cs.dot(force_val[c], n)
-        den += cs.dot(force_val[c], n)
-
-    zmp = com[0:2] + (num / den)
-    input_list = []
-    input_list.append(q)
-    input_list.append(v)
-    input_list.append(a)
-
-    for elem in force_val.values():
-        input_list.append(elem)
-
-    f = cs.Function('zmp', input_list, [zmp])
-
-    return f
-
-input_zmp = []
-# for c_name in model.fmap.keys():
-#     input_zmp.append(kin_dyn.fk(c_name)(q=model.q)['ee_pos'])
-
-input_zmp.append(model.q)
-input_zmp.append(model.v)
-input_zmp.append(model.a)
-
-for f_var in model.fmap.values():
-    input_zmp.append(f_var)
-
-c_mean = cs.SX([0, 0, 0])
-f_tot = cs.SX([0., 0., 0.])
-for c_name, f_var in model.fmap.items():
-    fk_c_pos = kin_dyn.fk(c_name)(q=model.q)['ee_pos']
-    c_mean += fk_c_pos * f_var[2]
-    f_tot += f_var[2]
-
-c_mean /= f_tot
-
-# zmp_weight = prb.createParameter('zmp_weight', 1)
-zmp_nominal_weight = 100.
-# zmp_weight.assign(zmp_nominal_weight)
-zmp_fun = zmp(model)(*input_zmp)
-
-zmp_residual = prb.createIntermediateResidual('zmp',  zmp_nominal_weight * (zmp_fun[0:2] - c_mean[0:2])) #, nodes=[])
-# zmp_empty = prb.createIntermediateResidual('zmp_empty', 0. * (zmp_fun[0:2] - c_mean[0:2]), nodes=[])
-
 short_stance_duration = 5
 stance_duration = 15
 flight_duration = 15
 c_i = 0
 
-# for c in model.getContactMap():
-#     c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
-#     prb.createResidual(f'{c}_ori', c_ori.T - np.array([0, 0, 1]))
+FK_contacts = dict()
+dFK_contacts = dict()
+for c in model.getContactMap():
+    FK_contacts[c] = model.kd.fk(c)
+    dFK_contacts[c] = model.kd.frameVelocity(c, model.kd_frame)
 
 for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
@@ -377,8 +316,8 @@ for c in model.getContactMap():
 
     # flight phase normal
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
-    init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
-    ee_vel = model.kd.frameVelocity(c, model.kd_frame)(q=model.q, qdot=model.v)['ee_vel_linear']
+    init_z_foot = FK_contacts[c](q=model.q0)['ee_pos'].elements()[2]
+    ee_vel = dFK_contacts[c](q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot + 0.01, 0.1, [None, 0, None]))
     if ti.getTask(f'z_contact_{c_i}') is not None:
@@ -389,9 +328,12 @@ for c in model.getContactMap():
     cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
 
-    c_ori = model.kd.fk(c)(q=model.q)['ee_rot'][2, :]
-    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])))
-    flight_phase.addCost(cost_ori)
+    c_ori = FK_contacts[c](q=model.q)['ee_rot'][2, :]
+    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[])
+    flight_phase.addCost(cost_ori, nodes=[flight_duration - 1])
+
+    ref_trj_xy = np.zeros(shape=[7, 1])
+    flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])
 
     c_phases[c].registerPhase(flight_phase)
 
@@ -450,7 +392,6 @@ gm = GaitManager(ti, pm, contact_phase_map)
 jc = JoyCommands()
 gait_manager_ros = GaitManagerROS(gm)
 
-
 def _quaternion_multiply(q1, q2):
     x1, y1, z1, w1 = q1
     x2, y2, z2, w2 = q2
@@ -467,18 +408,14 @@ qdot_robot = np.zeros(len(robot_joint_names))
 
 wrench_pub = rospy.Publisher('centauro_base_estimation/contacts/set_wrench', ContactWrenches, latch=False)
 
+# from geometry_msgs.msg import PointStamped
+# zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
+# # zmp_f = ti.getTask('zmp')._zmp_fun()
+# zmp_point = PointStamped()
+#
+# c_mean_pub = rospy.Publisher('c_mean_pub', PointStamped, queue_size=10)
+# c_mean_point = PointStamped()
 
-from geometry_msgs.msg import PointStamped
-zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
-# zmp_f = ti.getTask('zmp')._zmp_fun()
-zmp_point = PointStamped()
-
-c_mean_pub = rospy.Publisher('c_mean_pub', PointStamped, queue_size=10)
-c_mean_point = PointStamped()
-
-
-new_z_traj = np.zeros(shape=[7, flight_duration])
-new_z_traj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.3, [None, 0, None]))
 
 while not rospy.is_shutdown():
     # update BaseEstimation
@@ -491,8 +428,9 @@ while not rospy.is_shutdown():
                                                         z=solution[f'f_{frame}'][2, 0]),
                                           torque=Vector3(x=0., y=0., z=0.)))
 
-    t0 = time.time()
     wrench_pub.publish(wrench_msg)
+
+    t0 = time.time()
 
     # set initial state and initial guess
     shift_num = -1
@@ -509,10 +447,42 @@ while not rospy.is_shutdown():
     if closed_loop:
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
+    # perception
+    for c in model.getContactMap():
+        if ti.getTask(f'xy_{c}') is None:
+            raise Exception(f'xy_{c} task not defined!')
+        ti.getTask(f'xy_{c}').setWeight(100.)
+
+    for c, timeline in c_phases.items():
+        for phase in timeline.getActivePhases():
+            if phase.getName() == f'flight_{c}':
+                final_node = phase.getPosition() + phase.getNNodes()
+                if final_node < ns + 1:
+                    initial_pose = FK_contacts[c](q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
+                    initial_pose[0] -= trans[0]
+                    projected_initial_pose = projector.project(initial_pose)
+                    landing_pose = FK_contacts[c](q=solution['q'][:, final_node])['ee_pos'].elements()
+                    landing_pose[0] -= trans[0]
+                    projected_final_pose = projector.project(landing_pose)
+
+                    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
+                                                                      projected_initial_pose[2],
+                                                                      projected_final_pose[2],
+                                                                      0.1,
+                                                                      [None, 0, None]))
+                    phase.setItemReference(f'z_{c}', ref_trj)
+
+                    ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]) + np.array(trans[0:2]))
+                    # print(
+                    #     f'pose: {np.array(initial_pose) + np.array(trans)} ----> {np.array(projected_initial_pose) + np.array(trans)}')
+                    # print(
+                    #     f'pose: {np.array(landing_pose) + np.array(trans)} ----> {np.array(projected_final_pose) + np.array(trans)}')
+
+                    phase.setItemReference(f'xy_{c}', ref_trj_xy)
+
     pm.shift()
 
-
-    rs.run()
+    # rs.run()
     jc.run()
     gait_manager_ros.run()
 
@@ -536,62 +506,10 @@ while not rospy.is_shutdown():
 
     solution_publisher.publish(sol_msg)
 
-
-    if gait_manager_ros.get_z_flag():
-        for timeline_name, timeline_obj in pm.getTimelines().items():
-            for phase in timeline_obj.getPhases():
-                if "flight_" in phase.getName():
-                    phase.setItemReference(ti.getTask(f'z_contact_1').getName(), new_z_traj)
-                    # phase.setItemReference(ti.getTask(f'z_contact_2').getName(), new_z_traj)
-                    # phase.setItemReference(ti.getTask(f'z_contact_3').getName(), new_z_traj)
-                    phase.setItemReference(ti.getTask(f'z_contact_4').getName(), new_z_traj)
-
-
-    # replay stuff
-
-    # =========================== publish zmp =================================================
-    # input_zmp = []
-    # input_zmp.append(solution['q'][:, 0])
-    # input_zmp.append(solution['v'][:, 0])
-    # input_zmp.append(solution['a'][:, 0])
-    #
-    # for f_var in model.fmap.keys():
-    #     input_zmp.append(solution[f"f_{f_var}"][:, 0])
-    #
-    # c_mean = np.zeros([3, 1])
-    # f_tot = np.zeros([3, 1])
-    # for c_name, f_var in model.fmap.items():
-    #     fk_c_pos = kin_dyn.fk(c_name)(q=solution['q'][:, 0])['ee_pos'].toarray()
-    #     c_mean += fk_c_pos * solution[f"f_{c_name}"][2, 0]
-    #     f_tot += solution[f"f_{c_name}"][2, 0]
-    #
-    # print(f_tot[2, 0])
-    # c_mean /= f_tot
-    #
-    # # zmp_val = zmp_f(*input_zmp)
-    # zmp_val = zmp(model)(*input_zmp)
-    #
-    # zmp_point.header.stamp = rospy.Time.now()
-    # zmp_point.header.frame_id = 'world'
-    # zmp_point.point.x = zmp_val[0]
-    # zmp_point.point.y = zmp_val[1]
-    # zmp_point.point.z = 0
-    #
-    # zmp_pub.publish(zmp_point)
-    #
-    # c_mean_point.header.stamp = rospy.Time.now()
-    # c_mean_point.header.frame_id = 'world'
-    # c_mean_point.point.x = c_mean[0]
-    # c_mean_point.point.y = c_mean[1]
-    # c_mean_point.point.z = 0
-    #
-    # c_mean_pub.publish(c_mean_point)
-    # ============================================================================
-
-    if robot is None:
-        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-        repl.publish_joints(solution['q'][:, 0])
-        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # if robot is None:
+    # repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    # repl.publish_joints(solution['q'][:, 0])
+    # repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
 
     solution_time_publisher.publish(Float64(data=time.time() - t0))
     rate.sleep()

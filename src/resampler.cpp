@@ -57,7 +57,7 @@ _warning_printed(false)
 
     if (_sys_order != 2  && _sys_order != 3)
     {
-        throw std::runtime_error("Resampler works with systems of order 2 and 3 only!");
+//        throw std::runtime_error("Resampler works with systems of order 2 and 3 only!");
     }
 
     if (!_frames.empty())

@@ -23,6 +23,10 @@ constraints:
   - contact_2
   - contact_3
   - contact_4
+  - xy_contact_1
+  - xy_contact_2
+  - xy_contact_3
+  - xy_contact_4
 
 costs:
   - z_contact_1
@@ -44,6 +48,7 @@ costs:
     - &w_contact_z 50.
     - &w_postural 0.5
     - &w_postural_ub 1.
+    - &w_contact_xy 0.
     - &w_v 1.
     - &w_a 1e-2
     - &w_f 1e-3
@@ -214,5 +219,34 @@ z_contact_4:
   indices: [2]
   cartesian_type: position
   weight: *w_contact_z
+
+xy_contact_1:
+  type: Cartesian
+  distal_link: contact_1
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_contact_xy
+
+xy_contact_2:
+  type: Cartesian
+  distal_link: contact_2
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_contact_xy
+
+xy_contact_3:
+  type: Cartesian
+  distal_link: contact_3
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_contact_xy
+
+xy_contact_4:
+  type: Cartesian
+  distal_link: contact_4
+  indices: [0, 1]
+  cartesian_type: position
+  weight: *w_contact_xy
+
 
 
