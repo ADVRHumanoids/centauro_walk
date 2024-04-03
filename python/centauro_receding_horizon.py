@@ -24,7 +24,7 @@ from xbot_interface import config_options as co
 from xbot_interface import xbot_interface as xbot
 
 from std_msgs.msg import Float64
-from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
+from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3, PointStamped
 from kyon_controller.msg import WBTrajectory
 
 import casadi as cs
@@ -137,11 +137,21 @@ file_dir = rospkg.RosPack().get_path('kyon_controller')
 '''
 Find tf from odom to odom_offset
 '''
-listener = tf.TransformListener()
+# listener = tf.TransformListener()
 
-print('wait for transform')
-listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(2.))
-(trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
+# print('wait for transform')
+# listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(2.))
+# (trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
+
+pub_dict = dict()
+pub_dict['contact_1_query'] = rospy.Publisher('~contact_1_query', PointStamped, queue_size=1)
+pub_dict['contact_1_proj'] = rospy.Publisher('~contact_1_proj', PointStamped, queue_size=1)
+pub_dict['contact_2_query'] = rospy.Publisher('~contact_2_query', PointStamped, queue_size=1)
+pub_dict['contact_2_proj'] = rospy.Publisher('~contact_2_proj', PointStamped, queue_size=1)
+pub_dict['contact_3_query'] = rospy.Publisher('~contact_3_query', PointStamped, queue_size=1)
+pub_dict['contact_3_proj'] = rospy.Publisher('~contact_3_proj', PointStamped, queue_size=1)
+pub_dict['contact_4_query'] = rospy.Publisher('~contact_4_query', PointStamped, queue_size=1)
+pub_dict['contact_4_proj'] = rospy.Publisher('~contact_4_proj', PointStamped, queue_size=1)
 
 '''
 Initialize Horizon problem
@@ -183,32 +193,32 @@ if xbot_param:
     robot = xbot.RobotInterface(cfg)
     robot.sense()
 
-# if not closed_loop:
-    rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
-    while base_pose is None:
-        rospy.sleep(0.01)
+    if not closed_loop:
+        rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+        while base_pose is None:
+            rospy.sleep(0.01)
 
-    base_pose[0:3] = [0.07, 0., 0.8]
-    base_twist = np.zeros(6)
-# else:
-    rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
-    rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
-    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+        base_pose[0:3] = [0.07, 0., 0.8]
+        base_twist = np.zeros(6)
+    else:
+        rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+        rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+        # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
 
-    while base_pose is None or base_twist is None:
-        rospy.sleep(0.01)
+        while base_pose is None or base_twist is None:
+            rospy.sleep(0.01)
 
-    q_init = robot.getJointPositionMap()
+        q_init = robot.getJointPositionMap()
 
-    wheels_map = {f'j_wheel_{i + 1}': q_init[f'j_wheel_{i + 1}'] for i in range(4)}
+        wheels_map = {f'j_wheel_{i + 1}': q_init[f'j_wheel_{i + 1}'] for i in range(4)}
 
-    ankle_yaws_map = {f'ankle_yaw_{i + 1}': q_init[f'ankle_yaw_{i + 1}'] for i in range(4)}
+        ankle_yaws_map = {f'ankle_yaw_{i + 1}': q_init[f'ankle_yaw_{i + 1}'] for i in range(4)}
 
-    arm_joints_map = {f'j_arm1_{i + 1}': q_init[f'j_arm1_{i + 1}'] for i in range(6)}
-    arm_joints_map.update({f'j_arm2_{i + 1}': q_init[f'j_arm2_{i + 1}'] for i in range(6)})
+        arm_joints_map = {f'j_arm1_{i + 1}': q_init[f'j_arm1_{i + 1}'] for i in range(6)}
+        arm_joints_map.update({f'j_arm2_{i + 1}': q_init[f'j_arm2_{i + 1}'] for i in range(6)})
 
-    torso_map = {'torso_yaw': 0.}
+        torso_map = {'torso_yaw': 0.}
 
     head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
 
@@ -281,7 +291,7 @@ ti.setTaskFromYaml(rospkg.RosPack().get_path('kyon_controller') + '/config/centa
 
 tg = trajectoryGenerator.TrajectoryGenerator()
 
-pm = pymanager.PhaseManager(ns)
+pm = pymanager.PhaseManager(ns+1)
 
 # phase manager handling
 c_phases = dict()
@@ -333,6 +343,7 @@ for c in model.getContactMap():
     flight_phase.addCost(cost_ori, nodes=[flight_duration - 1])
 
     ref_trj_xy = np.zeros(shape=[7, 1])
+    ref_trj_xy[0:2, 0] = FK_contacts[c](q=model.q0)['ee_pos'].elements()[0:2]
     flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])
 
     c_phases[c].registerPhase(flight_phase)
@@ -448,22 +459,32 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     # perception
-    for c in model.getContactMap():
-        if ti.getTask(f'xy_{c}') is None:
-            raise Exception(f'xy_{c} task not defined!')
-        ti.getTask(f'xy_{c}').setWeight(100.)
-
     for c, timeline in c_phases.items():
         for phase in timeline.getActivePhases():
             if phase.getName() == f'flight_{c}':
                 final_node = phase.getPosition() + phase.getNNodes()
                 if final_node < ns + 1:
+                    # ti.getTask(f'xy_{c}').setWeight(1.)
                     initial_pose = FK_contacts[c](q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
-                    initial_pose[0] -= trans[0]
                     projected_initial_pose = projector.project(initial_pose)
                     landing_pose = FK_contacts[c](q=solution['q'][:, final_node])['ee_pos'].elements()
-                    landing_pose[0] -= trans[0]
                     projected_final_pose = projector.project(landing_pose)
+
+                    query_point = PointStamped()
+                    query_point.header.frame_id = 'odom'
+                    query_point.header.stamp = rospy.Time.now()
+                    query_point.point.x = landing_pose[0]
+                    query_point.point.y = landing_pose[1]
+                    query_point.point.z = landing_pose[2]
+
+                    projected_point = PointStamped()
+                    projected_point.header = query_point.header
+                    projected_point.point.x = projected_final_pose[0]
+                    projected_point.point.y = projected_final_pose[1]
+                    projected_point.point.z = projected_final_pose[2]
+
+                    pub_dict[f'{c}_query'].publish(query_point)
+                    pub_dict[f'{c}_proj'].publish(projected_point)
 
                     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
                                                                       projected_initial_pose[2],
@@ -472,11 +493,7 @@ while not rospy.is_shutdown():
                                                                       [None, 0, None]))
                     phase.setItemReference(f'z_{c}', ref_trj)
 
-                    ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]) + np.array(trans[0:2]))
-                    # print(
-                    #     f'pose: {np.array(initial_pose) + np.array(trans)} ----> {np.array(projected_initial_pose) + np.array(trans)}')
-                    # print(
-                    #     f'pose: {np.array(landing_pose) + np.array(trans)} ----> {np.array(projected_final_pose) + np.array(trans)}')
+                    ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]))
 
                     phase.setItemReference(f'xy_{c}', ref_trj_xy)
 
