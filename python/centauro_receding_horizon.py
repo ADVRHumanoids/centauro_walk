@@ -57,6 +57,33 @@ def imu_callback(msg: Imu):
     base_pose = np.zeros(7)
     base_pose[3:] = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
 
+def set_base_state_from_robot():
+    # numerical problem: two quaternions can represent the same rotation
+    # if difference between the base orientation in the state x and the sensed one base_pose < 0, change sign
+    state_quat_conjugate = np.copy(x_opt[3:7, 0])
+    state_quat_conjugate[:3] *= -1.0
+
+    # normalize the quaternion
+    state_quat_conjugate = state_quat_conjugate / np.linalg.norm(x_opt[3:7, 0])
+    diff_quat = _quaternion_multiply(base_pose[3:], state_quat_conjugate)
+
+    if diff_quat[3] < 0:
+        base_pose[3:] = -base_pose[3:]
+
+    model.q[0:7].setBounds(base_pose, base_pose, nodes=0)
+
+    # VELOCITY OF PINOCCHIO IS LOCAL, BASE_TWIST FROM  XBOTCORE IS GLOBAL:
+    # transform it in local
+    r_base = Rotation.from_quat(base_pose[3:]).as_matrix()
+
+    r_adj = np.zeros([6, 6])
+    r_adj[:3, :3] = r_base.T
+    r_adj[3:6, 3:6] = r_base.T
+
+    # rotate in the base frame the relative velocity (ee_v_distal - ee_v_base_distal)
+    ee_rel = r_adj @ base_twist
+    model.v[0:6].setBounds(ee_rel, ee_rel, nodes=0)
+
 def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map={}):
     robot.sense()
 
@@ -188,6 +215,14 @@ base_pose = None
 base_twist = None
 # est = None
 robot = None
+
+'''
+TENTATIVE TO CLOSE THE LOOP ONLY ON THE BASE STATE ---- REMOVE WHEN FINISH TESTING!!!!!!!!!!!!
+'''
+rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
+while base_pose is None or base_twist is None:
+    rospy.sleep(0.01)
 
 if xbot_param:
     robot = xbot.RobotInterface(cfg)
@@ -401,6 +436,9 @@ contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
 jc = JoyCommands()
+jc.setBaseVelLinWeight(0.3)
+jc.setBaseVelOriWeight(0.3)
+
 gait_manager_ros = GaitManagerROS(gm)
 
 def _quaternion_multiply(q1, q2):
@@ -453,6 +491,8 @@ while not rospy.is_shutdown():
 
     prb.getState().setInitialGuess(xig)
     prb.setInitialState(x0=xig[:, 0])
+
+    set_base_state_from_robot()
 
     # closed loop
     if closed_loop:

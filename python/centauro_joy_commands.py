@@ -18,6 +18,8 @@ class JoyCommands:
         self.smooth_joy_msg = None
         self.joy_msg = None
 
+        self.__base_lin_vel_weight = 1.
+        self.__base_ori_vel_weight = 1.
 
         self.velocity_ref = Twist()
 
@@ -35,6 +37,12 @@ class JoyCommands:
         self.__crawl_cli = rospy.ServiceProxy('/horizon/walk/switch', SetBool)
         self.__trot_cli = rospy.ServiceProxy('/horizon/trot/switch', SetBool)
 
+
+    def setBaseVelLinWeight(self, weight):
+        self.__base_lin_vel_weight = weight
+
+    def setBaseVelOriWeight(self, weight):
+        self.__base_ori_vel_weight = weight
 
     def smooth(self):
         alpha = 0.1
@@ -67,12 +75,12 @@ class JoyCommands:
 
         if np.abs(self.smooth_joy_msg.axes[0]) > 0.1 or np.abs(self.smooth_joy_msg.axes[1]) > 0.1:
 
-            self.velocity_ref.linear.x = self.smooth_joy_msg.axes[1]
-            self.velocity_ref.linear.y = self.smooth_joy_msg.axes[0]
+            self.velocity_ref.linear.x = self.__base_lin_vel_weight * self.smooth_joy_msg.axes[1]
+            self.velocity_ref.linear.y = self.__base_lin_vel_weight * self.smooth_joy_msg.axes[0]
 
         if np.abs(self.smooth_joy_msg.axes[3]) > 0.1:
 
-            self.velocity_ref.angular.z = self.smooth_joy_msg.axes[3]
+            self.velocity_ref.angular.z = self.__base_ori_vel_weight * self.smooth_joy_msg.axes[3]
 
         if self.joy_msg.buttons[0] == 1:
             # change com height
