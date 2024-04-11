@@ -2,6 +2,7 @@
 
     <arg name="xbot" default="false" />
     <arg name="joy" default="false" />
+    <arg name="closed_loop" default="false" />
 
     <node pkg="kyon_controller" type="controller" name="kyon_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/kyon_controller_config.yaml"/>
@@ -15,6 +16,6 @@
     <node pkg="kyon_controller" type="kyon_receding_horizon.py" name="mpc_node" output="screen">
         <param name="xbot" value="$(arg xbot)"/>
         <param name="joy" value="$(arg joy)"/>
-        <rosparam param="closed_loop">True</rosparam>
+        <param name="closed_loop" value="$(arg closed_loop)"/>
     </node>
 </launch>
