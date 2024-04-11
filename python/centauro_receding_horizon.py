@@ -434,7 +434,9 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
                                            trajectory_markers=contact_list_repl,
-                                           fixed_joint_map=fixed_joint_map)
+                                           fixed_joint_map=fixed_joint_map,
+                                           future_trajectory_markers=['contact_1', 'contact_2', 'contact_3', 'contact_4'],
+                                           future_trajectory_markers_opts=dict(parent='odom'))
 
 global joy_msg
 
@@ -609,6 +611,7 @@ while not rospy.is_shutdown():
         repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
         repl.publish_joints(solution['q'][:, 0])
         repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    repl.publish_future_trajectory_marker(solution['q'])
 
     solution_time_publisher.publish(Float64(data=time.time() - t0))
     rate.sleep()
