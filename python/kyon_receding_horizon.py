@@ -8,7 +8,6 @@ from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, anal
 from horizon.ros import replay_trajectory
 from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
-from matlogger2 import matlogger
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
 import phase_manager.pyrosserver as pyrosserver
@@ -118,9 +117,16 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
 
 
 
+'''
+load params
+'''
+joystick_flag = rospy.get_param(param_name='~joy', default=True)
+closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
+xbot_param = rospy.get_param(param_name="~xbot", default=False)
 
-rospy.init_node('kyon_walk_srbd')
-roscpp.init('kyon_walk_srbd', [])
+
+rospy.init_node('kyon_walk')
+roscpp.init('kyon_walk', [])
 
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 solution_time_publisher = rospy.Publisher('/mpc_solution_time', Float64, queue_size=1, tcp_nodelay=True)
@@ -162,21 +168,6 @@ cfg.generate_jidmap()
 cfg.set_string_parameter('model_type', 'RBDL')
 cfg.set_string_parameter('framework', 'ROS')
 cfg.set_bool_parameter('is_model_floating_base', True)
-
-'''
-joystick interface
-'''
-joystick_flag = rospy.get_param(param_name='~joy', default=False)
-
-'''
-open/closed loop
-'''
-closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
-
-'''
-xbot
-'''
-xbot_param = rospy.get_param(param_name="~xbot", default=False)
 
 base_pose = None
 base_twist = None
@@ -384,8 +375,8 @@ contact_list_repl = list(model.cmap.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array([]),
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
-                                           trajectory_markers=contact_list_repl)
-                                           # future_trajectory_markers={'base_link': 'world', 'ball_1': 'world'})
+                                           trajectory_markers=contact_list_repl,
+                                           future_trajectory_markers=['ball_1', 'ball_2', 'ball_3', 'ball_4', 'pelvis'])
 
 xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
@@ -502,8 +493,7 @@ while not rospy.is_shutdown():
     repl.publish_joints(solution['q'][:, 0])
     # repl.publish_joints(solution['q'][:, ns], prefix='last')
     repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
-    # repl.publish_future_trajectory_marker('base_link', solution['q'][0:3, :])
-    # repl.publish_future_trajectory_marker('ball_1', solution['q'][8:11, :])
+    repl.publish_future_trajectory_marker(solution['q'])
 
     time_elapsed_all = time.time() - tic
     time_elapsed_all_list.append(time_elapsed_all)
