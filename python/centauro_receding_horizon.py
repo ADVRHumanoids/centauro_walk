@@ -378,9 +378,8 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), np.array(
                                            {k: None for k in model.fmap.keys()},
                                            model.kd_frame, model.kd,
                                            trajectory_markers=contact_list_repl,
-                                           future_trajectory_markers=['contact_1', 'contact_2', 'contact_3', 'contact_4'],
                                            fixed_joint_map=fixed_joint_map,
-                                           future_trajectory_markers_opts=dict(scale=Vector3(0.01, 0., 0.)))
+                                           future_trajectory_markers=['contact_1', 'contact_2', 'contact_3', 'contact_4'])
 
 xig = np.empty([prb.getState().getVars().shape[0], 1])
 time_elapsed_shifting_list = list()
