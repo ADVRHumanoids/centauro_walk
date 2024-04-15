@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import rospy
 from gazebo_msgs.srv import ApplyBodyWrench, ApplyBodyWrenchRequest
 from geometry_msgs.msg import Wrench, Vector3
@@ -11,7 +13,7 @@ import numpy as np
 import time
 
 
-class TestEnvironment:
+class GazeboEnvironment:
     def __init__(self):
 
         rospy.init_node('push_environment', anonymous=True)
@@ -222,7 +224,7 @@ class TestEnvironment:
 
 if __name__ == '__main__':
 
-    te = TestEnvironment()
+    te = GazeboEnvironment()
 
     while not rospy.is_shutdown():
         te.run()
