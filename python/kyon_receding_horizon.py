@@ -363,16 +363,16 @@ for c in model.cmap.keys():
 
     # flight phase normal
     flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
-    flight_phase_recovery = pyphase.Phase(flight_phase_recovery_duration, f'flight_{c}')
+    flight_phase_recovery = pyphase.Phase(flight_phase_recovery_duration, f'flight_{c}_recovery')
 
     init_z_foot = fk_dict[c](q=model.q0)['ee_pos'].elements()[2]
     ee_vel = fk_vel_dict[c](q=model.q, qdot=model.v)['ee_vel_linear']
 
     ref_trj = np.zeros(shape=[7, flight_duration])
-    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.1, [None, 0, None]))
+    ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot, 0.2, [None, 0, None]))
 
     ref_trj_recovery = np.zeros(shape=[7, flight_phase_recovery_duration])
-    ref_trj_recovery[2, :] = np.atleast_2d(tg.from_derivatives(flight_phase_recovery_duration, init_z_foot, init_z_foot, 0.1, [None, 0, None]))
+    ref_trj_recovery[2, :] = np.atleast_2d(tg.from_derivatives(flight_phase_recovery_duration, init_z_foot, init_z_foot, 0.2, [None, 0, None]))
 
     if ti.getTask(f'z_{c}') is not None:
         flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
@@ -447,9 +447,10 @@ Maximize support polygon
 # prb.createResidual('max_support_polygon', 1e-1 * (sp_area - 3.))
 
 for c in model.cmap.keys():
-    stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
+    # stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
+    stance_short = c_timelines[c].getRegisteredPhase(f'stance_{c}_short')
     while c_timelines[c].getEmptyNodes() > 0:
-        c_timelines[c].addPhase(stance)
+        c_timelines[c].addPhase(stance_short)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 # ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
@@ -534,6 +535,8 @@ threshold_capture_stepping = 0.2
 capture_stepping_i = 0
 trot_side_flag = 1
 
+anal = analyzer.ProblemAnalyzer(prb)
+
 while not rospy.is_shutdown():
     # tic = time.time()
     # set initial state and initial guess
@@ -565,6 +568,7 @@ while not rospy.is_shutdown():
     # receive msgs from ros topic and send commands to robot
     gait_manager_ros.run()
 
+    # anal.printConstraints('zero_velocity_ball_1_ball_1_vel_cartesian_task', suppress_bounds=1)
     tic = time.time()
     ti.rti()
     time_elapsed_solving = time.time() - tic
@@ -676,10 +680,26 @@ while not rospy.is_shutdown():
     if capture_stepping_i > 10:
         capture_stepping_i = 0
 
+
+
         # entering step correction (close to present horizon)
-        gm.diagonal_pair(trot_side_flag, phase_pos=2)
+        gm.diagonal_pair_recovery(trot_side_flag, phase_pos=1)
 
         trot_side_flag = 1 - trot_side_flag
+
+    # print('================================================')
+    #
+    # for name, timeline in c_timelines.items():
+    #     print(colorama.Fore.RED + colorama.Style.BRIGHT + f'timeline: {name}'+ colorama.Style.NORMAL)
+    #     for phase in timeline.getPhases():
+    #         print(colorama.Fore.CYAN + f"   phase: {phase.getName()}" + colorama.Fore.RESET)
+    #         print(colorama.Fore.MAGENTA + f"      real pos: {phase.getPosition() - (phase.getNNodes() - len(phase.getActiveNodes()))}" + colorama.Fore.RESET)
+    #         print(colorama.Fore.MAGENTA + f"      duration: {phase.getNNodes()}" + colorama.Fore.RESET)
+    #
+    # print('================================================')
+
+
+
 
     # =========================== c mean =================================================
 
