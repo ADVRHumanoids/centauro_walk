@@ -7,6 +7,7 @@ from horizon.ros import replay_trajectory
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+import phase_manager.pytimeline as pytimeline
 import phase_manager.pyrosserver as pyrosserver
 
 from horizon.rhc.gait_manager import GaitManager
@@ -291,9 +292,9 @@ tg = trajectoryGenerator.TrajectoryGenerator()
 pm = pymanager.PhaseManager(ns)
 
 # phase manager handling
-c_phases = dict()
+c_timelines = dict()
 for c in model.cmap.keys():
-    c_phases[c] = pm.addTimeline(f'{c}_timeline')
+    c_timelines[c] = pm.createTimeline(f'{c}_timeline')
 
 
 short_stance_duration = 5
@@ -308,19 +309,16 @@ c_i = 0
 for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
     # stance phase normal
-    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
-    stance_phase_short = pyphase.Phase(short_stance_duration, f'stance_{c}_short')
+    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_{c}')
+    stance_phase_short = c_timelines[c].createPhase(short_stance_duration, f'stance_{c}_short')
     if ti.getTask(f'contact_{c_i}') is not None:
         stance_phase.addItem(ti.getTask(f'contact_{c_i}'))
         stance_phase_short.addItem(ti.getTask(f'contact_{c_i}'))
     else:
         raise Exception('task not found')
 
-    c_phases[c].registerPhase(stance_phase)
-    c_phases[c].registerPhase(stance_phase_short)
-
     # flight phase normal
-    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
+    flight_phase = c_timelines[c].createPhase(flight_duration, f'flight_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ee_vel = model.kd.frameVelocity(c, model.kd_frame)(q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
@@ -337,12 +335,10 @@ for c in model.getContactMap():
     cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])))
     flight_phase.addCost(cost_ori)
 
-    c_phases[c].registerPhase(flight_phase)
-
 for c in model.cmap.keys():
-    stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
-    while c_phases[c].getEmptyNodes() > 0:
-        c_phases[c].addPhase(stance)
+    stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
+    while c_timelines[c].getEmptyNodes() > 0:
+        c_timelines[c].addPhase(stance)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 # ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
