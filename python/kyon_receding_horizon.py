@@ -10,6 +10,7 @@ from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+import phase_manager.pytimeline as pytimeline
 import phase_manager.pyrosserver as pyrosserver
 
 from horizon.rhc.gait_manager import GaitManager
@@ -305,7 +306,7 @@ pm = pymanager.PhaseManager(ns)
 # phase manager handling
 c_timelines = dict()
 for c in model.cmap.keys():
-    c_timelines[c] = pm.addTimeline(f'{c}_timeline')
+    c_timelines[c] = pm.createTimeline(f'{c}_timeline')
 
 # weight more roll joints
 white_list_indices = list()
@@ -346,9 +347,9 @@ flight_phase_recovery_duration = 4
 
 for c in model.cmap.keys():
     # stance phase normal
-    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
-    stance_phase_short = pyphase.Phase(short_stance_duration, f'stance_{c}_short')
-    stance_phase_recovery = pyphase.Phase(stance_phase_recovery_duration, f'stance_{c}_recovery')
+    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_{c}')
+    stance_phase_short = c_timelines[c].createPhase(short_stance_duration, f'stance_{c}_short')
+    stance_phase_recovery = c_timelines[c].createPhase(stance_phase_recovery_duration, f'stance_{c}_recovery')
 
     if ti.getTask(f'{c}_contact') is not None:
         stance_phase.addItem(ti.getTask(f'{c}_contact'))
@@ -357,13 +358,9 @@ for c in model.cmap.keys():
     else:
         raise Exception('task not found')
 
-    c_timelines[c].registerPhase(stance_phase)
-    c_timelines[c].registerPhase(stance_phase_short)
-    c_timelines[c].registerPhase(stance_phase_recovery)
-
     # flight phase normal
-    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
-    flight_phase_recovery = pyphase.Phase(flight_phase_recovery_duration, f'flight_{c}_recovery')
+    flight_phase = c_timelines[c].createPhase(flight_duration, f'flight_{c}')
+    flight_phase_recovery = c_timelines[c].createPhase(flight_phase_recovery_duration, f'flight_{c}_recovery')
 
     init_z_foot = fk_dict[c](q=model.q0)['ee_pos'].elements()[2]
     ee_vel = fk_vel_dict[c](q=model.q, qdot=model.v)['ee_vel_linear']
@@ -383,9 +380,6 @@ for c in model.cmap.keys():
     cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
     flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
     # flight_phase_recovery.addConstraint(cstr, nodes=[0, flight_phase_recovery_duration-1])
-    #
-    c_timelines[c].registerPhase(flight_phase)
-    c_timelines[c].registerPhase(flight_phase_recovery)
 
 # pos_lf = model.kd.fk('l_sole')(q=model.q)['ee_pos']
 # pos_rf = model.kd.fk('r_sole')(q=model.q)['ee_pos']
