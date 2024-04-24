@@ -3,6 +3,7 @@
 import rospy
 from gazebo_msgs.srv import ApplyBodyWrench, ApplyBodyWrenchRequest
 from geometry_msgs.msg import Wrench, Vector3
+from std_msgs.msg import Float32
 from std_srvs.srv import SetBool, Empty, EmptyResponse
 from xbot_msgs.srv import PluginStatus
 
@@ -25,6 +26,7 @@ class GazeboEnvironment:
         self.__dt = 0.01
 
         self.__push_wrench = np.zeros(6)
+        self.__push_duration = 0.
 
         self.__init_xbot_robot()
         self.__init_services()
@@ -36,7 +38,8 @@ class GazeboEnvironment:
 
     def __init_topics(self):
 
-        self.__set_push_wrench = rospy.Subscriber('/env/wrench_push/', Wrench, self.__wrench_push_cb)
+        self.__set_push_wrench = rospy.Subscriber('/env/push/wrench', Wrench, self.__wrench_push_cb)
+        self.__set_push_duration = rospy.Subscriber('/env/push/duration', Float32, self.__duration_push_cb)
     def __init_services(self):
 
         # open services
@@ -52,6 +55,10 @@ class GazeboEnvironment:
         self.__push_wrench[4] = msg.torque.y
         self.__push_wrench[5] = msg.torque.z
 
+    def __duration_push_cb(self, msg : Float32):
+
+        self.__push_duration = msg.data
+
     def __respawn_cb(self, request):
 
         self.respawn_robot()
@@ -60,8 +67,8 @@ class GazeboEnvironment:
 
     def __push_cb(self, request):
 
-        print(f"Applying wrench: {self.__push_wrench}")
-        te.apply_impulsive_force(self.__push_wrench, 0.1)
+        print(f"Applying wrench: {self.__push_wrench} for a duration of: {self.__push_duration}")
+        te.apply_wrench(self.__push_wrench, self.__push_duration)
 
         return EmptyResponse()
 
@@ -192,7 +199,7 @@ class GazeboEnvironment:
     def __homing(self):
         self.__bool_request('/xbotcore/homing/switch')
 
-    def apply_impulsive_force(self, wrench, duration):
+    def apply_wrench(self, wrench, duration):
 
         body_wrench_service = '/gazebo/apply_body_wrench'
         rospy.wait_for_service(body_wrench_service, timeout=1.)
@@ -205,6 +212,7 @@ class GazeboEnvironment:
             torque=Vector3(x=wrench[3], y=wrench[4], z=wrench[5])  # No torque in this example
         )
 
+
         # Fill in the necessary information in the request
         req = ApplyBodyWrenchRequest()
         req.body_name = "kyon::pelvis"  # Replace with your robot's link name
@@ -212,7 +220,7 @@ class GazeboEnvironment:
         req.reference_point = Vector3(x=0, y=0, z=0)  # Center of the link
         req.wrench = wrench_msg
         req.start_time = rospy.Time(0)
-        req.duration = rospy.Duration(duration)  # Duration for which the force should be applied
+        req.duration = rospy.Duration.from_sec(duration)  # Duration for which the force should be applied
 
         try:
             # Call the service
