@@ -1,0 +1,66 @@
+horizon_duration: 1.5
+n_nodes: 30
+
+define:
+    - &low_stiff 200.
+    - &low_damp 10.
+    - &high_stiff 1000.
+    - &high_damp 20.
+
+#stiffness:
+#    'RWrj2': *high_stiff
+#    'RWrj1': *high_stiff
+#    'RShYaw': *high_stiff
+#    'RShSag': *high_stiff
+#    'LForearmPlate': *high_stiff
+#    'LShSag': *high_stiff
+#    'WaistYaw': *high_stiff
+#    'RElbj': *high_stiff
+#    'LHipLat': *high_stiff
+#    'LShLat': *high_stiff
+#    'LHipSag': *high_stiff
+#    'RKneePitch': *high_stiff
+#    'LShYaw': *high_stiff
+#    'LHipYaw': *high_stiff
+#    'RHipLat': *high_stiff
+#    'LKneePitch': *high_stiff
+#    'LAnklePitch': *high_stiff
+#    'RHipSag': *high_stiff
+#    'LAnkleRoll': *high_stiff
+#    'RHipYaw': *high_stiff
+#    'RShLat': *high_stiff
+#    'RAnklePitch': *high_stiff
+#    'RForearmPlate': *high_stiff
+#    'RAnkleRoll': *high_stiff
+#    'LElbj': *high_stiff
+#    'WaistLat': *high_stiff
+#
+#
+#damping:
+#  'RWrj2': *high_damp
+#  'RWrj1': *high_damp
+#  'RShYaw': *high_damp
+#  'RShSag': *high_damp
+#  'LForearmPlate': *high_damp
+#  'LShSag': *high_damp
+#  'WaistYaw': *high_damp
+#  'RElbj': *high_damp
+#  'LHipLat': *high_damp
+#  'LShLat': *high_damp
+#  'LHipSag': *high_damp
+#  'RKneePitch': *high_damp
+#  'LShYaw': *high_damp
+#  'LHipYaw': *high_damp
+#  'RHipLat': *high_damp
+#  'LKneePitch': *high_damp
+#  'LAnklePitch': *high_damp
+#  'RHipSag': *high_damp
+#  'LAnkleRoll': *high_damp
+#  'RHipYaw': *high_damp
+#  'RShLat': *high_damp
+#  'RAnklePitch': *high_damp
+#  'RForearmPlate': *high_damp
+#  'RAnkleRoll': *high_damp
+#  'LElbj': *high_damp
+#  'WaistLat': *high_damp
+
