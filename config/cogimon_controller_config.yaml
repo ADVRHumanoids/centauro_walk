@@ -1,6 +1,9 @@
 horizon_duration: 1.5
 n_nodes: 30
 
+fixed_joints:
+    WaistYaw: 0.0
+
 define:
     - &low_stiff 200.
     - &low_damp 10.
@@ -8,7 +11,7 @@ define:
     - &high_damp 20.
 
 #stiffness:
-#    'RWrj2': *high_stiff
+#    'LWrj1': *high_stiff
 #    'RWrj1': *high_stiff
 #    'RShYaw': *high_stiff
 #    'RShSag': *high_stiff
@@ -37,7 +40,7 @@ define:
 #
 #
 #damping:
-#  'RWrj2': *high_damp
+#  'LWrj1': *high_damp
 #  'RWrj1': *high_damp
 #  'RShYaw': *high_damp
 #  'RShSag': *high_damp
