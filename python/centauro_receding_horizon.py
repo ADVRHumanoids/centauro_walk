@@ -7,6 +7,7 @@ from horizon.ros import replay_trajectory
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
+import phase_manager.pytimeline as pytimeline
 import phase_manager.pyrosserver as pyrosserver
 
 from cartesian_interface.pyci_all import pyest, Affine3
@@ -341,15 +342,14 @@ tg = trajectoryGenerator.TrajectoryGenerator()
 pm = pymanager.PhaseManager(ns+1)
 
 # phase manager handling
-c_phases = dict()
+c_timelines = dict()
 for c in model.cmap.keys():
-    c_phases[c] = pm.addTimeline(f'{c}_timeline')
+    c_timelines[c] = pm.createTimeline(f'{c}_timeline')
 
 
 short_stance_duration = 5
 stance_duration = 15
 flight_duration = 15
-c_i = 0
 
 FK_contacts = dict()
 dFK_contacts = dict()
@@ -358,27 +358,23 @@ for c in model.getContactMap():
     dFK_contacts[c] = model.kd.frameVelocity(c, model.kd_frame)
 
 for c in model.getContactMap():
-    c_i += 1  # because contact task start from contact_1
     # stance phase normal
-    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
-    stance_phase_short = pyphase.Phase(short_stance_duration, f'stance_{c}_short')
-    if ti.getTask(f'contact_{c_i}') is not None:
-        stance_phase.addItem(ti.getTask(f'contact_{c_i}'))
-        stance_phase_short.addItem(ti.getTask(f'contact_{c_i}'))
+    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_{c}')
+    stance_phase_short = c_timelines[c].createPhase(short_stance_duration, f'stance_{c}_short')
+    if ti.getTask(f'{c}') is not None:
+        stance_phase.addItem(ti.getTask(f'{c}'))
+        stance_phase_short.addItem(ti.getTask(f'{c}'))
     else:
         raise Exception('task not found')
 
-    c_phases[c].registerPhase(stance_phase)
-    c_phases[c].registerPhase(stance_phase_short)
-
     # flight phase normal
-    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
+    flight_phase = c_timelines[c].createPhase(flight_duration, f'flight_{c}')
     init_z_foot = FK_contacts[c](q=model.q0)['ee_pos'].elements()[2]
     ee_vel = dFK_contacts[c](q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
     ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, init_z_foot, init_z_foot + 0.01, 0.1, [None, 0, None]))
-    if ti.getTask(f'z_contact_{c_i}') is not None:
-        flight_phase.addItemReference(ti.getTask(f'z_contact_{c_i}'), ref_trj)
+    if ti.getTask(f'z_{c}') is not None:
+        flight_phase.addItemReference(ti.getTask(f'z_{c}'), ref_trj)
     else:
         raise Exception('task not found')
 
@@ -391,14 +387,12 @@ for c in model.getContactMap():
 
     ref_trj_xy = np.zeros(shape=[7, 1])
     ref_trj_xy[0:2, 0] = FK_contacts[c](q=model.q0)['ee_pos'].elements()[0:2]
-    flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])
-
-    c_phases[c].registerPhase(flight_phase)
+    flight_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
 
 for c in model.cmap.keys():
-    stance = c_phases[c].getRegisteredPhase(f'stance_{c}')
-    while c_phases[c].getEmptyNodes() > 0:
-        c_phases[c].addPhase(stance)
+    stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
+    while c_timelines[c].getEmptyNodes() > 0:
+        c_timelines[c].addPhase(stance)
 
 ti.model.q.setBounds(ti.model.q0, ti.model.q0, nodes=0)
 # ti.model.v.setBounds(ti.model.v0, ti.model.v0, nodes=0)
@@ -540,7 +534,7 @@ while not rospy.is_shutdown():
     # perception
     if perception:
         set_base_state_from_robot()
-        for c, timeline in c_phases.items():
+        for c, timeline in c_timelines.items():
             for phase in timeline.getActivePhases():
                 if phase.getName() == f'flight_{c}':
                     final_node = phase.getPosition() + phase.getNNodes()
@@ -577,6 +571,8 @@ while not rospy.is_shutdown():
                         ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]))
 
                         phase.setItemReference(f'xy_{c}', ref_trj_xy)
+                        task = ti.getTask(f'xy_{c}')
+
 
     pm.shift()
 

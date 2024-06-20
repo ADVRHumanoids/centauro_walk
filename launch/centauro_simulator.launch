@@ -19,4 +19,6 @@
 
     <node pkg="kyon_controller" type="xbot2_core" name="xbot2" output="screen"
         args="--hw sim --simtime --config $(arg xbot2_config) --"/>
+
+    <node pkg="rviz" name="rviz" type="rviz" args="-d $(find kyon_controller)/perception.rviz"/>
 </launch>

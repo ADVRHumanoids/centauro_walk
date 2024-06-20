@@ -34,7 +34,7 @@ class JoyCommands:
     def __open_subscribers(self):
 
         self.__base_vel_pub = rospy.Publisher('/horizon/base_velocity/reference', Twist)
-        self.__crawl_cli = rospy.ServiceProxy('/horizon/walk/switch', SetBool)
+        self.__crawl_cli = rospy.ServiceProxy('/horizon/crawl/switch', SetBool)
         self.__trot_cli = rospy.ServiceProxy('/horizon/trot/switch', SetBool)
 
 
