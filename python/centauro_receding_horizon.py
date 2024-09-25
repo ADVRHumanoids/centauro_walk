@@ -143,6 +143,7 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     qdot = np.hstack([ee_rel, qdot_robot])
     model.v.setBounds(qdot, qdot, nodes=0)
 
+
 rospy.init_node('centauro_walk')
 projector.init('centauro_walk', [])
 
@@ -533,13 +534,14 @@ while not rospy.is_shutdown():
 
     # perception
     if perception:
+        project = False
         set_base_state_from_robot()
         for c, timeline in c_timelines.items():
             for phase in timeline.getActivePhases():
                 if phase.getName() == f'flight_{c}':
                     final_node = phase.getPosition() + phase.getNNodes()
                     if final_node < ns + 1:
-                        # ti.getTask(f'xy_{c}').setWeight(1.)
+
                         initial_pose = FK_contacts[c](q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
                         projected_initial_pose = projector.project(initial_pose)
                         landing_pose = FK_contacts[c](q=solution['q'][:, final_node])['ee_pos'].elements()
@@ -557,6 +559,15 @@ while not rospy.is_shutdown():
                         projected_point.point.x = projected_final_pose[0]
                         projected_point.point.y = projected_final_pose[1]
                         projected_point.point.z = projected_final_pose[2]
+
+                        qp = np.array([query_point.point.x, query_point.point.y, query_point.point.z])
+                        pp = np.array([projected_point.point.x, projected_point.point.y, projected_point.point.z])
+                        if np.linalg.norm(qp - pp) > 0.02:
+                            ti.getTask(f'xy_{c}').setWeight(100.)
+                            project = True
+                        else:
+                            ti.getTask(f'xy_{c}').setWeight(0.)
+                            project = False
 
                         pub_dict[f'{c}_query'].publish(query_point)
                         pub_dict[f'{c}_proj'].publish(projected_point)
@@ -583,8 +594,26 @@ while not rospy.is_shutdown():
 
     gait_manager_ros.run()
 
+    # [ti.getTask(f'xy_{c}').setWeight(0) for c in model.getContacts()]
+
     ti.rti()
     solution = ti.solution
+
+    # '''
+    # Second pass
+    # '''
+    # if perception and project:
+    #     print('SECOND PASS!!!!!!!!!!!!!!!!!!!!')
+    #     x_opt = solution['x_opt']
+    #     for i in range(abs(shift_num)):
+    #         xig[:, -1 - i] = x_opt[:, -1]
+    #
+    #     prb.getState().setInitialGuess(xig)
+    #     prb.setInitialState(x0=xig[:, 0])
+    #
+    #     [ti.getTask(f'xy_{c}').setWeight(100) for c in model.getContacts()]
+    #     ti.rti()
+    #     solution = ti.solution
 
     sol_msg = WBTrajectory()
     sol_msg.header.frame_id = 'world'

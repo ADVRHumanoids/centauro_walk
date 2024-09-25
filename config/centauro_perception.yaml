@@ -26,14 +26,15 @@ constraints:
   - contact_4
 
 costs:
+  - final_base_xy
   - z_contact_1
   - z_contact_2
   - z_contact_3
   - z_contact_4
-  - xy_contact_1
-  - xy_contact_2
-  - xy_contact_3
-  - xy_contact_4
+#  - xy_contact_1
+#  - xy_contact_2
+#  - xy_contact_3
+#  - xy_contact_4
 #  - final_base_xy
 #  - base_orientation
   - com_height
@@ -62,8 +63,8 @@ final_base_xy:
   type: Cartesian
   distal_link: base_link
   indices: [0, 1]
-#  nodes: ${range(N-10, N)}
-  nodes: all
+  nodes: ${range(N-10, N)}
+#  nodes: all
   weight: *w_base_xy
 
 com_height:

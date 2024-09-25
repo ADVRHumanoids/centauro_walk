@@ -23,12 +23,13 @@ constraints:
   - contact_2
   - contact_3
   - contact_4
+
+
+costs:
   - xy_contact_1
   - xy_contact_2
   - xy_contact_3
   - xy_contact_4
-
-costs:
   - z_contact_1
   - z_contact_2
   - z_contact_3
@@ -225,28 +226,28 @@ xy_contact_1:
   distal_link: contact_1
   indices: [0, 1]
   cartesian_type: position
-#  weight: *w_contact_xy
+  weight: *w_contact_xy
 
 xy_contact_2:
   type: Cartesian
   distal_link: contact_2
   indices: [0, 1]
   cartesian_type: position
-#  weight: *w_contact_xy
+  weight: *w_contact_xy
 
 xy_contact_3:
   type: Cartesian
   distal_link: contact_3
   indices: [0, 1]
   cartesian_type: position
-#  weight: *w_contact_xy
+  weight: *w_contact_xy
 
 xy_contact_4:
   type: Cartesian
   distal_link: contact_4
   indices: [0, 1]
   cartesian_type: position
-#  weight: *w_contact_xy
+  weight: *w_contact_xy
 
 
 
