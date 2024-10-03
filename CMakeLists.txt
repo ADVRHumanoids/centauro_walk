@@ -46,8 +46,9 @@ catkin_package(
     DEPENDS
     )
 
-add_library(perception
-    src/perception.cpp)
+add_executable(perception
+    src/perception.cpp
+    src/perception_node.cpp)
 
 target_link_libraries(perception
     ${catkin_LIBRARIES}
@@ -65,7 +66,6 @@ add_executable(controller
 
 target_link_libraries(controller
     mpc_handler
-    perception
     ${catkin_LIBRARIES})
 
 install(TARGETS controller

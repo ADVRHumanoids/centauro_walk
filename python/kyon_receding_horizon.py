@@ -174,20 +174,20 @@ Find tf from odom to odom_offset
 # listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(2.))
 # (trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
 
-pub_dict = dict()
-pub_dict['contact_1_query'] = rospy.Publisher('~contact_1_query', PointStamped, queue_size=1)
-pub_dict['contact_1_proj'] = rospy.Publisher('~contact_1_proj', PointStamped, queue_size=1)
-pub_dict['contact_2_query'] = rospy.Publisher('~contact_2_query', PointStamped, queue_size=1)
-pub_dict['contact_2_proj'] = rospy.Publisher('~contact_2_proj', PointStamped, queue_size=1)
-pub_dict['contact_3_query'] = rospy.Publisher('~contact_3_query', PointStamped, queue_size=1)
-pub_dict['contact_3_proj'] = rospy.Publisher('~contact_3_proj', PointStamped, queue_size=1)
-pub_dict['contact_4_query'] = rospy.Publisher('~contact_4_query', PointStamped, queue_size=1)
-pub_dict['contact_4_proj'] = rospy.Publisher('~contact_4_proj', PointStamped, queue_size=1)
+# pub_dict = dict()
+# pub_dict['contact_1_query'] = rospy.Publisher('~contact_1_query', PointStamped, queue_size=1)
+# pub_dict['contact_1_proj'] = rospy.Publisher('~contact_1_proj', PointStamped, queue_size=1)
+# pub_dict['contact_2_query'] = rospy.Publisher('~contact_2_query', PointStamped, queue_size=1)
+# pub_dict['contact_2_proj'] = rospy.Publisher('~contact_2_proj', PointStamped, queue_size=1)
+# pub_dict['contact_3_query'] = rospy.Publisher('~contact_3_query', PointStamped, queue_size=1)
+# pub_dict['contact_3_proj'] = rospy.Publisher('~contact_3_proj', PointStamped, queue_size=1)
+# pub_dict['contact_4_query'] = rospy.Publisher('~contact_4_query', PointStamped, queue_size=1)
+# pub_dict['contact_4_proj'] = rospy.Publisher('~contact_4_proj', PointStamped, queue_size=1)
 
 '''
 Initialize Horizon problem
 '''
-ns = 30
+ns = 20
 T = 1.5
 dt = T / ns
 
@@ -529,6 +529,7 @@ while not rospy.is_shutdown():
 
     # perception
     if jc.perception:
+        print('PERCEPTIONNNNNNNNNNNNNNN')
         project = False
         set_base_state_from_robot()
         for c, timeline in c_timelines.items():
@@ -564,8 +565,8 @@ while not rospy.is_shutdown():
                             ti.getTask(f'xy_{c}').setWeight(0.)
                             project = False
 
-                        pub_dict[f'{c}_query'].publish(query_point)
-                        pub_dict[f'{c}_proj'].publish(projected_point)
+                        # pub_dict[f'{c}_query'].publish(query_point)
+                        # pub_dict[f'{c}_proj'].publish(projected_point)
 
                         ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
                                                                           projected_initial_pose[2],

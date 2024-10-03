@@ -1,5 +1,5 @@
 horizon_duration: 1.5
-n_nodes: 30
+n_nodes: 20
 
 define:
     - &low_stiff 200.
