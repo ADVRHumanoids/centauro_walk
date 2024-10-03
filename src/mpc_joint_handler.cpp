@@ -9,7 +9,8 @@ MPCJointHandler::MPCJointHandler(ros::NodeHandle nh,
                                  XBot::ModelInterface::Ptr model,
                                  int rate,
                                  YAML::Node config,
-                                 XBot::RobotInterface::Ptr robot):
+                                 XBot::RobotInterface::Ptr robot,
+                                 std::map<std::string, double> fixed_joints_map):
 MPCHandler(nh),
 _model(model),
 _robot(robot),
@@ -18,7 +19,9 @@ _flag_id(true)
 {
     init_publishers_and_subscribers();
 
-    _model->getJointPosition(_q);
+    _fixed_joints_map = fixed_joints_map;
+
+//    _model->getJointPosition(_q);
     _model->getJointVelocity(_qdot);
     _model->getJointAcceleration(_qddot);
     _model->getJointEffort(_tau);
@@ -26,23 +29,28 @@ _flag_id(true)
     auto urdf_model = std::make_shared<urdf::ModelInterface>(_robot->getUrdf());
 
 
-    if (config["fixed_joints"])
+    // get horizon duration and n_nodes from YAML file for the Resampler
+    if (config["horizon_duration"])
     {
-        _fixed_joints_map  = config["fixed_joints"].as<std::map<std::string, double>>();
-
-        for (auto pair : _fixed_joints_map) {
-            _fixed_joints.push_back(pair.first);
-        }
-
-        ColoredTextPrinter::print("Fixing joints: ", ColoredTextPrinter::TextColor::Green);
-        for (auto elem : _fixed_joints_map)
-        {
-            ColoredTextPrinter::print(elem.first + ": " + std::to_string(elem.second), ColoredTextPrinter::TextColor::Green);
-        }
+        _horizon_duration = config["horizon_duration"].as<double>();
+        ColoredTextPrinter::print("Setting horizon duration to controller: " + std::to_string(_horizon_duration), ColoredTextPrinter::TextColor::Green);
+    }
+    else
+    {
+        throw std::runtime_error("Missing required parameter 'horizon_duration'!");
     }
 
-    _resampler = std::make_unique<Resampler>(urdf_model, _fixed_joints_map);
+    if (config["n_nodes"])
+    {
+        _n_nodes = config["n_nodes"].as<int>();
+        ColoredTextPrinter::print("Setting number of nodes to controller: " + std::to_string(_n_nodes), ColoredTextPrinter::TextColor::Green);
+    }
+    else
+    {
+        throw std::runtime_error("Missing required parameter 'n_nodes'!");
+    }
 
+    _resampler = std::make_unique<Resampler>(_horizon_duration, _n_nodes, urdf_model, _fixed_joints_map);
     _resampler_pub = _nh.advertise<sensor_msgs::JointState>("/resampler_solution_position", 1, true);
 }
 
@@ -70,9 +78,6 @@ void MPCJointHandler::mpc_joint_callback(const kyon_controller::WBTrajectoryCons
             _flag_id = false;
         }
     }
-
-    // set state and input to Resampler (?)
-    _robot->sense();
 
     // getting the input from the MPC solution
     _p = Eigen::VectorXd::Map(_mpc_solution.q.data(), _mpc_solution.q.size());
@@ -138,7 +143,7 @@ bool MPCJointHandler::update()
     msg_pub.velocity.clear();
     msg_pub.position.assign(_p.data(), _p.data() + _p.size());
     msg_pub.velocity.assign(_v.data(), _v.data() + _v.size());
-    
+
     if (_flag_id)
     {
         msg_pub.effort.assign(tau.data(), tau.data() + tau.size());
@@ -148,62 +153,67 @@ bool MPCJointHandler::update()
 
 
     // q_euler does not have the fixed joints inside
-    Eigen::VectorXd q_euler(_model->getJointNum());
-    q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
+//    Eigen::VectorXd q_euler(_model->getJointNum());
+//    q_euler = _resampler->getMinimalQ(_x.head(_resampler->nq()));
 
-    // create variables:
-    // reduced to account for fixed joints,
-    // smooth and current_robot to filter the MPC reference
-    Eigen::VectorXd q_reduced(_robot->getJointNum() - _fixed_joints.size()), qdot_reduced(_robot->getJointNum() - _fixed_joints.size());
-    Eigen::VectorXd q_smooth(_robot->getJointNum() - _fixed_joints.size()), qdot_smooth(_robot->getJointNum() - _fixed_joints.size());
-    XBot::JointNameMap q_current_robot, qdot_current_robot;
+//    // create variables:
+//    // reduced to account for fixed joints,
+//    // smooth and current_robot to filter the MPC reference
+//    Eigen::VectorXd q_reduced(_robot->getJointNum() - _fixed_joints_map.size()), qdot_reduced(_robot->getJointNum() - _fixed_joints_map.size());
+//    Eigen::VectorXd q_smooth(_robot->getJointNum() - _fixed_joints_map.size()), qdot_smooth(_robot->getJointNum() - _fixed_joints_map.size());
+//    XBot::JointNameMap q_current_robot, qdot_current_robot;
 
-    // get current state from robot for smoothing
-    _robot->getPositionReference(q_current_robot);
-    _robot->getVelocityReference(qdot_current_robot);
+//    // get current state from robot for smoothing
+//    _robot->getPositionReference(q_current_robot);
+//    _robot->getVelocityReference(qdot_current_robot);
 
-    // if fixed joints, remove them from the state
-    for (auto name : _fixed_joints)
-    {
-        auto q_it = q_current_robot.find(name);
-        if (q_it != q_current_robot.end())
-        {
-            q_current_robot.erase(q_it);
-        }
+//    // if fixed joints, remove them from the state
+//    for (auto pair : _fixed_joints_map)
+//    {
+//        auto q_it = q_current_robot.find(pair.first);
+//        if (q_it != q_current_robot.end())
+//        {
+//            q_current_robot.erase(q_it);
+//        }
 
-        auto qdot_it = qdot_current_robot.find(name);
-        if (qdot_it != qdot_current_robot.end())
-        {
-            qdot_current_robot.erase(qdot_it);
-        }
-    }
+//        auto qdot_it = qdot_current_robot.find(pair.first);
+//        if (qdot_it != qdot_current_robot.end())
+//        {
+//            qdot_current_robot.erase(qdot_it);
+//        }
+//    }
 
-    // transform from JointNameMap to Eigen for smoothing, considering the order of q_euler and _v (= order of joint_names)
-    int q_index = 0;
-    for (auto el_name : _joint_names)
-    {
-        q_reduced(q_index) = q_current_robot[el_name];
-        q_index++;
-    }
+//    // transform from JointNameMap to Eigen for smoothing, considering the order of q_euler and _v (= order of joint_names)
+//    int q_index = 0;
+//    for (auto el_name : _joint_names)
+//    {
+//        q_reduced(q_index) = q_current_robot[el_name];
+//        q_index++;
+//    }
 
-    int qdot_index = 0;
-    for (auto el_name : _joint_names)
-    {
-        qdot_reduced(qdot_index) = qdot_current_robot[el_name];
-        qdot_index++;
-    }
+//    int qdot_index = 0;
+//    for (auto el_name : _joint_names)
+//    {
+//        qdot_reduced(qdot_index) = qdot_current_robot[el_name];
+//        qdot_index++;
+//    }
 
-//    q_current << _fb_pose_rpy, q_current_robot;
-//    qdot_current << _fb_twist, q_current_robot;
+////    q_current << _fb_pose_rpy, q_current_robot;
+////    qdot_current << _fb_twist, q_current_robot;
 
-    // smooth mpc reference with current reference (q_euler and _v comes from the MPC, so they have the floating base joints)
-    // careful floating base assumed to be rpy and removed
-    smooth(q_reduced, q_euler.tail(q_euler.size() - 6), q_smooth);
-    smooth(qdot_reduced, _v.tail(_v.size() - 6), qdot_smooth);
+//    // smooth mpc reference with current reference (q_euler and _v comes from the MPC, so they have the floating base joints)
+//    // careful floating base assumed to be rpy and removed
+//    smooth(q_reduced, q_euler.tail(q_euler.size() - 6), q_smooth);
+//    smooth(qdot_reduced, _v.tail(_v.size() - 6), qdot_smooth);
+
+
 
     // zip togheter joint names and relative values (joint names comes from MPC message, it does not contain fixed joint strings)
-    vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
-    vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
+//    vectors_to_map<std::string, double>(_joint_names, q_smooth, _q);
+//    vectors_to_map<std::string, double>(_joint_names, qdot_smooth, _qdot);
+
+    _resampler->getMinimalJointMap(_q);
+    vectors_to_map<std::string, double>(_joint_names, _v.tail(_v.size() - 6), _qdot);
 
 
     if (_flag_id)
@@ -219,10 +229,10 @@ bool MPCJointHandler::update()
     _robot->setVelocityReference(_qdot);
 
     if (_flag_id)
-    { 
-       _robot->setEffortReference(_tau);
+    {
+        _robot->setEffortReference(_tau);
     }
-    
+
     _robot->move();
 
     return true;

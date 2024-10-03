@@ -13,14 +13,14 @@ Controller::Controller(ros::NodeHandle nh, int rate):
 _nh(nh),
 _nhpr("~"),
 _time(0),
-_rate(rate), 
+_rate(rate),
 _init(false)
 {
     init_load_config();
     init_load_model();
     init_load_publishers_and_subscribers();
 
-    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _config, _robot);
+    _mpc_handler = std::make_shared<MPCJointHandler>(_nh, _model, _rate, _config, _robot, _fixed_joints_map);
     _mpc_handler->setTorqueOffset(_tau_offset);
 }
 
@@ -35,6 +35,23 @@ void Controller::init_load_config()
         std::string config_string;
         _nhpr.getParam("config", config_string);
         _config = YAML::Load(config_string);
+
+        // remove from controller the joints labeled as fixed
+        if (_config["fixed_joints"])
+        {
+            _fixed_joints_map  = _config["fixed_joints"].as<std::map<std::string, double>>();
+
+            for (auto [name, _] : _fixed_joints_map)
+            {
+                _zero_ctrl_map[name] = XBot::ControlMode::Idle();
+            }
+
+            ColoredTextPrinter::print("Fixing joints: ", ColoredTextPrinter::TextColor::Green);
+            for (auto elem : _fixed_joints_map)
+            {
+                ColoredTextPrinter::print(elem.first + ": " + std::to_string(elem.second), ColoredTextPrinter::TextColor::Green);
+            }
+        }
 
         if (!_config["control_mode"])
         {
@@ -90,11 +107,17 @@ void Controller::init_load_model()
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
 
-        _robot->setControlMode(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
-        if (!_ctrl_map.empty())
-        {
-            _robot->setControlMode(_ctrl_map);
-        }
+        _robot->sense();
+
+        // set all joint modes to pos impedance + effort
+        set_control_mode_map(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
+
+        // set initial control mode
+        _robot->setControlMode(_init_ctrl_map);
+
+        // prepare control map as pos + vel + effort
+        set_control_mode_map(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
+
 
         if(_nhpr.hasParam("torque_offset"))
         {
@@ -171,6 +194,34 @@ void Controller::set_stiffness_damping_torque(double duration)
     }
 }
 
+void Controller::set_control_mode_map(XBot::ControlMode cm)
+{
+
+    for (auto elem : _robot->getEnabledJointNames())
+    {
+        _init_ctrl_map[elem] = cm;
+    }
+
+    if (!_ctrl_map.empty())
+    {
+        // overwrite with entries in _ctrl_map (custom from the user)
+        for (const auto& pair : _ctrl_map)
+        {
+                _init_ctrl_map[pair.first] = pair.second;
+        }
+    }
+
+    if (!_zero_ctrl_map.empty())
+    {
+        // overwrite with entries in _ctrl_map (custom from the user)
+        for (const auto& pair : _zero_ctrl_map)
+        {
+                _init_ctrl_map[pair.first] = pair.second;
+        }
+    }
+
+}
+
 void Controller::set_stiffness_damping(double duration)
 {
     // initialize with the current position of the robot
@@ -237,11 +288,6 @@ void Controller::run()
             set_stiffness_damping(1.);
         }
 
-        _robot->setControlMode(XBot::ControlMode::Position() + XBot::ControlMode::Velocity() + XBot::ControlMode::Effort());
-        if (!_ctrl_map.empty())
-        {
-            _robot->setControlMode(_ctrl_map);
-        }
+        _robot->setControlMode(_init_ctrl_map);
     }
 }
-

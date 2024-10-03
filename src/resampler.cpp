@@ -3,11 +3,15 @@
 #include <chrono>
 #include <thread>
 
-Resampler::Resampler(urdf::ModelInterfaceSharedPtr urdf_model,
+Resampler::Resampler(double horizon_duration,
+                     int n_nodes,
+                     urdf::ModelInterfaceSharedPtr urdf_model,
                      std::map<std::string, double> fixed_joints,
                      std::vector<std::string> frames,
                      int sys_order
                      ):
+_horizon_duration(horizon_duration),
+_n_nodes(n_nodes),
 _urdf(urdf_model),
 _frames(frames),
 _sys_order(sys_order),
@@ -57,7 +61,7 @@ _warning_printed(false)
 
     if (_sys_order != 2  && _sys_order != 3)
     {
-//        throw std::runtime_error("Resampler works with systems of order 2 and 3 only!");
+        throw std::runtime_error("Resampler works with systems of order 2 and 3 only!");
     }
 
     if (!_frames.empty())
@@ -65,7 +69,7 @@ _warning_printed(false)
         resize();
     }
 
-    _max_time = 2. / 40.;
+    _max_time = _horizon_duration / _n_nodes;
 }
 
 void Resampler::resize()
@@ -160,7 +164,7 @@ void Resampler::id()
     }
 
     _tau = _data->tau;
-    
+
     // if frames is empty, skip this part
     for (int i = 0; i < _frames.size(); i++)
     {
@@ -308,6 +312,39 @@ Eigen::VectorXd Resampler::mapToQ(std::unordered_map<std::string, double> jmap)
     }
 
     return joint_pos;
+}
+
+void Resampler::getMinimalJointMap(std::unordered_map<std::string, double>& jmap)
+{
+    jmap.clear();
+
+    std::vector<std::string> jnames = _model.names;
+    Eigen::VectorXd q = _x.segment(0, _model.nq);
+    int i = 0;
+
+    for (auto jname : jnames)
+    {
+        size_t jidx = _model.getJointId(jname);
+        size_t nq = _model.nqs[jidx];
+
+        if (nq == 1)
+        {
+            double jpos = q[i];
+            jmap.insert(std::make_pair(jname, jpos));
+            i += 1;
+        }
+        else if (nq == 2)
+        {
+            double jpos = atan2(q[i], q[i+1]);
+            jmap.insert(std::make_pair(jname, jpos));
+            i += 2;
+        }
+        else
+        {
+            // ignore fb and other joints
+            i += nq;
+        }
+    }
 }
 
 Eigen::VectorXd Resampler::getMinimalQ(Eigen::VectorXd q)

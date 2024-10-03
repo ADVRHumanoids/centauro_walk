@@ -471,15 +471,6 @@ qdot_robot = np.zeros(len(robot_joint_names))
 
 wrench_pub = rospy.Publisher('centauro_base_estimation/contacts/set_wrench', ContactWrenches, latch=False)
 
-# from geometry_msgs.msg import PointStamped
-# zmp_pub = rospy.Publisher('zmp_pub', PointStamped, queue_size=10)
-# # zmp_f = ti.getTask('zmp')._zmp_fun()
-# zmp_point = PointStamped()
-#
-# c_mean_pub = rospy.Publisher('c_mean_pub', PointStamped, queue_size=10)
-# c_mean_point = PointStamped()
-
-
 while not rospy.is_shutdown():
 
     if perception:

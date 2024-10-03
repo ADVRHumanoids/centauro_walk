@@ -22,7 +22,8 @@ public:
                     XBot::ModelInterface::Ptr model,
                     int rate,
                     YAML::Node config,
-                    XBot::RobotInterface::Ptr robot = nullptr);
+                    XBot::RobotInterface::Ptr robot = nullptr,
+                    std::map<std::string, double> fixed_joints_map = {});
 
     void setTorqueOffset(XBot::JointNameMap tau_offset);
 
@@ -48,6 +49,9 @@ private:
         }
     }
 
+    double _horizon_duration;
+    int _n_nodes;
+
     ros::Publisher _resampler_pub;
     sensor_msgs::JointState msg_pub;
 
@@ -58,7 +62,6 @@ private:
     Eigen::VectorXd _j, _fdot;
 
     std::vector<std::string> _joint_names;
-    std::vector<std::string> _fixed_joints;
     std::map<std::string, double> _fixed_joints_map;
 
     Eigen::VectorXd _x, _u;

@@ -18,11 +18,11 @@ solver:
   ilqr.n_threads: 0
   print_time: 0
 
-constraints:
-  - contact_1
-  - contact_2
-  - contact_3
-  - contact_4
+#constraints:
+#  - contact_1
+#  - contact_2
+#  - contact_3
+#  - contact_4
 
 
 costs:
@@ -39,23 +39,26 @@ costs:
   - base_orientation
   - joint_regularization
   - joint_posture
+  - contact_1
+  - contact_2
+  - contact_3
+  - contact_4
 #  - zmp
 #  - joint_posture_ub
 
 .define:
-    - &w_com 5.
-    - &w_base_ori 10.
-    - &w_base_xy 5.
-    - &w_contact_z 50.
-    - &w_postural 0.5
-    - &w_postural_ub 1.
-    - &w_contact_xy 0.
-    - &w_v 1.
-    - &w_a 1e-2
-    - &w_f 1e-3
-    - &w_zmp 100.
-    - &w_ball_ori 20.
-    - &w_ball_xy 10.
+    - &w_com 70.
+    - &w_base_ori 50.
+    - &w_base_xy 10.
+    - &w_contact_z 100.
+    - &w_postural 5.
+    - &w_postural_ub 10.
+    - &w_v 1e-2
+    - &w_a 6e-2
+    - &w_f 1e-2
+    - &w_contact 100
+    - &w_contact_ori 20.
+    - &w_contact_xy 10.
     - &w_postural_roll 1.
 
 base_xy:
