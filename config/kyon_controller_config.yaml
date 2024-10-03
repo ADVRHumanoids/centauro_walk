@@ -1,0 +1,39 @@
+horizon_duration: 1.5
+n_nodes: 30
+
+define:
+    - &low_stiff 200.
+    - &low_damp 10.
+    - &high_stiff 2000.
+    - &high_damp 100.
+
+stiffness:
+
+   hip_pitch_1: *high_stiff
+   hip_pitch_2: *high_stiff
+   hip_pitch_3: *high_stiff
+   hip_pitch_4: *high_stiff
+   hip_roll_1: *high_stiff
+   hip_roll_2: *high_stiff
+   hip_roll_3: *high_stiff
+   hip_roll_4: *high_stiff
+   knee_pitch_1: *high_stiff
+   knee_pitch_2: *high_stiff
+   knee_pitch_3: *high_stiff
+   knee_pitch_4: *high_stiff
+
+damping:
+   hip_pitch_1: *high_damp
+   hip_pitch_2: *high_damp
+   hip_pitch_3: *high_damp
+   hip_pitch_4: *high_damp
+   hip_roll_1: *high_damp
+   hip_roll_2: *high_damp
+   hip_roll_3: *high_damp
+   hip_roll_4: *high_damp
+   knee_pitch_1: *high_damp
+   knee_pitch_2: *high_damp
+   knee_pitch_3: *high_damp
+   knee_pitch_4: *high_damp
+
+

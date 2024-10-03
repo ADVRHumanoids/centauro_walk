@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "perception.h"
 #include <ros/ros.h>
 
 int main(int argc, char** argv)
@@ -16,6 +17,22 @@ int main(int argc, char** argv)
         nhpr.getParam("rate", rate);
     }
 
+    std::vector<std::string> input_topics;
+    std::string base_link;
+
+    std::shared_ptr<Perception> perception;
+    if (nhpr.hasParam("input_topics"))
+    {
+        nhpr.getParam("input_topics", input_topics);
+        perception = std::make_shared<Perception>(nh, input_topics);
+
+        if (nhpr.hasParam("base_link"))
+        {
+            nhpr.getParam("base_link", base_link);
+            perception->setBaseLink(base_link);
+        }
+    }
+
     std::cout << "running rate at " << rate << " Hz" << std::endl;
 
     Controller controller(nh, rate);
@@ -24,6 +41,10 @@ int main(int argc, char** argv)
     while(ros::ok())
     {
         controller.run();
+        if(perception)
+        {
+            perception->update();
+        }
         ros::spinOnce();
         r.sleep();
     }

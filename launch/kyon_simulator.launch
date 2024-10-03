@@ -1,0 +1,20 @@
+<launch>
+    <arg name="arms" default="true"/>
+    <arg name="legs" default="true"/>
+    <arg name="velodyne" default="false"/>
+    <arg name="sensors" default="true"/>
+    <arg name="xbot2_config" default="$(find kyon_config)/kyon_basic.yaml"/>
+
+    <param name="robot_description"
+         command="$(find xacro)/xacro $(find kyon_urdf)/urdf/kyon.urdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) sensors:=$(arg sensors)"/>
+
+    <param name="robot_description_semantic"
+              command="$(find xacro)/xacro $(find kyon_srdf)/srdf/kyon.srdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) sensors:=$(arg sensors)"/>
+
+    <include file="$(find kyon_gazebo)/launch/kyon_world.launch" pass_all_args="true"/>
+
+    <node pkg="kyon_controller" type="xbot2_core" name="xbot2" output="screen"
+        args="--hw sim --simtime --config $(arg xbot2_config) --"/>
+
+    <node pkg="rviz" name="rviz" type="rviz" args="-d $(find kyon_controller)/perception.rviz"/>
+</launch>

@@ -22,6 +22,7 @@ class JoyCommands:
         self.__base_ori_vel_weight = 1.
 
         self.velocity_ref = Twist()
+        self.perception = False
 
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         self.publisher = rospy.Publisher('smooth_joy', Joy, queue_size=1)
@@ -89,6 +90,9 @@ class JoyCommands:
         if self.joy_msg.buttons[2] == 1:
             # change com height
             self.velocity_ref.linear.z = - 0.05
+
+        if self.joy_msg.axes[7] == 1:
+            self.perception = not self.perception
 
         self.__base_vel_pub.publish(self.velocity_ref)
 
