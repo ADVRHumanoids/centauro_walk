@@ -26,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -58,117 +58,231 @@ Visualization Manager:
       Enabled: true
       Links:
         All Links Enabled: true
-        D435_head_camera_accel_frame:
+        D435_front1_accel_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_accel_optical_frame:
+        D435_front1_accel_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_bottom_screw_frame:
+        D435_front1_bottom_screw_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_color_frame:
+        D435_front1_color_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_color_optical_frame:
+        D435_front1_color_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_depth_frame:
+        D435_front1_depth_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_depth_optical_frame:
+        D435_front1_depth_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_gyro_frame:
+        D435_front1_gyro_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_gyro_optical_frame:
+        D435_front1_gyro_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_left_ir_frame:
+        D435_front1_left_ir_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_left_ir_optical_frame:
+        D435_front1_left_ir_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435_head_camera_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        D435_head_camera_right_ir_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435_head_camera_right_ir_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_accel_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_accel_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_bottom_screw_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_color_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_color_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_depth_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_depth_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_gyro_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_gyro_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_left_ir_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_left_ir_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        D435i_camera_link:
+        D435_front1_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        D435i_camera_right_ir_frame:
+        D435_front1_right_ir_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        D435i_camera_right_ir_optical_frame:
+        D435_front1_right_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_accel_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_accel_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_gyro_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_gyro_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_left_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_left_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        D435_front2_right_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_front2_right_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_accel_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_accel_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_gyro_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_gyro_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_left_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_left_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        D435_left_right_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_left_right_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_accel_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_accel_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_gyro_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_gyro_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_left_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_left_ir_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        D435_right_right_ir_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        D435_right_right_ir_optical_frame:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -176,173 +290,6 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        T265_camera_accel_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_accel_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_fisheye1_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_fisheye1_rgb_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_fisheye2_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_fisheye2_rgb_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_gyro_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_gyro_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        T265_camera_pose_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle1_1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle1_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle1_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle1_4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle2_1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle2_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle2_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ankle2_4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_5:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_6:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm1_8:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        arm2_1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_5:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_6:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        arm2_8:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        ball1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ball1_tip:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        ball2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        ball2_tip:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
         base_link:
           Alpha: 1
           Show Axes: false
@@ -363,47 +310,42 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        d435_head_motor:
+        hip_pitch_1_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip1_1:
+        hip_pitch_2_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip1_2:
+        hip_pitch_3_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip1_3:
+        hip_pitch_4_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip1_4:
+        hip_roll_1_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip2_1:
+        hip_roll_2_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip2_2:
+        hip_roll_3_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        hip2_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        hip2_4:
+        hip_roll_4_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -412,62 +354,27 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        knee_1:
+        knee_pitch_1_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        knee_2:
+        knee_pitch_2_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        knee_3:
+        knee_pitch_3_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        knee_4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        neck_1:
+        knee_pitch_4_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
         pelvis:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        torso_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        velodyne_motor:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -483,198 +390,12 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Filter (blacklist): ""
       Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        D435_head_camera_accel_frame:
-          Value: false
-        D435_head_camera_accel_optical_frame:
-          Value: false
-        D435_head_camera_bottom_screw_frame:
-          Value: false
-        D435_head_camera_color_frame:
-          Value: false
-        D435_head_camera_color_optical_frame:
-          Value: false
-        D435_head_camera_depth_frame:
-          Value: false
-        D435_head_camera_depth_optical_frame:
-          Value: false
-        D435_head_camera_gyro_frame:
-          Value: false
-        D435_head_camera_gyro_optical_frame:
-          Value: false
-        D435_head_camera_left_ir_frame:
-          Value: false
-        D435_head_camera_left_ir_optical_frame:
-          Value: false
-        D435_head_camera_link:
-          Value: false
-        D435_head_camera_right_ir_frame:
-          Value: false
-        D435_head_camera_right_ir_optical_frame:
-          Value: false
-        D435i_camera_accel_frame:
-          Value: false
-        D435i_camera_accel_optical_frame:
-          Value: false
-        D435i_camera_bottom_screw_frame:
-          Value: false
-        D435i_camera_color_frame:
-          Value: false
-        D435i_camera_color_optical_frame:
-          Value: false
-        D435i_camera_depth_frame:
-          Value: false
-        D435i_camera_depth_optical_frame:
-          Value: false
-        D435i_camera_gyro_frame:
-          Value: false
-        D435i_camera_gyro_optical_frame:
-          Value: false
-        D435i_camera_left_ir_frame:
-          Value: false
-        D435i_camera_left_ir_optical_frame:
-          Value: false
-        D435i_camera_link:
-          Value: false
-        D435i_camera_right_ir_frame:
-          Value: false
-        D435i_camera_right_ir_optical_frame:
-          Value: false
-        T265_camera_accel_frame:
-          Value: false
-        T265_camera_accel_optical_frame:
-          Value: false
-        T265_camera_fisheye1_optical_frame:
-          Value: false
-        T265_camera_fisheye1_rgb_frame:
-          Value: false
-        T265_camera_fisheye2_optical_frame:
-          Value: false
-        T265_camera_fisheye2_rgb_frame:
-          Value: false
-        T265_camera_gyro_frame:
-          Value: false
-        T265_camera_gyro_optical_frame:
-          Value: false
-        T265_camera_link:
-          Value: false
-        T265_camera_pose_frame:
-          Value: false
-        ankle1_1:
-          Value: false
-        ankle1_2:
-          Value: false
-        ankle1_3:
-          Value: false
-        ankle1_4:
-          Value: false
-        ankle2_1:
-          Value: false
-        ankle2_2:
-          Value: false
-        ankle2_3:
-          Value: false
-        ankle2_4:
-          Value: false
-        arm1_1:
-          Value: false
-        arm1_2:
-          Value: false
-        arm1_3:
-          Value: false
-        arm1_4:
-          Value: false
-        arm1_5:
-          Value: false
-        arm1_6:
-          Value: false
-        arm1_8:
-          Value: false
-        arm2_1:
-          Value: false
-        arm2_2:
-          Value: false
-        arm2_3:
-          Value: false
-        arm2_4:
-          Value: false
-        arm2_5:
-          Value: false
-        arm2_6:
-          Value: false
-        arm2_8:
-          Value: false
-        ball1:
-          Value: false
-        ball1_tip:
-          Value: false
-        ball2:
-          Value: false
-        ball2_tip:
-          Value: false
-        base_link:
-          Value: false
-        contact_1:
-          Value: false
-        contact_2:
-          Value: false
-        contact_3:
-          Value: false
-        contact_4:
-          Value: false
-        d435_head_motor:
-          Value: false
-        hip1_1:
-          Value: false
-        hip1_2:
-          Value: false
-        hip1_3:
-          Value: false
-        hip1_4:
-          Value: false
-        hip2_1:
-          Value: false
-        hip2_2:
-          Value: false
-        hip2_3:
-          Value: false
-        hip2_4:
-          Value: false
-        imu_link:
-          Value: false
-        knee_1:
-          Value: false
-        knee_2:
-          Value: false
-        knee_3:
-          Value: false
-        knee_4:
-          Value: false
-        neck_1:
-          Value: false
-        odom:
-          Value: true
-        odom_offset:
-          Value: false
-        pelvis:
-          Value: false
-        torso_2:
-          Value: false
-        velodyne_motor:
-          Value: false
-        wheel_1:
-          Value: false
-        wheel_2:
-          Value: false
-        wheel_3:
-          Value: false
-        wheel_4:
-          Value: false
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -682,133 +403,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        pelvis:
-          D435i_camera_bottom_screw_frame:
-            D435i_camera_link:
-              D435i_camera_accel_frame:
-                D435i_camera_accel_optical_frame:
-                  {}
-              D435i_camera_depth_frame:
-                D435i_camera_color_frame:
-                  D435i_camera_color_optical_frame:
-                    {}
-                D435i_camera_depth_optical_frame:
-                  {}
-                D435i_camera_left_ir_frame:
-                  D435i_camera_left_ir_optical_frame:
-                    {}
-                D435i_camera_right_ir_frame:
-                  D435i_camera_right_ir_optical_frame:
-                    {}
-              D435i_camera_gyro_frame:
-                D435i_camera_gyro_optical_frame:
-                  {}
-          T265_camera_pose_frame:
-            T265_camera_link:
-              T265_camera_accel_frame:
-                T265_camera_accel_optical_frame:
-                  {}
-              T265_camera_fisheye1_rgb_frame:
-                T265_camera_fisheye1_optical_frame:
-                  {}
-              T265_camera_fisheye2_rgb_frame:
-                T265_camera_fisheye2_optical_frame:
-                  {}
-              T265_camera_gyro_frame:
-                T265_camera_gyro_optical_frame:
-                  {}
-          base_link:
-            odom_offset:
-              {}
-          hip1_1:
-            hip2_1:
-              knee_1:
-                ankle1_1:
-                  ankle2_1:
-                    contact_1:
-                      {}
-                    wheel_1:
-                      {}
-          hip1_2:
-            hip2_2:
-              knee_2:
-                ankle1_2:
-                  ankle2_2:
-                    contact_2:
-                      {}
-                    wheel_2:
-                      {}
-          hip1_3:
-            hip2_3:
-              knee_3:
-                ankle1_3:
-                  ankle2_3:
-                    contact_3:
-                      {}
-                    wheel_3:
-                      {}
-          hip1_4:
-            hip2_4:
-              knee_4:
-                ankle1_4:
-                  ankle2_4:
-                    contact_4:
-                      {}
-                    wheel_4:
-                      {}
-          imu_link:
-            {}
-          odom:
-            {}
-          torso_2:
-            arm1_1:
-              arm1_2:
-                arm1_3:
-                  arm1_4:
-                    arm1_5:
-                      arm1_6:
-                        ball1:
-                          arm1_8:
-                            {}
-                          ball1_tip:
-                            {}
-            arm2_1:
-              arm2_2:
-                arm2_3:
-                  arm2_4:
-                    arm2_5:
-                      arm2_6:
-                        ball2:
-                          arm2_8:
-                            {}
-                          ball2_tip:
-                            {}
-            neck_1:
-              d435_head_motor:
-                D435_head_camera_bottom_screw_frame:
-                  D435_head_camera_link:
-                    D435_head_camera_accel_frame:
-                      D435_head_camera_accel_optical_frame:
-                        {}
-                    D435_head_camera_depth_frame:
-                      D435_head_camera_color_frame:
-                        D435_head_camera_color_optical_frame:
-                          {}
-                      D435_head_camera_depth_optical_frame:
-                        {}
-                      D435_head_camera_left_ir_frame:
-                        D435_head_camera_left_ir_optical_frame:
-                          {}
-                      D435_head_camera_right_ir_frame:
-                        D435_head_camera_right_ir_optical_frame:
-                          {}
-                    D435_head_camera_gyro_frame:
-                      D435_head_camera_gyro_optical_frame:
-                        {}
-              velodyne_motor:
-                {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Class: grid_map_rviz_plugin/GridMap
@@ -835,7 +432,7 @@ Visualization Manager:
       Marker Topic: /convex_plane_decomposition_ros/boundaries
       Name: MarkerArray
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -982,7 +579,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.514122009277344
+      Distance: 3.936384677886963
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -990,17 +587,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.0523821115493774
-        Y: -0.2624513506889343
-        Z: -0.07928211987018585
+        X: 0.2958157956600189
+        Y: -0.07437596470117569
+        Z: 0.07249127328395844
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7603982090950012
+      Pitch: 0.4603986144065857
       Target Frame: <Fixed Frame>
-      Yaw: 4.618572235107422
+      Yaw: 5.303564548492432
     Saved: ~
 Window Geometry:
   Displays:

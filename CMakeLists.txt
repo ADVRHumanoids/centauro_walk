@@ -9,10 +9,12 @@ find_package(catkin REQUIRED COMPONENTS
              geometry_msgs
              sensor_msgs
              trajectory_msgs
-             message_generation)
+             message_generation
+             tf
+             tf_conversions)
 
 find_package(Eigen3 REQUIRED)
-
+find_package(PCL REQUIRED)
 find_package(urdfdom REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(XBotInterface REQUIRED)
@@ -23,7 +25,8 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
     ${PINOCCHIO_INCLUDE_DIRS}
-    ${XBotInterface_INCLUDE_DIRS})
+    ${XBotInterface_INCLUDE_DIRS}
+    ${PCL_INCLUDE_DIRS})
 
 
 add_message_files(
@@ -43,12 +46,26 @@ catkin_package(
     DEPENDS
     )
 
+add_library(perception
+    src/perception.cpp)
+
+target_link_libraries(perception
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES})
+
+install(TARGETS perception
+ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 add_executable(controller
     src/controller_node.cpp
     src/controller.cpp)
 
 target_link_libraries(controller
     mpc_handler
+    perception
     ${catkin_LIBRARIES})
 
 install(TARGETS controller
