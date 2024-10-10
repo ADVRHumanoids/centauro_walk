@@ -9,21 +9,24 @@
 
     <node pkg="kyon_controller" type="controller" name="centauro_controller_node" output="screen">
         <param name="config" textfile="$(find kyon_controller)/config/kyon_controller_config.yaml"/>
-        <param name="rate" value="700"/>
-        <param name="base_link" value="odom"/>
-        <rosparam param="input_topics">
-            - "/D435_left/depth/color/points"
-            - "/D435_right/depth/color/points"
-            - "/D435_front1/depth/color/points"
-            - "/D435_front2/depth/color/points"
-        </rosparam>
+        <param name="rate" value="700"/>     
     </node>
+
+<!--     <node pkg="kyon_controller" type="perception" name="kyon_perception_node" output="screen"> -->
+<!--         <param name="base_link" value="odom"/> -->
+<!--         <rosparam param="input_topics"> -->
+<!--             - "/D435_left/depth/color/points" -->
+<!--             - "/D435_right/depth/color/points" -->
+<!--             - "/D435_front1/depth/color/points" -->
+<!--             - "/D435_front2/depth/color/points" -->
+<!--         </rosparam> -->
+<!--     </node> -->
 
     <node if="$(arg joy)" pkg="joy" type="joy_node" name="joy_node">
         <param name="autorepeat_rate" value="20"/>
     </node>
 
-    <node pkg="kyon_controller" type="kyon_receding_horizon.py" name="mpc_node" output="screen">
+    <node pkg="kyon_controller" type="kyon_receding_horizon_new.py" name="mpc_node" output="screen">
         <param name="xbot" value="$(arg xbot)"/>
         <param name="closed_loop" value="$(arg closed_loop)"/>
         <param name="perception" value="$(arg perception)"/>

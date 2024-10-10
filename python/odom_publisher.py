@@ -22,7 +22,7 @@ broadcaster = tf.TransformBroadcaster()
 
 base_sub = rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
 
-rate = rospy.Rate(30)
+rate = rospy.Rate(100)
 while not rospy.is_shutdown():
     if is_callback_done:
         global base_pose

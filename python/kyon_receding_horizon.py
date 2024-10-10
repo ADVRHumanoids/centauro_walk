@@ -187,7 +187,7 @@ Find tf from odom to odom_offset
 '''
 Initialize Horizon problem
 '''
-ns = 20
+ns = 30
 T = 1.5
 dt = T / ns
 
@@ -383,12 +383,12 @@ for c in model.getContactMap():
     else:
         raise Exception('task not found')
 
-    cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
-    flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
+    # cstr = prb.createConstraint(f'{c}_vert', ee_vel[0:2], [])
+    # flight_phase.addConstraint(cstr, nodes=[0, flight_duration-1])
 
-    c_ori = FK_contacts[c](q=model.q)['ee_rot'][2, :]
-    cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[])
-    flight_phase.addCost(cost_ori, nodes=[flight_duration - 1])
+    # c_ori = FK_contacts[c](q=model.q)['ee_rot'][2, :]
+    # cost_ori = prb.createResidual(f'{c}_ori', 5. * (c_ori.T - np.array([0, 0, 1])), nodes=[])
+    # flight_phase.addCost(cost_ori, nodes=[flight_duration - 1])
 
     ref_trj_xy = np.zeros(shape=[7, 1])
     ref_trj_xy[0:2, 0] = FK_contacts[c](q=model.q0)['ee_pos'].elements()[0:2]

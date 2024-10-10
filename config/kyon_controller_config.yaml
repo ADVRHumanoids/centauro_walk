@@ -1,11 +1,11 @@
 horizon_duration: 1.5
-n_nodes: 20
+n_nodes: 30
 
 define:
-    - &low_stiff 200.
-    - &low_damp 10.
-    - &high_stiff 2000.
-    - &high_damp 100.
+    - &low_stiff 50.
+    - &low_damp 2.
+    - &high_stiff 1500.
+    - &high_damp 20.
 
 stiffness:
 

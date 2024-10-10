@@ -38,12 +38,15 @@ void Perception::setBaseLink(std::string base_link)
 
 void Perception::callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg, int i)
 {
+    ros::Time time;
+//    pcl_conversions::fromPCL(msg->header.stamp, time);
+    time = ros::Time::now();
     if(!_input_clouds[i])
     {
         try
         {
             _listeners[i] = std::make_shared<tf::TransformListener>();
-            _listeners[i]->waitForTransform(_base_link, msg->header.frame_id, ros::Time(0), ros::Duration(10.0));
+            _listeners[i]->waitForTransform(_base_link, msg->header.frame_id, ros::Time(0), ros::Duration(5.0));
         }
         catch (tf::TransformException ex)
         {
@@ -59,13 +62,14 @@ void Perception::callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg
 
     std::lock_guard<std::mutex> lg(_mtx);
 
-    transform_point_cloud(pc, _input_clouds[i], _base_link, i);
+    transform_point_cloud(pc, _input_clouds[i], _base_link, i, time);
 }
 
 void Perception::transform_point_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in,
                                        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out,
                                        std::string frame_id,
-                                       int i)
+                                       int i,
+                                       ros::Time time)
 {
     tf::StampedTransform transform;
     _listeners[i]->lookupTransform(frame_id, cloud_in->header.frame_id, ros::Time(0), transform);
@@ -73,6 +77,8 @@ void Perception::transform_point_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     Eigen::Affine3d b_T_cam;
     tf::transformTFToEigen(transform, b_T_cam);
     pcl::transformPointCloud(*cloud_in, *cloud_out, b_T_cam.matrix());
+
+    std::cout << "TRANSFORMING!!!!!" << std::endl;
 
     cloud_out->header.frame_id = frame_id;
 }

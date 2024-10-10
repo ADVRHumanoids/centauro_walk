@@ -17,6 +17,7 @@ class Controller {
 public:
     Controller(ros::NodeHandle nh, int rate);
 
+    void reset();
     void run();
 
 private:
@@ -29,17 +30,12 @@ private:
 
     void set_control_mode_map(XBot::ControlMode mode);
 
-    // Callbacks
-//    void gt_pose_callback(const geometry_msgs::PoseStampedConstPtr msg);
-//    void gt_twist_callback(const geometry_msgs::TwistStampedConstPtr msg);
-
     double _horizon_duration;
     int _n_nodes;
 
     std::map<std::string, double> _fixed_joints_map;
 
     ros::NodeHandle _nh, _nhpr;
-//    ros::Subscriber _gt_pose_sub, _gt_twist_sub;
     ros::Publisher _joint_state_pub;
     YAML::Node _config;
 
@@ -48,6 +44,7 @@ private:
     XBot::ModelInterface::Ptr _model;
     XBot::RobotInterface::Ptr _robot;
     std::map<std::string, XBot::ControlMode> _init_ctrl_map;
+    XBot::JointNameMap _init_stiffness, _init_damping;
     std::map<std::string, XBot::ControlMode> _ctrl_map;
     std::map<std::string, XBot::ControlMode> _zero_ctrl_map;
 

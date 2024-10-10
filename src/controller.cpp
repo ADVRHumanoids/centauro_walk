@@ -24,6 +24,44 @@ _init(false)
     _mpc_handler->setTorqueOffset(_tau_offset);
 }
 
+void Controller::reset()
+{
+    std::cout << "Setting initial stiffness and damping" << std::endl;
+
+    _robot->setControlMode(XBot::ControlMode::Stiffness() + XBot::ControlMode::Damping());
+
+    double duration = 0.1;
+    double T = _time + duration;
+    double dt = 1./_rate;
+
+    XBot::JointNameMap K, D, K_start, D_start;
+    _robot->getStiffness(K_start);
+    _robot->getDamping(D_start);
+    K = K_start;
+    D = D_start;
+
+    while (_time < T)
+    {
+        for (auto stiff : _init_stiffness)
+        {
+            K[stiff.first] = (K_start[stiff.first] + (stiff.second - K_start[stiff.first]) * _time / T);
+        }
+
+        for (auto damp : _init_damping)
+        {
+            D[damp.first] = (D_start[damp.first] + (damp.second - D_start[damp.first]) * _time / T);
+        }
+
+        _robot->setStiffness(K);
+        _robot->setDamping(D);
+        _robot->move();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(int(dt * 1000)));
+        ros::spinOnce();
+        _time += dt;
+    }
+}
+
 void Controller::init_load_config()
 {
     if(!_nhpr.hasParam("config"))
@@ -98,16 +136,14 @@ void Controller::init_load_model()
     // Create instance of ModelInferace and RobotInterface
     auto cfg = XBot::ConfigOptionsFromParamServer();
     _model = XBot::ModelInterface::getModel(cfg);
-    Eigen::VectorXd qhome;
-    _model->getRobotState("home", qhome);
-    _model->setJointPosition(qhome);
-    _model->update();
 
     try
     {
         _robot = XBot::RobotInterface::getRobot(cfg);
 
         _robot->sense();
+        _robot->getStiffness(_init_stiffness);
+        _robot->getDamping(_init_damping);
 
         // set all joint modes to pos impedance + effort
         set_control_mode_map(XBot::ControlMode::PosImpedance() + XBot::ControlMode::Effort());
@@ -207,7 +243,7 @@ void Controller::set_control_mode_map(XBot::ControlMode cm)
         // overwrite with entries in _ctrl_map (custom from the user)
         for (const auto& pair : _ctrl_map)
         {
-                _init_ctrl_map[pair.first] = pair.second;
+            _init_ctrl_map[pair.first] = pair.second;
         }
     }
 
@@ -285,7 +321,7 @@ void Controller::run()
 
         if (!_stiffness_map.empty() || !_damping_map.empty())
         {
-            set_stiffness_damping(1.);
+            set_stiffness_damping_torque(0.1);
         }
 
         _robot->setControlMode(_init_ctrl_map);

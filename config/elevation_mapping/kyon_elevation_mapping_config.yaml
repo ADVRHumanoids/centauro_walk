@@ -24,8 +24,17 @@ image_channel_fusions:
 
 
 subscribers:
-  front_cam:
-    topic_name: '/merged_cloud'
+  front_cam1:
+    topic_name: '/D435_front1/depth/color/points'
+    data_type: pointcloud
+  front_cam2:
+    topic_name: '/D435_front2/depth/color/points'
+    data_type: pointcloud
+  left_cam:
+    topic_name: '/D435_left/depth/color/points'
+    data_type: pointcloud
+  right_cam:
+    topic_name: '/D435_right/depth/color/points'
     data_type: pointcloud
 #  color_cam: # for color camera
 #    topic_name: '/D435i_camera/color/image_raw'

@@ -8,6 +8,7 @@ import math
 from visualization_msgs.msg import Marker
 from horizon.rhc.gait_manager import GaitManager
 from geometry_msgs.msg import Twist
+import time
 
 class JoyCommands:
     def __init__(self):
@@ -23,6 +24,7 @@ class JoyCommands:
 
         self.velocity_ref = Twist()
         self.perception = False
+        self.__latest_click = time.time()
 
         rospy.Subscriber('/joy', Joy, self.joy_callback)
         self.publisher = rospy.Publisher('smooth_joy', Joy, queue_size=1)
@@ -92,7 +94,10 @@ class JoyCommands:
             self.velocity_ref.linear.z = - 0.05
 
         if self.joy_msg.axes[7] == 1:
-            self.perception = not self.perception
+            click_time = time.time()
+            if click_time - self.__latest_click > 1.:
+                self.perception = not self.perception
+                self.__latest_click = click_time
 
         self.__base_vel_pub.publish(self.velocity_ref)
 

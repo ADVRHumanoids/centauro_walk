@@ -11,6 +11,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 
 class Perception {
@@ -27,7 +28,8 @@ private:
     void transform_point_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in,
                                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out,
                                std::string frame_id,
-                               int i);
+                               int i,
+                               ros::Time time = ros::Time::now());
 
     ros::NodeHandle _nh;
     ros::CallbackQueue _queue;
@@ -40,7 +42,6 @@ private:
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> _input_clouds;
     std::string _base_link;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr _merged_cloud, _downsampled_cloud;
-
 };
 
 #endif // PERCEPTION_H
