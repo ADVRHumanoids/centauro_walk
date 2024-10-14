@@ -5,7 +5,7 @@ define:
     - &low_stiff 50.
     - &low_damp 2.
     - &high_stiff 1500.
-    - &high_damp 20.
+    - &high_damp 100.
 
 stiffness:
 
