@@ -8,7 +8,7 @@ from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, anal
 from horizon.ros import replay_trajectory
 from horizon.utils.resampler_trajectory import Resampler
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
-from matlogger2 import matlogger
+from horizon.rhc.ros.task_server_class import TaskServerClass
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
 import phase_manager.pytimeline as pytimeline
@@ -138,9 +138,6 @@ def set_state_from_robot(robot_joint_names, q_robot, qdot_robot, fixed_joint_map
     qdot = np.hstack([ee_rel, qdot_robot])
     model.v.setBounds(qdot, qdot, nodes=0)
 
-
-
-
 rospy.init_node('kyon_walk_srbd')
 projector.init('kyon_control_node', [])
 
@@ -196,7 +193,7 @@ joystick_flag = rospy.get_param(param_name='~joy', default=False)
 Initialize Horizon problem
 '''
 ns = 30
-T = 1.
+T = 1.5
 dt = T / ns
 
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
@@ -313,12 +310,14 @@ for joint in white_list:
     white_list_indices.append(7 + model.joint_names.index(joint))
 postural_joints = np.delete(postural_joints, black_list_indices)
 
+min_q_white_list_weight = prb.createParameter('min_q_white_list_weight', 1)
+min_q_white_list_weight.assign(5.)
 if white_list:
-    prb.createResidual("min_q_white_list", 10. * (model.q[white_list_indices] - model.q0[white_list_indices]))
+    prb.createResidual("min_q_white_list", min_q_white_list_weight * (model.q[white_list_indices] - model.q0[white_list_indices]))
 
 short_stance_duration = 1
-stance_duration = 12
-flight_duration = 12
+stance_duration = 10
+flight_duration = 10
 
 FK_contacts = dict()
 dFK_contacts = dict()
@@ -354,7 +353,7 @@ for c in model.cmap.keys():
 
     ref_trj_xy = np.zeros(shape=[7, 1])
     ref_trj_xy[0:2, 0] = FK_contacts[c](q=model.q0)['ee_pos'].elements()[0:2]
-    flight_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
+    # flight_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
     # c_timelines[c].registerPhase(flight_phase)
 
 for c in model.cmap.keys():
@@ -375,17 +374,22 @@ vel_lims = model.kd.velocityLimits()
 prb.createResidual('max_vel', 1e1 * utils.utils.barrier(vel_lims[7:] - model.v[7:]))
 prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - model.v[7:]))
 
+test = prb.createParameter('test', 2)
+test.assign(np.atleast_2d([3, 3]).T)
+
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
-param_manager = rosbot_param_server_py.ParameterManager()
-for task in ti.getTasks():
-    if hasattr(task, "weight_param"):
-        if isinstance(task.weight_param, dict):
-            for name in task.weight_param.keys():
-                param_manager.createParameter(name, task.setWeight, task.getWeight()[name][0, 0])
-        else:
-            param_manager.createParameter(task.weight_param.getName(), task.setWeight, task.getWeight()[0, 0])
+
+
+tsc = TaskServerClass(ti)
+tsc.addParameter('min_q_white_list_weight', min_q_white_list_weight)
+tsc.setMinMax('min_q_white_list_weight', 0, 100)
+tsc.setMinMax('joint_posture_weight', 0, 10)
+tsc.setMinMax("acceleration_regularization_weight", 0, 0.1)
+tsc.setMinMax("velocity_regularization_weight", 0, 2.)
+for cname in model.getContactMap().keys():
+    tsc.setMinMax(f"{cname}_regularization_weight", 0, 0.1)
 
 ti.bootstrap()
 ti.load_initial_guess()
@@ -561,7 +565,7 @@ while not rospy.is_shutdown():
     time_elapsed_all = time.time() - tic
     time_elapsed_all_list.append(time_elapsed_all)
 
-    rosbot_param_server_py.ros_update()
+    tsc.update()
     rate.sleep()
 
 

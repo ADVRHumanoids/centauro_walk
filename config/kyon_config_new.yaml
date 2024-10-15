@@ -22,10 +22,10 @@ solver:
 
 
 costs:
-  - xy_contact_1
-  - xy_contact_2
-  - xy_contact_3
-  - xy_contact_4
+#  - xy_contact_1
+#  - xy_contact_2
+#  - xy_contact_3
+#  - xy_contact_4
   - z_contact_1
   - z_contact_2
   - z_contact_3
@@ -33,13 +33,13 @@ costs:
   - base_xy
   - base_orientation
   - base_z
-  - velocity_regularization
-  - acceleration_regularization
-  - joint_posture
   - contact_1_contact
   - contact_2_contact
   - contact_3_contact
   - contact_4_contact
+  - joint_posture
+  - velocity_regularization
+  - acceleration_regularization
   - contact_1_regularization
   - contact_2_regularization
   - contact_3_regularization
@@ -50,16 +50,15 @@ costs:
     - &w_com 50.
     - &w_base_ori 50.
     - &w_base_xy 50.
-    - &w_contact_z 500.
+    - &w_contact_z 100.
     - &w_contact_xy 0.
-    - &w_postural 5.
+    - &w_postural 1.
     - &w_postural_ub 10.
     - &w_v 1
-    - &w_a 6e-2
-    - &w_f 1e-3
-    - &w_contact 500
+    - &w_a 5e-2
+    - &w_f 1e-2
+    - &w_contact 100
     - &w_contact_ori 20.
-    - &w_postural_roll 1.
 
 base_xy:
   type: Cartesian
@@ -81,8 +80,8 @@ base_orientation:
   type: Cartesian
   distal_link: base_link
   indices: [3, 4, 5]
-  nodes: ${N}
-#  nodes: all
+#  nodes: ${N}
+  nodes: all
 #  cartesian_type: velocity
   weight: *w_base_ori
 
@@ -182,6 +181,7 @@ joint_posture_ub:
   indices:  [12, 13, 14, 15, 16,
              17, 18, 19, 20, 21]
   nodes: all
+
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
 velocity_regularization:
   type: Regularization

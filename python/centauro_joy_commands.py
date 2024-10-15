@@ -87,11 +87,14 @@ class JoyCommands:
 
         if self.joy_msg.buttons[0] == 1:
             # change com height
-            self.velocity_ref.linear.z = 0.05
+            self.velocity_ref.linear.z = 0.01
 
         if self.joy_msg.buttons[2] == 1:
             # change com height
-            self.velocity_ref.linear.z = - 0.05
+            self.velocity_ref.linear.z = -0.01
+
+        if self.joy_msg.buttons[0] == 0 and self.joy_msg.buttons[2] == 0:
+            self.velocity_ref.linear.z = 0.
 
         if self.joy_msg.axes[7] == 1:
             click_time = time.time()

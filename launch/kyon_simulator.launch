@@ -3,13 +3,15 @@
     <arg name="legs" default="true"/>
     <arg name="velodyne" default="false"/>
     <arg name="sensors" default="true"/>
+    <arg name="feet" default="true"/>
+    <arg name="wheels" default="false"/>
     <arg name="xbot2_config" default="$(find kyon_config)/kyon_basic.yaml"/>
 
     <param name="robot_description"
-         command="$(find xacro)/xacro $(find kyon_urdf)/urdf/kyon.urdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) sensors:=$(arg sensors)"/>
+         command="$(find xacro)/xacro $(find kyon_urdf)/urdf/kyon.urdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) feet:=$(arg feet) wheels:=$(arg wheels) sensors:=$(arg sensors)"/>
 
     <param name="robot_description_semantic"
-              command="$(find xacro)/xacro $(find kyon_srdf)/srdf/kyon.srdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) sensors:=$(arg sensors)"/>
+              command="$(find xacro)/xacro $(find kyon_srdf)/srdf/kyon.srdf.xacro floating_joint:=true upper_body:=$(arg arms) legs:=$(arg legs) feet:=$(arg feet) wheels:=$(arg wheels) sensors:=$(arg sensors)"/>
 
     <include file="$(find kyon_gazebo)/launch/kyon_world.launch" pass_all_args="true"/>
 

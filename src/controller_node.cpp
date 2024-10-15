@@ -39,10 +39,6 @@ int main(int argc, char** argv)
     while(ros::ok())
     {
         controller.run();
-//        if(perception)
-//        {
-//            perception->update();
-//        }
         ros::spinOnce();
         r.sleep();
     }
