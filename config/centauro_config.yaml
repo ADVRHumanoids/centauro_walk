@@ -16,6 +16,7 @@ solver:
   ilqr.enable_gn: true
   ilqr.hxx_reg_base: 0.0
   ilqr.n_threads: 0
+  ilqr.rti: true
   print_time: 0
 
 constraints:
@@ -32,7 +33,12 @@ costs:
   - base_xy
   - base_z
   - base_orientation
-  - joint_regularization
+  - velocity_regularization
+  - acceleration_regularization
+  - contact_1_regularization
+  - contact_2_regularization
+  - contact_3_regularization
+  - contact_4_regularization
   - joint_posture
   - zmp
 #  - joint_posture_ub
@@ -44,7 +50,7 @@ costs:
     - &w_contact_z 50.
     - &w_postural 0.5
     - &w_postural_ub 1.
-    - &w_v 1.
+    - &w_v 5e-2
     - &w_a 1e-2
     - &w_f 1e-3
     - &w_zmp 100.
@@ -179,13 +185,41 @@ zmp:
   weight: *w_zmp
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
-joint_regularization:
+velocity_regularization:
   type: Regularization
+  variable_name: v
   nodes: all
-  weight:
-#    velocity: *w_v
-    acceleration: *w_a # 0.01
-    force: *w_f # todo <----- how to do? if there are more forces...
+  weight: *w_v
+
+acceleration_regularization:
+  type: Regularization
+  variable_name: a
+  nodes: all
+  weight: *w_a
+
+contact_1_regularization:
+  type: Regularization
+  variable_name: f_contact_1
+  nodes: all
+  weight: *w_f
+
+contact_2_regularization:
+  type: Regularization
+  variable_name: f_contact_2
+  nodes: all
+  weight: *w_f
+
+contact_3_regularization:
+  type: Regularization
+  variable_name: f_contact_3
+  nodes: all
+  weight: *w_f
+
+contact_4_regularization:
+  type: Regularization
+  variable_name: f_contact_4
+  nodes: all
+  weight: *w_f
 
 z_contact_1:
   type: Cartesian

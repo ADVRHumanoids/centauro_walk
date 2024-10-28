@@ -4,6 +4,7 @@ from horizon.rhc.model_description import FullModelInverseDynamics
 from horizon.rhc.taskInterface import TaskInterface
 from horizon.utils import trajectoryGenerator, resampler_trajectory, utils, analyzer
 from horizon.ros import replay_trajectory
+from horizon.rhc.ros.task_server_class import TaskServerClass
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
@@ -309,7 +310,7 @@ c_i = 0
 for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
     # stance phase normal
-    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_{c}')
+    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_crawl_{c}')
     stance_phase_short = c_timelines[c].createPhase(short_stance_duration, f'stance_{c}_short')
     if ti.getTask(f'contact_{c_i}') is not None:
         stance_phase.addItem(ti.getTask(f'contact_{c_i}'))
@@ -318,7 +319,7 @@ for c in model.getContactMap():
         raise Exception('task not found')
 
     # flight phase normal
-    flight_phase = c_timelines[c].createPhase(flight_duration, f'flight_{c}')
+    flight_phase = c_timelines[c].createPhase(flight_duration, f'crawl_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
     ee_vel = model.kd.frameVelocity(c, model.kd_frame)(q=model.q, qdot=model.v)['ee_vel_linear']
     ref_trj = np.zeros(shape=[7, flight_duration])
@@ -336,7 +337,7 @@ for c in model.getContactMap():
     flight_phase.addCost(cost_ori)
 
 for c in model.cmap.keys():
-    stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
+    stance = c_timelines[c].getRegisteredPhase(f'stance_crawl_{c}')
     while c_timelines[c].getEmptyNodes() > 0:
         c_timelines[c].addPhase(stance)
 
@@ -357,6 +358,13 @@ prb.createResidual('min_vel', 1e1 * utils.barrier1(-1 * vel_lims[7:] - model.v[7
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
+
+tsc = TaskServerClass(ti)
+tsc.setMinMax('joint_posture_weight', 0, 10)
+tsc.setMinMax("acceleration_regularization_weight", 0, 0.05)
+tsc.setMinMax("velocity_regularization_weight", 0, 0.2)
+for cname in model.getContactMap().keys():
+    tsc.setMinMax(f"{cname}_regularization_weight", 0, 0.05)
 
 rs = pyrosserver.RosServerClass(pm)
 def dont_print(*args, **kwargs):
@@ -517,6 +525,8 @@ while not rospy.is_shutdown():
         repl.publish_future_trajectory_marker(solution['q'])
 
     solution_time_publisher.publish(Float64(data=time.time() - t0))
+    
+    tsc.update()
     rate.sleep()
 
 
