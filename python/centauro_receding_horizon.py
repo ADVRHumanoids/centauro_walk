@@ -230,7 +230,7 @@ params
 closed_loop = rospy.get_param(param_name='~closed_loop', default=False)
 xbot_param = rospy.get_param(param_name="~xbot", default=False)
 perception = rospy.get_param(param_name="~perception", default=False)
-joystick_flag = rospy.get_param(param_name='~joy', default=False)
+joystick_flag = rospy.get_param(param_name='~joy', default=True)
 
 base_pose = None
 base_twist = None
@@ -334,6 +334,9 @@ urdf = urdf.replace('continuous', 'revolute')
 
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
+for fixed_joint in fixed_joint_map.keys():
+    del q_init[fixed_joint]
+
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
@@ -402,6 +405,7 @@ for c in model.getContactMap():
     ref_trj_xy[0:2, 0] = init_xy
     # ref_trj_xy = linear_interpolator_xy(init_xy, init_xy, flight_duration)
     crawl_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
+    crawl_phase.addItemWeight(ti.getTask(f'xy_{c}'), [0.], nodes=[flight_duration - 1])
 
 for c in model.cmap.keys():
     stance = c_timelines[c].getRegisteredPhase(f'stance_crawl_{c}')
@@ -442,7 +446,6 @@ ti.load_initial_guess()
 solution = ti.solution
 
 anal = analyzer.ProblemAnalyzer(prb)
-anal.printConstraints()
 
 rate = rospy.Rate(1 / dt)
 
@@ -521,7 +524,7 @@ while not rospy.is_shutdown():
             for phase in timeline.getActivePhases():
                 if phase.getName() == f'crawl_{c}':
                     final_node = phase.getPosition() + phase.getNNodes()
-                    if final_node < ns / 2:
+                    if final_node < ns:
                         initial_pose = FK_contacts[c](q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
                         projected_initial_pose = projector.project(initial_pose)
                         landing_pose = FK_contacts[c](q=solution['q'][:, final_node])['ee_pos'].elements()
@@ -553,19 +556,22 @@ while not rospy.is_shutdown():
                         phase.setItemReference(f'z_{c}', ref_trj)
 
                         if 0.02 < np.linalg.norm(qp - pp) < 0.1:
-                            print(f'SETTING XY WEIGHTS for {c} node {final_node}. query point: {landing_pose} projected point: {projected_final_pose}')
-                            input('click')
-                            ti.getTask(f'xy_{c}').setWeight(20., nodes=[final_node])
+                            # if c == 'contact_1':
+                            #     print(f'SETTING XY WEIGHT FOR {c}')
+                            #     input('click')
+
+                            # ti.getTask(f'xy_{c}').setWeight(20., nodes=[final_node])
+                            phase.setItemWeight(f'xy_{c}', [50.])
                             ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
                             # ref_trj_xy = linear_interpolator_xy(projected_initial_pose, projected_final_pose, flight_duration)
                             phase.setItemReference(f'xy_{c}', ref_trj_xy)
                         # else:
-                        #     ti.getTask(f'xy_{c}').setWeight(0.)
+                            # ti.getTask(f'xy_{c}').setWeight(0.)
+                            # phase.setItemWeight(f'xy_{c}', [0.])
 
 
 
     pm.shift()
-
     rs.run()
 
     if joystick_flag:
