@@ -18,12 +18,11 @@ solver:
   ilqr.n_threads: 0
   print_time: 0
 
-constraints:
-  - contact_1
-  - contact_2
-  - contact_3
-  - contact_4
-
+#constraints:
+#  - contact_1
+#  - contact_2
+#  - contact_3
+#  - contact_4
 
 costs:
   - xy_contact_1
@@ -37,26 +36,35 @@ costs:
   - base_xy
   - base_z
   - base_orientation
-  - joint_regularization
+  - base_orientation_yaw
   - joint_posture
-#  - zmp
+  - contact_1
+  - contact_2
+  - contact_3
+  - contact_4
+  - velocity_regularization
+  - acceleration_regularization
+  - contact_1_regularization
+  - contact_2_regularization
+  - contact_3_regularization
+  - contact_4_regularization
+  - zmp
 #  - joint_posture_ub
 
 .define:
     - &w_com 5.
     - &w_base_ori 10.
-    - &w_base_xy 5.
+    - &w_base_ori_yaw 10.
+    - &w_base_xy 10.
     - &w_contact_z 50.
     - &w_postural 0.5
     - &w_postural_ub 1.
     - &w_contact_xy 0.
-    - &w_v 1.
+    - &w_contact 200
+    - &w_v 0.2
     - &w_a 1e-2
     - &w_f 1e-3
     - &w_zmp 100.
-    - &w_ball_ori 20.
-    - &w_ball_xy 10.
-    - &w_postural_roll 1.
 
 base_xy:
   type: Cartesian
@@ -64,6 +72,7 @@ base_xy:
   indices: [0, 1]
   nodes: ${range(N-10, N)}
 #  nodes: all
+#  cartesian_type: velocity
   weight: *w_base_xy
 
 base_z:
@@ -76,10 +85,19 @@ base_z:
 base_orientation:
   type: Cartesian
   distal_link: base_link
-  indices: [3, 4, 5]
+  indices: [3, 4]
   nodes: ${range(N-5, N)}
   cartesian_type: position
   weight: *w_base_ori
+
+base_orientation_yaw:
+  type: Cartesian
+  distal_link: base_link
+  indices: [5]
+#  nodes: ${range(N-5, N)}
+  nodes: all
+#  cartesian_type: velocity
+  weight: *w_base_ori_yaw
 
 # ===============================
 
@@ -148,18 +166,22 @@ interaction_4:
 contact_1:
   type: Contact
   subtask: [interaction_1, zero_velocity_1]
+  weight: *w_contact
 
 contact_2:
   type: Contact
   subtask: [interaction_2, zero_velocity_2]
+  weight: *w_contact
 
 contact_3:
   type: Contact
   subtask: [interaction_3, zero_velocity_3]
+  weight: *w_contact
 
 contact_4:
   type: Contact
   subtask: [interaction_4, zero_velocity_4]
+  weight: *w_contact
 
 joint_posture:
   type: Postural
@@ -185,13 +207,41 @@ zmp:
   weight: *w_zmp
 
 # todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
-joint_regularization:
+velocity_regularization:
   type: Regularization
+  variable_name: v
   nodes: all
-  weight:
-#    velocity: *w_v
-    acceleration: *w_a # 0.01
-    force: *w_f # todo <----- how to do? if there are more forces...
+  weight: *w_v
+
+acceleration_regularization:
+  type: Regularization
+  variable_name: a
+  nodes: all
+  weight: *w_a
+
+contact_1_regularization:
+  type: Regularization
+  variable_name: f_contact_1
+  nodes: all
+  weight: *w_f
+
+contact_2_regularization:
+  type: Regularization
+  variable_name: f_contact_2
+  nodes: all
+  weight: *w_f
+
+contact_3_regularization:
+  type: Regularization
+  variable_name: f_contact_3
+  nodes: all
+  weight: *w_f
+
+contact_4_regularization:
+  type: Regularization
+  variable_name: f_contact_4
+  nodes: all
+  weight: *w_f
 
 z_contact_1:
   type: Cartesian

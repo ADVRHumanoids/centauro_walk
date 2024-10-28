@@ -1,14 +1,12 @@
 import numpy as np
 from horizon.rhc.taskInterface import TaskInterface
-from phase_manager import pyphase, pymanager
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from sensor_msgs.msg import Joy
 import rospy
-import math
+import time
 from visualization_msgs.msg import Marker
 from horizon.rhc.gait_manager import GaitManager
 from geometry_msgs.msg import Twist
-import time
 
 class JoyCommands:
     def __init__(self):
@@ -18,9 +16,6 @@ class JoyCommands:
 
         self.smooth_joy_msg = None
         self.joy_msg = None
-
-        self.__base_lin_vel_weight = 1.
-        self.__base_ori_vel_weight = 1.
 
         self.velocity_ref = Twist()
         self.perception = False
@@ -39,13 +34,6 @@ class JoyCommands:
         self.__base_vel_pub = rospy.Publisher('/horizon/base_velocity/reference', Twist)
         self.__crawl_cli = rospy.ServiceProxy('/horizon/crawl/switch', SetBool)
         self.__trot_cli = rospy.ServiceProxy('/horizon/trot/switch', SetBool)
-
-
-    def setBaseVelLinWeight(self, weight):
-        self.__base_lin_vel_weight = weight
-
-    def setBaseVelOriWeight(self, weight):
-        self.__base_ori_vel_weight = weight
 
     def smooth(self):
         alpha = 0.1
@@ -77,24 +65,27 @@ class JoyCommands:
 
 
         if np.abs(self.smooth_joy_msg.axes[0]) > 0.1 or np.abs(self.smooth_joy_msg.axes[1]) > 0.1:
-
-            self.velocity_ref.linear.x = self.__base_lin_vel_weight * self.smooth_joy_msg.axes[1]
-            self.velocity_ref.linear.y = self.__base_lin_vel_weight * self.smooth_joy_msg.axes[0]
+            self.velocity_ref.linear.x = self.smooth_joy_msg.axes[1]
+            self.velocity_ref.linear.y = self.smooth_joy_msg.axes[0]
+        else:
+            self.velocity_ref.linear.x = 0
+            self.velocity_ref.linear.y = 0
 
         if np.abs(self.smooth_joy_msg.axes[3]) > 0.1:
-
-            self.velocity_ref.angular.z = self.__base_ori_vel_weight * self.smooth_joy_msg.axes[3]
+            self.velocity_ref.angular.z = 0.3 * self.smooth_joy_msg.axes[3]
+        else:
+            self.velocity_ref.angular.z = 0
 
         if self.joy_msg.buttons[0] == 1:
             # change com height
-            self.velocity_ref.linear.z = 0.01
+            self.velocity_ref.linear.z = 0.05
 
         if self.joy_msg.buttons[2] == 1:
             # change com height
-            self.velocity_ref.linear.z = -0.01
+            self.velocity_ref.linear.z = - 0.05
 
-        if self.joy_msg.buttons[0] == 0 and self.joy_msg.buttons[2] == 0:
-            self.velocity_ref.linear.z = 0.
+        if self.joy_msg.buttons[2] == 0 and self.joy_msg.buttons[0] == 0:
+            self.velocity_ref.linear.z = 0
 
         if self.joy_msg.axes[7] == 1:
             click_time = time.time()
