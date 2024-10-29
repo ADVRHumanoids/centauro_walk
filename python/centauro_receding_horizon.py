@@ -51,6 +51,11 @@ def gt_pose_callback(msg):
                           msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z,
                           msg.pose.orientation.w])
 
+    noise = np.random.normal(0, 0.012, 7)
+    base_pose += noise
+    quat_norm = np.linalg.norm(base_pose[3:])
+    base_pose[3:] = base_pose[3:] / quat_norm
+
 
 def gt_twist_callback(msg):
     global base_twist
@@ -306,7 +311,7 @@ else:
         'ankle_pitch_4': -0.3,
     }
 
-    base_pose = np.array([0.07, 0., 0.8, 0., 0., 0., 1.])
+    base_pose = np.array([2.07, 0., 0.8, 0., 0., 0., 1.])
     base_twist = np.zeros(6)
 
     wheels = [f'j_wheel_{i + 1}' for i in range(4)]
@@ -316,7 +321,8 @@ else:
     ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
 
     arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
-    arm_joints_map = dict(zip(arm_joints, [0.75, 0.1, 0.2, -2.2, 0., -1.3, 0.75, 0.1, -0.2, -2.2, 0.0, -1.3]))
+    arm_joints_map = dict(zip(arm_joints, [0.520149, 0.320865, 0.274669, -2.23604, 0.0500815, -0.781461,
+                                           0.520149, -0.320865, -0.274669, -2.23604, -0.0500815, -0.781461]))
 
     torso_map = {'torso_yaw': 0.}
 
@@ -602,10 +608,10 @@ while not rospy.is_shutdown():
 
     solution_publisher.publish(sol_msg)
 
-    if robot is None:
-        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-        repl.publish_joints(solution['q'][:, 0])
-        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+    # if robot is None:
+    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+    repl.publish_joints(solution['q'][:, 0])
+    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
     repl.publish_future_trajectory_marker(solution['q'])
 
     solution_time_publisher.publish(Float64(data=time.time() - t0))

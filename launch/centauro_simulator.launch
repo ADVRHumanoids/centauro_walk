@@ -8,7 +8,8 @@
     <arg name="end_effector_right" default="ball"/>
     <arg name="battery" default="false"/>
     <arg name="xbot2_config" default="$(find centauro_config)/centauro_basic.yaml"/>
-    <arg name="world_name" default="$(find kyon_controller)/config/perception.world"/>
+<!--     <arg name="world_name" default="$(find kyon_controller)/config/perception.world"/> -->
+
     <param name="robot_description"
          command="$(find xacro)/xacro $(find centauro_urdf)/urdf/centauro_robot.urdf.xacro floating_joint:=true battery:=$(arg battery) upper_body:=$(arg arms) legs:=$(arg legs) velodyne:=$(arg velodyne) realsense:=$(arg realsense) end_effector_left:=$(arg end_effector_left) end_effector_right:=$(arg end_effector_right)"/>
 
