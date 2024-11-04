@@ -51,7 +51,7 @@ def gt_pose_callback(msg):
                           msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z,
                           msg.pose.orientation.w])
 
-    noise = np.random.normal(0, 0.012, 7)
+    noise = np.random.normal(0, 0.001, 7)
     base_pose += noise
     quat_norm = np.linalg.norm(base_pose[3:])
     base_pose[3:] = base_pose[3:] / quat_norm
@@ -71,7 +71,6 @@ def linear_interpolator_xy(init_point, final_point, duration):
     trj = np.zeros([7, duration])
     trj[0:2, :] = np.linspace(init_point[0:2], final_point[0:2], duration).T
     return trj
-
 
 def set_base_state_from_robot():
     # numerical problem: two quaternions can represent the same rotation
@@ -340,8 +339,8 @@ urdf = urdf.replace('continuous', 'revolute')
 
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
-for fixed_joint in fixed_joint_map.keys():
-    del q_init[fixed_joint]
+# for fixed_joint in fixed_joint_map.keys():
+#     del q_init[fixed_joint]
 
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
@@ -351,7 +350,7 @@ model = FullModelInverseDynamics(problem=prb,
                                  )
 
 rospy.set_param('mpc/robot_description', urdf)
-bashCommand = 'rosrun robot_state_publisher robot_state_publisher robot_description:=mpc/robot_description'
+bashCommand = 'rosrun robot_state_publisher robot_state_publisher'
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
@@ -524,20 +523,25 @@ while not rospy.is_shutdown():
 
     # perception
     if jc.perception:
-        if xbot_param:
-            set_base_state_from_robot()
+        # if xbot_param:
+        #     set_base_state_from_robot()
         for c, timeline in c_timelines.items():
             for phase in timeline.getActivePhases():
                 if phase.getName() == f'crawl_{c}':
                     final_node = phase.getPosition() + phase.getNNodes()
                     if final_node < ns:
-                        initial_pose = FK_contacts[c](q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
+                        q_init = solution['q'][:, phase.getPosition()]
+                        # delta = base_pose - q_init[:7]
+                        # q_init[:3] = base_pose[:3]
+                        q_fin = solution['q'][:, final_node]
+                        # q_fin[:3] += delta[:3]
+                        initial_pose = FK_contacts[c](q=q_init)['ee_pos'].elements()
                         projected_initial_pose = projector.project(initial_pose)
-                        landing_pose = FK_contacts[c](q=solution['q'][:, final_node])['ee_pos'].elements()
+                        landing_pose = FK_contacts[c](q=q_fin)['ee_pos'].elements()
                         projected_final_pose = projector.project(landing_pose)
 
                         query_point = PointStamped()
-                        query_point.header.frame_id = 'odom'
+                        query_point.header.frame_id = 'world'
                         query_point.header.stamp = rospy.Time.now()
                         query_point.point.x = landing_pose[0]
                         query_point.point.y = landing_pose[1]
@@ -554,26 +558,19 @@ while not rospy.is_shutdown():
                         pub_dict[f'{c}_query'].publish(query_point)
                         pub_dict[f'{c}_proj'].publish(projected_point)
 
-                        ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
-                                                                          projected_initial_pose[2],
-                                                                          projected_final_pose[2],
-                                                                          0.1,
-                                                                          [None, 0, None]))
-                        phase.setItemReference(f'z_{c}', ref_trj)
-
                         if 0.02 < np.linalg.norm(qp - pp) < 0.1:
-                            # if c == 'contact_1':
-                            #     print(f'SETTING XY WEIGHT FOR {c}')
-                            #     input('click')
+                            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
+                                                                              projected_initial_pose[2],
+                                                                              projected_final_pose[2],
+                                                                              0.1,
+                                                                              [None, 0, None]))
 
-                            # ti.getTask(f'xy_{c}').setWeight(20., nodes=[final_node])
+                            phase.setItemReference(f'z_{c}', ref_trj)
+
                             phase.setItemWeight(f'xy_{c}', [50.])
                             ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
-                            # ref_trj_xy = linear_interpolator_xy(projected_initial_pose, projected_final_pose, flight_duration)
                             phase.setItemReference(f'xy_{c}', ref_trj_xy)
-                        # else:
-                            # ti.getTask(f'xy_{c}').setWeight(0.)
-                            # phase.setItemWeight(f'xy_{c}', [0.])
+
 
 
 
@@ -608,16 +605,18 @@ while not rospy.is_shutdown():
 
     solution_publisher.publish(sol_msg)
 
-    # if robot is None:
-    repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
-    repl.publish_joints(solution['q'][:, 0])
-    repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
-    repl.publish_future_trajectory_marker(solution['q'])
+    if True: #robot is None:
+        repl.frame_force_mapping = {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()}
+        repl.publish_joints(solution['q'][:, 0])
+        repl.publishContactForces(rospy.Time.now(), solution['q'][:, 0], 0)
+        repl.publish_future_trajectory_marker(solution['q'])
 
     solution_time_publisher.publish(Float64(data=time.time() - t0))
     rate.sleep()
 
     tsc.update()
+
+process.terminate()
 
 # roscpp.shutdown()
 # print(f'average time elapsed solving: {sum(time_elapsed_all_list) / len(time_elapsed_all_list)}')
