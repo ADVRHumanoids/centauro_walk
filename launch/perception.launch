@@ -3,8 +3,9 @@
         args="1 0 0 0 0 0 base_link odom_offset 30" output="screen"/>-->
 
     <arg name="core_param_path" value="$(find kyon_controller)/config/elevation_mapping/core_param.yaml"/>
-    <arg name="elevation_mapping_config_path" value="$(find kyon_controller)/config/elevation_mapping/centauro_elevation_mapping_config.yaml"/>-->
-<!--     <arg name="elevation_mapping_config_path" value="$(find kyon_controller)/config/elevation_mapping/kyon_elevation_mapping_config.yaml"/> -->
+<!--     <arg name="elevation_mapping_config_path" value="$(find kyon_controller)/config/elevation_mapping/centauro_elevation_mapping_config.yaml"/>--> -->
+    <arg name="elevation_mapping_config_path" value="$(find kyon_controller)/config/elevation_mapping/kyon_elevation_mapping_config.yaml"/>
+    <arg name="node_parameter_file" value="$(find kyon_controller)/config/elevation_mapping/node.yaml"/>
 
     <include file="$(find elevation_mapping_cupy)/launch/elevation_mapping_cupy.launch" pass_all_args="true"/>
     <include file="$(find convex_plane_decomposition_ros)/launch/convex_plane_decomposition.launch" pass_all_args="true"/>

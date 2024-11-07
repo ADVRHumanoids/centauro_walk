@@ -522,6 +522,9 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     # perception
+    if jc.joy_msg.axes[7] == -1:
+        projector.update()
+
     if jc.perception:
         # if xbot_param:
         #     set_base_state_from_robot()
