@@ -353,8 +353,7 @@ for c in model.cmap.keys():
 
     ref_trj_xy = np.zeros(shape=[7, 1])
     ref_trj_xy[0:2, 0] = FK_contacts[c](q=model.q0)['ee_pos'].elements()[0:2]
-    # flight_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
-    # c_timelines[c].registerPhase(flight_phase)
+    flight_phase.addItemReference(ti.getTask(f'xy_{c}'), ref_trj_xy, nodes=[flight_duration - 1])
 
 for c in model.cmap.keys():
     stance = c_timelines[c].getRegisteredPhase(f'stance_{c}')
@@ -379,7 +378,6 @@ test.assign(np.atleast_2d([3, 3]).T)
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
-pm.update()
 
 
 
@@ -420,12 +418,12 @@ jc = JoyCommands()
 
 gait_manager_ros = GaitManagerROS(gm)
 
-# if 'wheel_joint_1' in model.kd.joint_names():
-#     jc.setBaseVelLinWeight(0.1)
-#     jc.setBaseVelOriWeight(0.1)
-# else:
-#     jc.setBaseVelLinWeight(1.5)
-#     jc.setBaseVelOriWeight(1.)
+if 'wheel_joint_1' in model.kd.joint_names():
+    gait_manager_ros.setBaseRotWeight(0.1)
+    gait_manager_ros.setBaseRotWeight(0.1)
+else:
+    gait_manager_ros.setBasePoseWeight(1.5)
+    gait_manager_ros.setBaseRotWeight(1.)
 
 # if 'wheel_joint_1' in model.kd.joint_names():
 #     from geometry_msgs.msg import PointStamped
@@ -499,27 +497,18 @@ while not rospy.is_shutdown():
 
                         qp = np.array([query_point.point.x, query_point.point.y, query_point.point.z])
                         pp = np.array([projected_point.point.x, projected_point.point.y, projected_point.point.z])
-                        if np.linalg.norm(qp - pp) > 0.02:
-                            ti.getTask(f'xy_{c}').setWeight(100.)
-                            project = True
-                        else:
-                            ti.getTask(f'xy_{c}').setWeight(0.)
-                            project = False
+                        if 0.02 < np.linalg.norm(qp - pp) < 0.1:
+                            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
+                                                                              projected_initial_pose[2],
+                                                                              projected_final_pose[2],
+                                                                              0.1,
+                                                                              [None, 0, None]))
 
-                        # pub_dict[f'{c}_query'].publish(query_point)
-                        # pub_dict[f'{c}_proj'].publish(projected_point)
+                            phase.setItemReference(f'z_{c}', ref_trj)
 
-                        ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
-                                                                          projected_initial_pose[2],
-                                                                          projected_final_pose[2],
-                                                                          0.1,
-                                                                          [None, 0, None]))
-                        phase.setItemReference(f'z_{c}', ref_trj)
-
-                        ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]))
-
-                        phase.setItemReference(f'xy_{c}', ref_trj_xy)
-                        task = ti.getTask(f'xy_{c}')
+                            phase.setItemWeight(f'xy_{c}', [50.])
+                            ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
+                            phase.setItemReference(f'xy_{c}', ref_trj_xy)
 
     # shift phases of phase manager
     tic = time.time()
@@ -529,7 +518,6 @@ while not rospy.is_shutdown():
 
     jc.run()
     gait_manager_ros.run()
-    pm.update()
 
     tic = time.time()
     ti.rti()

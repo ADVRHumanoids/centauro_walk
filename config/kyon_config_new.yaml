@@ -22,10 +22,10 @@ solver:
 
 
 costs:
-#  - xy_contact_1
-#  - xy_contact_2
-#  - xy_contact_3
-#  - xy_contact_4
+  - xy_contact_1
+  - xy_contact_2
+  - xy_contact_3
+  - xy_contact_4
   - z_contact_1
   - z_contact_2
   - z_contact_3
@@ -49,15 +49,15 @@ costs:
 .define:
     - &w_com 50.
     - &w_base_ori 50.
-    - &w_base_xy 50.
+    - &w_base_xy 10.
     - &w_contact_z 100.
     - &w_contact_xy 0.
     - &w_postural 1.
     - &w_postural_ub 10.
-    - &w_v 1
-    - &w_a 5e-2
-    - &w_f 1e-2
-    - &w_contact 100
+    - &w_v 1e-2
+    - &w_a 2.5e-2
+    - &w_f 2.5e-2
+    - &w_contact 200
     - &w_contact_ori 20.
 
 base_xy:
