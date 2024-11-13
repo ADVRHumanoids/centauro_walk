@@ -26,22 +26,23 @@ constraints:
   - contact_4
 
 costs:
-  - final_base_xy
+#  - final_base_xy
   - z_contact_1
   - z_contact_2
   - z_contact_3
   - z_contact_4
-#  - xy_contact_1
-#  - xy_contact_2
-#  - xy_contact_3
-#  - xy_contact_4
-#  - final_base_xy
-#  - base_orientation
+  - xy_contact_1
+  - xy_contact_2
+  - xy_contact_3
+  - xy_contact_4
+  - acceleration_regularization
+  - contact_1_regularization
+  - contact_2_regularization
+  - contact_3_regularization
+  - contact_4_regularization
   - com_height
-  - joint_regularization
   - joint_posture
 #  - zmp
-#  - joint_posture_ub
 
 .define:
     - &w_com 1.
@@ -50,7 +51,7 @@ costs:
     - &w_contact_z 50.
     - &w_postural 0.1
     - &w_postural_ub 1.
-    - &w_contact_xy 10.
+    - &w_contact_xy 0.
     - &w_v 1e-2
     - &w_a 1e-2
     - &w_f 1e-3
@@ -185,14 +186,42 @@ zmp:
   type: Zmp
   weight: *w_zmp
 
-# todo: wrong, as the order COUNTS. If I add the contacts after the joint regularization, they wont get considered.
-joint_regularization:
+#velocity_regularization:
+#  type: Regularization
+#  variable_name: v
+#  nodes: all
+#  weight: *w_v
+
+acceleration_regularization:
   type: Regularization
+  variable_name: a
   nodes: all
-  weight:
-#    velocity: *w_v
-    acceleration: *w_a # 0.01
-    force: *w_f # todo <----- how to do? if there are more forces...
+  weight: *w_a
+
+contact_1_regularization:
+  type: Regularization
+  variable_name: f_contact_1
+  nodes: all
+  weight: *w_f
+
+contact_2_regularization:
+  type: Regularization
+  variable_name: f_contact_2
+  nodes: all
+  weight: *w_f
+
+contact_3_regularization:
+  type: Regularization
+  variable_name: f_contact_3
+  nodes: all
+  weight: *w_f
+
+contact_4_regularization:
+  type: Regularization
+  variable_name: f_contact_4
+  nodes: all
+  weight: *w_f
+
 
 z_contact_1:
   type: Cartesian

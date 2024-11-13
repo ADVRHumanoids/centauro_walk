@@ -8,11 +8,12 @@ from horizon.ros import replay_trajectory
 import casadi_kin_dyn.py3casadi_kin_dyn as casadi_kin_dyn
 import phase_manager.pymanager as pymanager
 import phase_manager.pyphase as pyphase
-
+import phase_manager.pytimeline as pytimeline
 import horizon.utils.analyzer as analyzer
 from geometry_msgs.msg import PointStamped
 
-from centauro_joy_commands import GaitManager
+from horizon.rhc.gait_manager import GaitManager
+from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
 
 import casadi as cs
 import rospy
@@ -44,22 +45,6 @@ if srdf == '':
 file_dir = rospkg.RosPack().get_path('kyon_controller')
 
 '''
-Find tf from odom to odom_offset
-'''
-listener = tf.TransformListener()
-
-print('wait for transform')
-
-try:
-    listener.waitForTransform('base_link', 'odom_offset', rospy.Time(0), timeout=rospy.Duration(0.1))
-except:
-    pass
-
-print('transform found!')
-(trans, rot) = listener.lookupTransform('base_link', 'odom_offset', rospy.Time(0))
-
-
-'''
 Initialize Horizon problem
 '''
 ns = 280
@@ -89,6 +74,8 @@ q_init = {'hip_yaw_1': -0.746,
           'knee_pitch_4': -1.555,
           'ankle_pitch_4': -0.3}
 
+
+
 base_pose = [0., 0., 0., 0., 0., 0., 1]
 base_twist = np.zeros(6)
 
@@ -112,10 +99,15 @@ fixed_joint_map.update(arm_joints_map)
 fixed_joint_map.update(torso_map)
 fixed_joint_map.update(head_map)
 
-query_pub_init = rospy.Publisher('~query_point_init', PointStamped, queue_size=1)
-query_pub_fin = rospy.Publisher('~query_point_fin', PointStamped, queue_size=1)
-projected_pub_init = rospy.Publisher('~projected_point_init', PointStamped, queue_size=1)
-projected_pub_fin = rospy.Publisher('~projected_point_fin', PointStamped, queue_size=1)
+pub_dict = dict()
+pub_dict['contact_1_query'] = rospy.Publisher('~contact_1_query', PointStamped, queue_size=1)
+pub_dict['contact_1_proj'] = rospy.Publisher('~contact_1_proj', PointStamped, queue_size=1)
+pub_dict['contact_2_query'] = rospy.Publisher('~contact_2_query', PointStamped, queue_size=1)
+pub_dict['contact_2_proj'] = rospy.Publisher('~contact_2_proj', PointStamped, queue_size=1)
+pub_dict['contact_3_query'] = rospy.Publisher('~contact_3_query', PointStamped, queue_size=1)
+pub_dict['contact_3_proj'] = rospy.Publisher('~contact_3_proj', PointStamped, queue_size=1)
+pub_dict['contact_4_query'] = rospy.Publisher('~contact_4_query', PointStamped, queue_size=1)
+pub_dict['contact_4_proj'] = rospy.Publisher('~contact_4_proj', PointStamped, queue_size=1)
 #
 # query_point = PointStamped()
 # query_point.header.frame_id = 'odom_offset'
@@ -143,6 +135,13 @@ urdf = urdf.replace('continuous', 'revolute')
 
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
+
+FK = kin_dyn.fk('contact_1')
+
+init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos'].elements()
+base_pose[2] = -init_pos_foot[2]
+base_pose[0] = 1.3
+
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
                                  q_init=q_init,
@@ -150,7 +149,7 @@ model = FullModelInverseDynamics(problem=prb,
                                  fixed_joint_map=fixed_joint_map
                                  )
 
-bashCommand = 'rosrun robot_state_publisher robot_state_publisher _tf_prefix:=to'
+bashCommand = 'rosrun robot_state_publisher robot_state_publisher'
 process = subprocess.Popen(bashCommand.split(), start_new_session=True)
 
 ti = TaskInterface(prb=prb, model=model)
@@ -161,11 +160,17 @@ tg = trajectoryGenerator.TrajectoryGenerator()
 pm = pymanager.PhaseManager(ns)
 
 # phase manager handling
-c_phases = dict()
+c_timelines = dict()
 for c in model.cmap.keys():
-    c_phases[c] = pm.addTimeline(f'{c}_timeline')
+    c_timelines[c] = pm.createTimeline(f'{c}_timeline')
 
-ground = dict()
+FK_contacts = dict()
+dFK_contacts = dict()
+for c in model.getContactMap():
+    FK_contacts[c] = model.kd.fk(c)
+
+    dFK_contacts[c] = model.kd.frameVelocity(c, model.kd_frame)
+
 
 short_stance_duration = 5
 stance_duration = 15
@@ -175,19 +180,17 @@ c_i = 0
 for c in model.getContactMap():
     c_i += 1  # because contact task start from contact_1
     # stance phase normal
-    stance_phase = pyphase.Phase(stance_duration, f'stance_{c}')
-    stance_phase_short = pyphase.Phase(short_stance_duration, f'stance_{c}_short')
+    stance_phase = c_timelines[c].createPhase(stance_duration, f'stance_crawl_{c}')
+    stance_phase_short = c_timelines[c].createPhase(short_stance_duration, f'stance_{c}_short')
     if ti.getTask(f'contact_{c_i}') is not None:
         stance_phase.addItem(ti.getTask(f'contact_{c_i}'))
         stance_phase_short.addItem(ti.getTask(f'contact_{c_i}'))
     else:
         raise Exception('task not found')
 
-    c_phases[c].registerPhase(stance_phase)
-    c_phases[c].registerPhase(stance_phase_short)
 
     # flight phase normal
-    flight_phase = pyphase.Phase(flight_duration, f'flight_{c}')
+    flight_phase = c_timelines[c].createPhase(flight_duration, f'crawl_{c}')
     init_z_foot = model.kd.fk(c)(q=model.q0)['ee_pos'].elements()[2]
 
     ref_trj = np.zeros(shape=[7, flight_duration])
@@ -208,16 +211,32 @@ for c in model.getContactMap():
     ref_trj_xy = np.zeros(shape=[7, 1])
     flight_phase.addItemReference(ti.getTask(f'xy_contact_{c_i}'), ref_trj_xy, nodes=[flight_duration - 1])
 
-    c_phases[c].registerPhase(flight_phase)
 
 contact_phase_map = {c: f'{c}_timeline' for c in model.cmap.keys()}
 gm = GaitManager(ti, pm, contact_phase_map)
 
-gm.stand()
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
 gm.crawl()
 gm.crawl()
 gm.crawl()
-gm.stand()
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
+gm.stand() # 5 nodes
+
+# for c in model.cmap.keys():
+#     stance = c_timelines[c].getRegisteredPhase(f'stance_crawl_{c}')
+#     while c_timelines[c].getEmptyNodes() > 0:
+#         c_timelines[c].addPhase(stance)
+
+# for c in model.cmap.keys():
+#     print(f'timeline {c}:')
+#     for phase in c_timelines[c].getActivePhases():
+#         print(phase.getName(), end=" ")
+#     print()
 
 q_final = ti.model.q0.copy()
 q_final[0] += 0.9
@@ -238,9 +257,12 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 
+pm.update()
 ti.bootstrap()
 
 solution = ti.solution
+
+
 
 # contact_list_repl = list(model.cmap.keys())
 # repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution['q'],
@@ -249,10 +271,9 @@ solution = ti.solution
 #                                            # trajectory_markers=contact_list_repl,
 #                                            fixed_joint_map=fixed_joint_map)
 #
-# repl.replay(is_floating_base=True)
+# repl.replay()
 
 # second solve to project contact onto the extracted polygons
-
 
 
 for c in model.getContactMap():
@@ -260,64 +281,89 @@ for c in model.getContactMap():
         raise Exception(f'xy_{c} task not defined!')
     ti.getTask(f'xy_{c}').setWeight(100.)
 
-for c, timeline in c_phases.items():
+projected_initial_pose_list = dict()
+projected_final_pose_list = dict()
+original_landing_pose_list = dict()
+
+for n_step in range(3):
+    projected_initial_pose_list[n_step] = dict()
+    projected_final_pose_list[n_step] = dict()
+    original_landing_pose_list[n_step] = dict()
+
+for c, timeline in c_timelines.items():
+
+    n_step = 0
+
     for phase in timeline.getActivePhases():
-        if phase.getName() == f'flight_{c}':
+        if phase.getName() == f'crawl_{c}':
+
             final_node = phase.getPosition() + phase.getNNodes()
-            initial_pose = model.kd.fk(c)(q=solution['q'][:, phase.getPosition()])['ee_pos'].elements()
-            initial_pose[0] -= trans[0]
-            projected_initial_pose = projector.project(initial_pose)
-            landing_pose = model.kd.fk(c)(q=solution['q'][:, final_node])['ee_pos'].elements()
-            landing_pose[0] -= trans[0]
-            projected_final_pose = projector.project(landing_pose)
+            if final_node < ns:
+                q_init = solution['q'][:, phase.getPosition()]
+                q_fin = solution['q'][:, final_node]
 
-            # query_point_init = PointStamped()
-            # query_point_init.header.frame_id = 'odom_offset'
-            # query_point_init.header.stamp = rospy.Time.now()
-            # query_point_init.point.x = initial_pose[0]
-            # query_point_init.point.y = initial_pose[1]
-            # query_point_init.point.z = initial_pose[2]
-            # query_point_fin = PointStamped()
-            # query_point_fin.header.frame_id = 'odom_offset'
-            # query_point_fin.header.stamp = rospy.Time.now()
-            # query_point_fin.point.x = landing_pose[0]
-            # query_point_fin.point.y = landing_pose[1]
-            # query_point_fin.point.z = landing_pose[2]
-            #
-            # projected_point_init = PointStamped()
-            # projected_point_init.header = query_point_init.header
-            # projected_point_init.point.x = projected_initial_pose[0]
-            # projected_point_init.point.y = projected_initial_pose[1]
-            # projected_point_init.point.z = projected_initial_pose[2]
-            # projected_point_fin = PointStamped()
-            # projected_point_fin.header = query_point_init.header
-            # projected_point_fin.point.x = projected_final_pose[0]
-            # projected_point_fin.point.y = projected_final_pose[1]
-            # projected_point_fin.point.z = projected_final_pose[2]
-            #
-            # query_pub_init.publish(query_point_init)
-            # query_pub_fin.publish(query_point_fin)
-            # projected_pub_init.publish(projected_point_init)
-            # projected_pub_fin.publish(projected_point_fin)
+                initial_pose = FK_contacts[c](q=q_init)['ee_pos'].elements()
+                projected_initial_pose = projector.project(initial_pose)
+                landing_pose = FK_contacts[c](q=q_fin)['ee_pos'].elements()
+                projected_final_pose = projector.project(landing_pose)
+
+                # if 0.02 < np.linalg.norm(qp - pp) < 0.1:
+                ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
+                                                                  projected_initial_pose[2],
+                                                                  projected_final_pose[2],
+                                                                  0.1,
+                                                                  [None, 0, None]))
+
+                phase.setItemReference(f'z_{c}', ref_trj)
+
+                # phase.setItemWeight(f'xy_{c}', [50.])
+                ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
+                phase.setItemReference(f'xy_{c}', ref_trj_xy)
+                pm.update()
+
+                projected_initial_pose_list[n_step][c] = projected_initial_pose
+                projected_final_pose_list[n_step][c] = projected_final_pose
+                original_landing_pose_list[n_step][c] = landing_pose
 
 
-            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration, projected_initial_pose[2], projected_final_pose[2], 0.1, [None, 0, None]))
-            phase.setItemReference(f'z_{c}', ref_trj)
 
-            ref_trj_xy[0:2, 0] = np.atleast_2d(np.array(projected_final_pose[0:2]) + np.array(trans[0:2]))
-            print(f'pose: {np.array(initial_pose) + np.array(trans)} ----> {np.array(projected_initial_pose) + np.array(trans)}')
-            print(f'pose: {np.array(landing_pose) + np.array(trans)} ----> {np.array(projected_final_pose) + np.array(trans)}')
-            # input('click')
+                n_step += 1
 
-            phase.setItemReference(f'xy_{c}', ref_trj_xy)
 
-# ti.finalize()
+# rate = rospy.Rate(100)
+# while not rospy.is_shutdown():
+#     for n_step in range(3):
+#         for i_loop in range(100):
+#             for c, timeline in c_timelines.items():
+#
+#                 query_point = PointStamped()
+#                 query_point.header.frame_id = 'world'
+#                 query_point.header.stamp = rospy.Time.now()
+#
+#                 query_point.point.x = original_landing_pose_list[n_step][c][0]
+#                 query_point.point.y = original_landing_pose_list[n_step][c][1]
+#                 query_point.point.z = original_landing_pose_list[n_step][c][2]
+#
+#                 projected_point = PointStamped()
+#                 projected_point.header = query_point.header
+#                 projected_point.point.x = projected_final_pose_list[n_step][c][0]
+#                 projected_point.point.y = projected_final_pose_list[n_step][c][1]
+#                 projected_point.point.z = projected_final_pose_list[n_step][c][2]
+#
+#                 pub_dict[f'{c}_query'].publish(query_point)
+#                 pub_dict[f'{c}_proj'].publish(projected_point)
+#                 rate.sleep()
+
+                # qp = np.array([query_point.point.x, query_point.point.y])  # , query_point.point.z])
+                # pp = np.array([projected_point.point.x, projected_point.point.y])  # , projected_point.point.z])
+
+
+
 
 prb.getState().setInitialGuess(solution['x_opt'])
 
-anal = analyzer.ProblemAnalyzer(ti.prb)
-
-anal.printParameters()
+# anal = analyzer.ProblemAnalyzer(ti.prb)
+# anal.printParameters()
 # exit()
 
 ti.bootstrap()
@@ -331,6 +377,6 @@ repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution[
                                            trajectory_markers=contact_list_repl,
                                            fixed_joint_map=fixed_joint_map)
 
-repl.replay(is_floating_base=True)
+repl.replay()
 
 projector.shutdown()

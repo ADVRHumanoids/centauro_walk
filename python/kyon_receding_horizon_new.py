@@ -379,6 +379,7 @@ test.assign(np.atleast_2d([3, 3]).T)
 
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
+pm.update()
 
 
 
@@ -419,12 +420,12 @@ jc = JoyCommands()
 
 gait_manager_ros = GaitManagerROS(gm)
 
-if 'wheel_joint_1' in model.kd.joint_names():
-    jc.setBaseVelLinWeight(0.1)
-    jc.setBaseVelOriWeight(0.1)
-else:
-    jc.setBaseVelLinWeight(1.5)
-    jc.setBaseVelOriWeight(1.)
+# if 'wheel_joint_1' in model.kd.joint_names():
+#     jc.setBaseVelLinWeight(0.1)
+#     jc.setBaseVelOriWeight(0.1)
+# else:
+#     jc.setBaseVelLinWeight(1.5)
+#     jc.setBaseVelOriWeight(1.)
 
 # if 'wheel_joint_1' in model.kd.joint_names():
 #     from geometry_msgs.msg import PointStamped
@@ -528,6 +529,7 @@ while not rospy.is_shutdown():
 
     jc.run()
     gait_manager_ros.run()
+    pm.update()
 
     tic = time.time()
     ti.rti()

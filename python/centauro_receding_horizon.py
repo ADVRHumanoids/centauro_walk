@@ -435,6 +435,7 @@ prb.createResidual('min_vel', 1e1 * utils.utils.barrier1(-1 * vel_lims[7:] - mod
 # finalize taskInterface and solve bootstrap problem
 ti.finalize()
 tsc = TaskServerClass(ti)
+
 tsc.setMinMax('joint_posture_weight', 0, 10)
 tsc.setMinMax("acceleration_regularization_weight", 0, 0.1)
 tsc.setMinMax("velocity_regularization_weight", 0, 2.)
@@ -522,54 +523,55 @@ while not rospy.is_shutdown():
         set_state_from_robot(robot_joint_names=robot_joint_names, q_robot=q_robot, qdot_robot=qdot_robot)
 
     # perception
-    if jc.perception:
-        # if xbot_param:
-        #     set_base_state_from_robot()
-        for c, timeline in c_timelines.items():
-            for phase in timeline.getActivePhases():
-                if phase.getName() == f'crawl_{c}':
-                    final_node = phase.getPosition() + phase.getNNodes()
-                    if final_node < ns:
-                        q_init = solution['q'][:, phase.getPosition()]
-                        # delta = base_pose - q_init[:7]
-                        # q_init[:3] = base_pose[:3]
-                        q_fin = solution['q'][:, final_node]
-                        # q_fin[:3] += delta[:3]
-                        initial_pose = FK_contacts[c](q=q_init)['ee_pos'].elements()
-                        projected_initial_pose = projector.project(initial_pose)
-                        landing_pose = FK_contacts[c](q=q_fin)['ee_pos'].elements()
-                        projected_final_pose = projector.project(landing_pose)
+    if joystick_flag:
+        if jc.perception:
+            # if xbot_param:
+            #     set_base_state_from_robot()
+            for c, timeline in c_timelines.items():
+                for phase in timeline.getActivePhases():
+                    if phase.getName() == f'crawl_{c}':
+                        final_node = phase.getPosition() + phase.getNNodes()
+                        if final_node < ns:
+                            q_init = solution['q'][:, phase.getPosition()]
+                            # delta = base_pose - q_init[:7]
+                            # q_init[:3] = base_pose[:3]
+                            q_fin = solution['q'][:, final_node]
+                            # q_fin[:3] += delta[:3]
+                            initial_pose = FK_contacts[c](q=q_init)['ee_pos'].elements()
+                            projected_initial_pose = projector.project(initial_pose)
+                            landing_pose = FK_contacts[c](q=q_fin)['ee_pos'].elements()
+                            projected_final_pose = projector.project(landing_pose)
 
-                        query_point = PointStamped()
-                        query_point.header.frame_id = 'world'
-                        query_point.header.stamp = rospy.Time.now()
-                        query_point.point.x = landing_pose[0]
-                        query_point.point.y = landing_pose[1]
-                        query_point.point.z = landing_pose[2]
+                            query_point = PointStamped()
+                            query_point.header.frame_id = 'world'
+                            query_point.header.stamp = rospy.Time.now()
+                            query_point.point.x = landing_pose[0]
+                            query_point.point.y = landing_pose[1]
+                            query_point.point.z = landing_pose[2]
 
-                        projected_point = PointStamped()
-                        projected_point.header = query_point.header
-                        projected_point.point.x = projected_final_pose[0]
-                        projected_point.point.y = projected_final_pose[1]
-                        projected_point.point.z = projected_final_pose[2]
+                            projected_point = PointStamped()
+                            projected_point.header = query_point.header
+                            projected_point.point.x = projected_final_pose[0]
+                            projected_point.point.y = projected_final_pose[1]
+                            projected_point.point.z = projected_final_pose[2]
 
-                        qp = np.array([query_point.point.x, query_point.point.y]) #, query_point.point.z])
-                        pp = np.array([projected_point.point.x, projected_point.point.y]) #, projected_point.point.z])
-                        pub_dict[f'{c}_query'].publish(query_point)
-                        pub_dict[f'{c}_proj'].publish(projected_point)
+                            qp = np.array([query_point.point.x, query_point.point.y]) #, query_point.point.z])
+                            pp = np.array([projected_point.point.x, projected_point.point.y]) #, projected_point.point.z])
+                            pub_dict[f'{c}_query'].publish(query_point)
+                            pub_dict[f'{c}_proj'].publish(projected_point)
 
-                        if 0.02 < np.linalg.norm(qp - pp) < 0.1:
-                            ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
-                                                                              projected_initial_pose[2],
-                                                                              projected_final_pose[2],
-                                                                              0.1,
-                                                                              [None, 0, None]))
+                            if 0.02 < np.linalg.norm(qp - pp) < 0.1:
+                                ref_trj[2, :] = np.atleast_2d(tg.from_derivatives(flight_duration,
+                                                                                  projected_initial_pose[2],
+                                                                                  projected_final_pose[2],
+                                                                                  0.1,
+                                                                                  [None, 0, None]))
 
-                            phase.setItemReference(f'z_{c}', ref_trj)
+                                phase.setItemReference(f'z_{c}', ref_trj)
 
-                            phase.setItemWeight(f'xy_{c}', [50.])
-                            ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
-                            phase.setItemReference(f'xy_{c}', ref_trj_xy)
+                                phase.setItemWeight(f'xy_{c}', [50.])
+                                ref_trj_xy[0:2, 0] = projected_final_pose[0:2]
+                                phase.setItemReference(f'xy_{c}', ref_trj_xy)
 
 
 
