@@ -370,6 +370,35 @@ ti.bootstrap()
 
 solution = ti.solution
 
+
+# ============================================= send to gazebo ============================================
+print('sending it to gazebo...')
+from kyon_controller.msg import WBTrajectory
+from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
+solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
+
+sol_msg = WBTrajectory()
+sol_msg.header.frame_id = 'world'
+sol_msg.header.stamp = rospy.Time.now()
+
+sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
+
+rate = rospy.Rate(1/dt)
+for i_sample in range(ns):
+    sol_msg.q = solution['q'][:, i_sample].tolist()
+    sol_msg.v = solution['v'][:, i_sample].tolist()
+    sol_msg.a = solution['a'][:, i_sample].tolist()
+
+    for frame in model.getForceMap():
+        sol_msg.force_names.append(frame)
+        sol_msg.f.append(
+            Vector3(x=solution[f'f_{frame}'][0, 0], y=solution[f'f_{frame}'][1, 0], z=solution[f'f_{frame}'][2, 0]))
+
+    solution_publisher.publish(sol_msg)
+    rate.sleep()
+
+# ========================================================-------============================================
+
 contact_list_repl = list(model.cmap.keys())
 repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution['q'],
                                            {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()},
