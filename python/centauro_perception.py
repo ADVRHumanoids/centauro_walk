@@ -15,6 +15,9 @@ from geometry_msgs.msg import PointStamped
 from horizon.rhc.gait_manager import GaitManager
 from horizon.rhc.ros.gait_manager_ros import GaitManagerROS
 
+from xbot_interface import config_options as co
+from xbot_interface import xbot_interface as xbot
+
 import casadi as cs
 import rospy
 import rospkg
@@ -25,6 +28,19 @@ import tf
 import horizon.utils as utils
 
 import convex_plane_decomposition_ros.pysegmented_plane_projection as projector
+
+
+global base_pose
+global base_twist
+
+def gt_pose_callback_odom(msg):
+    global base_pose
+    global base_twist
+    base_pose = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z,
+                          msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z,
+                          msg.pose.pose.orientation.w])
+    base_twist = np.array([msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z,
+                           msg.twist.twist.angular.x, msg.twist.twist.angular.y, msg.twist.twist.angular.z])
 
 
 rospy.init_node('centauro_perception')
@@ -45,6 +61,17 @@ if srdf == '':
 file_dir = rospkg.RosPack().get_path('kyon_controller')
 
 '''
+Build ModelInterface and RobotStatePublisher
+'''
+cfg = co.ConfigOptions()
+cfg.set_urdf(urdf)
+cfg.set_srdf(srdf)
+cfg.generate_jidmap()
+cfg.set_string_parameter('model_type', 'RBDL')
+cfg.set_string_parameter('framework', 'ROS')
+cfg.set_bool_parameter('is_model_floating_base', True)
+
+'''
 Initialize Horizon problem
 '''
 ns = 280
@@ -54,43 +81,92 @@ dt = T / ns
 prb = Problem(ns, receding=True, casadi_type=cs.SX)
 prb.setDt(dt)
 
-q_init = {'hip_yaw_1': -0.746,
-          'hip_pitch_1': -1.254,
-          'knee_pitch_1': -1.555,
-          'ankle_pitch_1': -0.3,
+xbot_param = True
 
-          'hip_yaw_2': 0.746,
-          'hip_pitch_2': 1.254,
-          'knee_pitch_2': 1.555,
-          'ankle_pitch_2': 0.3,
+base_pose = None
+base_twist = None
+robot = None
 
-          'hip_yaw_3': 0.746,
-          'hip_pitch_3': 1.254,
-          'knee_pitch_3': 1.555,
-          'ankle_pitch_3': 0.3,
+if xbot_param:
+    robot = xbot.RobotInterface(cfg)
+    robot.sense()
 
-          'hip_yaw_4': -0.746,
-          'hip_pitch_4': -1.254,
-          'knee_pitch_4': -1.555,
-          'ankle_pitch_4': -0.3}
+    # if not perception:
+    #     rospy.Subscriber('/xbotcore/imu/imu_link', Imu, imu_callback)
+    #     while base_pose is None:
+    #         rospy.sleep(0.01)
+    #
+    #     base_pose[0:3] = [0.07, 0., 0.8]
+    #     base_twist = np.zeros(6)
+    # else:
+    # rospy.Subscriber('/centauro_base_estimation/base_link/pose', PoseStamped, gt_pose_callback)
+    # rospy.Subscriber('/centauro_base_estimation/base_link/twist', TwistStamped, gt_twist_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/pose', PoseStamped, gt_pose_callback)
+    # rospy.Subscriber('/xbotcore/link_state/pelvis/twist', TwistStamped, gt_twist_callback)
 
+    from nav_msgs.msg import Odometry
+    rospy.Subscriber('/zedx_left/zed_node/odom', Odometry, gt_pose_callback_odom)
 
+    while base_pose is None or base_twist is None:
+        rospy.sleep(0.01)
 
-base_pose = [0., 0., 0., 0., 0., 0., 1]
-base_twist = np.zeros(6)
+    q_init_vec = robot.getPositionReference()
+    q_init = robot.eigenToMap(q_init_vec)
 
-wheels = [f'j_wheel_{i + 1}' for i in range(4)]
-wheels_map = dict(zip(wheels, 4 * [0.]))
+    wheels_map = {f'j_wheel_{i + 1}': q_init[f'j_wheel_{i + 1}'] for i in range(4)}
 
-ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
-ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
+    ankle_yaws_map = {f'ankle_yaw_{i + 1}': q_init[f'ankle_yaw_{i + 1}'] for i in range(4)}
 
-arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
-arm_joints_map = dict(zip(arm_joints, [0.75, 0.1, 0.2, -2.2, 0., -1.3, 0.75, 0.1, -0.2, -2.2, 0.0, -1.3]))
+    arm_joints_map = {f'j_arm1_{i + 1}': q_init[f'j_arm1_{i + 1}'] for i in range(6)}
+    arm_joints_map.update({f'j_arm2_{i + 1}': q_init[f'j_arm2_{i + 1}'] for i in range(6)})
 
-torso_map = {'torso_yaw': 0.}
+    torso_map = {'torso_yaw': 0.}
 
-head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
+    head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
+
+    print('RobotInterface created')
+
+else:
+    print('RobotInterface not created')
+
+    q_init = {
+        'hip_yaw_1': -0.746,
+        'hip_pitch_1': -1.254,
+        'knee_pitch_1': -1.555,
+        'ankle_pitch_1': -0.3,
+
+        'hip_yaw_2': 0.746,
+        'hip_pitch_2': 1.254,
+        'knee_pitch_2': 1.555,
+        'ankle_pitch_2': 0.3,
+
+        'hip_yaw_3': 0.746,
+        'hip_pitch_3': 1.254,
+        'knee_pitch_3': 1.555,
+        'ankle_pitch_3': 0.3,
+
+        'hip_yaw_4': -0.746,
+        'hip_pitch_4': -1.254,
+        'knee_pitch_4': -1.555,
+        'ankle_pitch_4': -0.3,
+    }
+
+    base_pose = np.array([2.07, 0., 0.8, 0., 0., 0., 1.])
+    base_twist = np.zeros(6)
+
+    wheels = [f'j_wheel_{i + 1}' for i in range(4)]
+    wheels_map = dict(zip(wheels, 4 * [0.]))
+
+    ankle_yaws = [f'ankle_yaw_{i + 1}' for i in range(4)]
+    ankle_yaws_map = dict(zip(ankle_yaws, [np.pi/4, -np.pi/4, -np.pi/4, np.pi/4]))
+
+    arm_joints = [f'j_arm1_{i + 1}' for i in range(6)] + [f'j_arm2_{i + 1}' for i in range(6)]
+    arm_joints_map = dict(zip(arm_joints, [0.520149, 0.320865, 0.274669, -2.23604, 0.0500815, -0.781461,
+                                           0.520149, -0.320865, -0.274669, -2.23604, -0.0500815, -0.781461]))
+
+    torso_map = {'torso_yaw': 0.}
+
+    head_map = {'d435_head_joint': 0.0, 'velodyne_joint': 0.0}
 
 fixed_joint_map = dict()
 fixed_joint_map.update(wheels_map)
@@ -136,11 +212,11 @@ urdf = urdf.replace('continuous', 'revolute')
 kin_dyn = casadi_kin_dyn.CasadiKinDyn(urdf, fixed_joints=fixed_joint_map)
 
 
-FK = kin_dyn.fk('contact_1')
+# FK = kin_dyn.fk('contact_1')
 
-init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos'].elements()
-base_pose[2] = -init_pos_foot[2]
-base_pose[0] = 1.3
+# init_pos_foot = FK(q=kin_dyn.mapToQ(q_init))['ee_pos'].elements()
+# base_pose[2] = -init_pos_foot[2]
+# base_pose[0] = 1.3
 
 model = FullModelInverseDynamics(problem=prb,
                                  kd=kin_dyn,
@@ -335,24 +411,33 @@ for c, timeline in c_timelines.items():
 #     for n_step in range(3):
 #         for i_loop in range(100):
 #             for c, timeline in c_timelines.items():
-#
+
 #                 query_point = PointStamped()
-#                 query_point.header.frame_id = 'world'
+#                 query_point.header.frame_id = 'odom'
 #                 query_point.header.stamp = rospy.Time.now()
-#
+
 #                 query_point.point.x = original_landing_pose_list[n_step][c][0]
 #                 query_point.point.y = original_landing_pose_list[n_step][c][1]
 #                 query_point.point.z = original_landing_pose_list[n_step][c][2]
-#
+
 #                 projected_point = PointStamped()
 #                 projected_point.header = query_point.header
 #                 projected_point.point.x = projected_final_pose_list[n_step][c][0]
 #                 projected_point.point.y = projected_final_pose_list[n_step][c][1]
 #                 projected_point.point.z = projected_final_pose_list[n_step][c][2]
-#
+
 #                 pub_dict[f'{c}_query'].publish(query_point)
 #                 pub_dict[f'{c}_proj'].publish(projected_point)
 #                 rate.sleep()
+
+# contact_list_repl = list(model.cmap.keys())
+# repl = replay_trajectory.replay_trajectory(dt, model.kd.joint_names(), solution['q'],
+#                                            {cname: solution[f.getName()] for cname, f in ti.model.fmap.items()},
+#                                            model.kd_frame, model.kd,
+#                                            trajectory_markers=contact_list_repl,
+#                                            fixed_joint_map=fixed_joint_map)
+
+# repl.replay()
 
                 # qp = np.array([query_point.point.x, query_point.point.y])  # , query_point.point.z])
                 # pp = np.array([projected_point.point.x, projected_point.point.y])  # , projected_point.point.z])
@@ -378,7 +463,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 solution_publisher = rospy.Publisher('/mpc_solution', WBTrajectory, queue_size=1, tcp_nodelay=True)
 
 sol_msg = WBTrajectory()
-sol_msg.header.frame_id = 'world'
+# sol_msg.header.frame_id = 'world'
 sol_msg.header.stamp = rospy.Time.now()
 
 sol_msg.joint_names = [elem for elem in kin_dyn.joint_names() if elem not in ['universe', 'reference']]
